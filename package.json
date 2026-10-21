@@ -1,0 +1,36 @@
+{
+  "name": "dpa-reservations",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && node build.mjs",
+    "test": "node --test tests.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy"
+  },
+  "dependencies": {
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "lucide-react": "1.31.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "Cơ sở dữ liệu lịch đặt bàn dùng chung giữa điện thoại và máy tính."
+      }
+    }
+  }
+}

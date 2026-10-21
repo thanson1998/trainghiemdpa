@@ -1,0 +1,11 @@
+import {build} from 'vite';
+import fs from 'node:fs';
+await build();
+let html=fs.readFileSync('dist/source.html','utf8');
+html=html.replace(/<link rel="icon"[^>]*>/,'<link rel="icon" href="./favicon.svg"/>');
+html=html.replace(/<script type="module"[^>]*src="([^\"]+)"[^>]*><\/script>/g,(_match,url)=>'<script type="module">'+fs.readFileSync('dist/'+url.replace(/^\.\//,''),'utf8').replace(/<\/script/gi,'<\\/script')+'</script>');
+html=html.replace(/<link rel="stylesheet"[^>]*href="([^\"]+)"[^>]*>/g,(_match,url)=>'<style>'+fs.readFileSync('dist/'+url.replace(/^\.\//,''),'utf8')+'</style>');
+fs.writeFileSync('index.html',html);
+fs.writeFileSync('dist/index.html',html);
+for(const file of ['config.js','favicon.svg'])fs.copyFileSync(file,'dist/'+file);
+console.log('GitHub Pages index.html and Cloudflare dist prepared.');
