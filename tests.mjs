@@ -13,13 +13,17 @@ const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.ur
 const menu=await import(menuUrl);
 const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./api'",JSON.stringify(dataUrl(compile(source)))))));
+const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const catalogApi=await import(dataUrl(compile(catalogSource)));
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
  sqlite=new DatabaseSync(':memory:');
  sqlite.exec(fs.readFileSync(new URL('./0001_reservations.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0002_menu_catalog_deposit.sql',import.meta.url),'utf8'));
+
  db={prepare(sql){const statement=sqlite.prepare(sql);return{bind(...values){return{async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}}}}}};
 });
 afterEach(()=>sqlite.close());
@@ -91,4 +95,56 @@ test('80mm receipt retains dish prices and negotiated table total',()=>{
  assert.match(html,/size: 80mm/);assert.ok(html.includes('Gà hấp'));
  for(const amount of [240000,180000,420000,1200000,3600000])assert.ok(html.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
  const css=fs.readFileSync(new URL('./menu-print.css',import.meta.url),'utf8');assert.ok(css.includes('width:80mm'));assert.ok(!css.includes('A4'));
+});
+
+test('monthly list includes all dates, sorts chronologically and excludes adjacent months',async()=>{
+ const records=[booking({date:'2026-09-30'}),booking({date:'2026-10-31'}),booking({date:'2026-10-01',start:'18:00',end:'20:00'}),booking({date:'2026-10-01',start:'10:00',end:'12:00'}),booking({date:'2026-11-01'})];
+ for(const b of records)assert.equal((await api.POST(req('POST',b),db)).status,200);
+ const response=await api.GET(new Request('https://dpa.example/api/bookings?month=2026-10'),db);assert.equal(response.status,200);
+ const result=(await response.json()).bookings;assert.deepEqual(result.map(b=>[b.date,b.start]),[['2026-10-01','10:00'],['2026-10-01','18:00'],['2026-10-31','11:00']]);
+ const day=await api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-01'),db);assert.equal((await day.json()).bookings.length,2);
+ for(const query of ['month=2026-13','month=2026-00','month=2026-1','date=2026-02-30','month=2026-10&date=2026-10-01'])assert.equal((await api.GET(new Request('https://dpa.example/api/bookings?'+query),db)).status,400);
+});
+test('monthly list handles December, leap February, empty months and cancellation',async()=>{
+ for(const b of [booking({date:'2024-02-29'}),booking({date:'2024-03-01'}),booking({date:'2026-12-31',status:'cancelled'}),booking({date:'2027-01-01'})])assert.equal((await api.POST(req('POST',b),db)).status,200);
+ for(const [month,expected] of [['2024-02','2024-02-29'],['2026-12','2026-12-31'],['2027-01','2027-01-01']]){const r=await api.GET(new Request('https://dpa.example/api/bookings?month='+month),db);assert.deepEqual((await r.json()).bookings.map(b=>b.date),[expected]);}
+ assert.deepEqual((await(await api.GET(new Request('https://dpa.example/api/bookings?month=2026-06'),db)).json()).bookings,[]);
+});
+
+test('quantities and units preserve legacy prices and calculate rounded line totals',async()=>{
+ const value=menu.writeMenu([{name:'Gà',quantity:2,unit:'đĩa',price:240000},{name:'Cá',quantity:0.75,unit:'kg',price:300001}]);
+ assert.equal(menu.validMenu(value),true);assert.equal(menu.menuSum(value),705001);assert.ok(menu.menuText(value).includes('2 đĩa'));
+ const b=booking({menu:value});assert.equal((await api.POST(req('POST',b),db)).status,200);assert.equal((await(await get()).json()).bookings[0].menu,value);
+ for(const patch of [{quantity:0},{quantity:-1},{quantity:1.001},{quantity:1001},{unit:'x'.repeat(31)}])assert.equal(menu.validMenu(menu.writeMenu([{name:'Gà',price:1,...patch}])),false);
+ assert.equal(menu.menuSum(menu.writeMenu([{name:'Món cũ',price:240000}])),240000);
+});
+test('deposits are per reservation and persist across updates with version checks',async()=>{
+ const b=booking({tables:['16','17'],price:1200000,deposit:500000});assert.equal((await api.POST(req('POST',b),db)).status,200);
+ assert.equal((await(await get()).json()).bookings[0].deposit,500000);
+ assert.equal((await api.POST(req('POST',{...b,deposit:800000,version:1}),db)).status,200);
+ assert.equal((await(await get()).json()).bookings[0].deposit,800000);
+ assert.equal((await api.POST(req('POST',{...b,deposit:700000,version:1}),db)).status,409);
+ for(const deposit of [-1,0.5,2400001])assert.equal((await api.POST(req('POST',booking({tables:['18','19'],price:1200000,deposit})),db)).status,400);
+ const old=booking({tables:['20']});await api.POST(req('POST',old),db);assert.equal((await(await get()).json()).bookings.find(x=>x.id===old.id).deposit,0);
+});
+test('catalog starts empty, synchronizes dishes and templates and protects concurrent edits',async()=>{
+ const request=(data)=>new Request('https://dpa.example/api/catalog',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ assert.deepEqual(await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json(),{dishes:[],templates:[],version:0});
+ const value=menu.writeMenu([{name:'Gà mẫu',quantity:2,unit:'đĩa',price:240000}]);
+ const initial={version:0,dishes:[{id:crypto.randomUUID(),name:'Gà mẫu',unit:'đĩa',price:240000}],templates:[{id:crypto.randomUUID(),name:'Mâm mẫu',menu:value}]};
+ const first=await catalogApi.POST_CATALOG(request(initial),db);assert.equal(first.status,200);const saved=await first.json();assert.equal(saved.version,1);
+ assert.equal((await catalogApi.POST_CATALOG(request(initial),db)).status,409);
+ assert.equal((await catalogApi.POST_CATALOG(request({...saved,dishes:[{...saved.dishes[0],price:250000}]}),db)).status,200);
+ assert.equal((await catalogApi.POST_CATALOG(request({...saved,dishes:[]}),db)).status,409);
+ for(const patch of [{dishes:[{...initial.dishes[0],price:-1}]},{dishes:[initial.dishes[0],initial.dishes[0]]},{templates:[{...initial.templates[0],menu:'DPA_MENU_V1:broken'}]},{templates:[{...initial.templates[0],menu:menu.writeMenu([])}]}])assert.equal((await catalogApi.POST_CATALOG(request({...saved,...patch}),db)).status,400);
+ const copied=menu.readMenu(saved.templates[0].menu).map(x=>({...x,price:200000}));await api.POST(req('POST',booking({menu:menu.writeMenu(copied)})),db);
+ const current=await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json();assert.equal(current.dishes[0].price,250000);assert.equal(menu.readMenu(current.templates[0].menu)[0].price,240000);
+ const response=await worker.default.fetch(new Request('https://dpa.example/api/catalog',{headers:{Origin:'https://thanson1998.github.io'}}),{DB:db});assert.equal(response.status,200);assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
+});
+test('receipt shows quantities, units, notes, deposit and remaining balance',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+ const b=booking({tables:['16','17'],price:1200000,deposit:500000,menu:menu.writeMenu([{name:'Gà',quantity:2,unit:'đĩa',price:240000}]),note:'Không cay; ra món lúc 19h'});
+ const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));const text=html.replace(/<[^>]*>/g,'');
+ for(const expected of ['2 đĩa / bàn','Tổng: 4 đĩa / 2 bàn','Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
+ for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
 });

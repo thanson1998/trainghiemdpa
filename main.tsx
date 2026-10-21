@@ -3,4 +3,5 @@ import Dashboard from './dashboard';
 import './styles.css';
 import './menu-print.css';
 import './menu-editor.css';
+import './catalog.css';
 createRoot(document.getElementById('root')!).render(<Dashboard/>);

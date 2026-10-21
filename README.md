@@ -53,3 +53,11 @@ Thực đơn cho phép thêm/xóa dòng, nhập tên và giá cho từng món (g
 Bản in dùng giấy cuộn 80 mm, chiều dài theo nội dung. Trong trình điều khiển máy in chọn giấy 80 mm, tỷ lệ 100%, tắt đầu/chân trang của trình duyệt.
 
 Khu Bàn Đá gồm 11 bàn, đánh số từ 7 đến 17. Tổng toàn bộ sơ đồ: 48 bàn trong 8 khu vực.
+
+## Thư viện, số lượng món, tiền cọc và danh sách tháng
+- Thư viện dùng chung ở mục Thư viện thực đơn, khởi tạo trống. Người quản lý tự nhập món (tên, đơn vị, đơn giá) và thực đơn mẫu.
+- Chọn mẫu để sao chép vào đặt bàn; mọi chỉnh sửa giá, số lượng, tên và đơn vị trong đặt bàn chỉ áp dụng cho đặt bàn đó.
+- Số lượng món tính theo mỗi bàn, hỗ trợ hai chữ số thập phân; thành tiền làm tròn đến đồng. Giá bàn thỏa thuận vẫn độc lập, hoặc bấm dùng tổng món để áp dụng.
+- Tiền cọc nhập một lần cho toàn bộ đặt bàn; số còn lại = giá mỗi bàn × số bàn − cọc. In cùng ghi chú, đơn vị và tổng số lượng món.
+- Danh sách mặc định xem cả tháng, có cột ngày và thứ tự ngày/giờ; chọn ngày để xem riêng, bấm Xem cả tháng để bỏ lọc ngày.
+- Migration 0002 bổ sung tiền cọc mặc định 0 cho dữ liệu cũ và bảng thư viện có kiểm tra phiên bản chống ghi đè.
