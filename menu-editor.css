@@ -3,3 +3,7 @@
 .menu-print-sheet .dish-print-price{font-size:11pt;font-weight:700;color:#000}
 .menu-print-sheet .menu-print-subtotal{color:#000;border-color:#000;font-size:10.5pt;gap:8px;padding-top:8px;margin-top:9px}
 .menu-print-sheet .menu-print-subtotal small{font-size:9pt;color:#000;margin-top:3px}
+
+/* Compact dish rows keep all editable fields aligned for long menus. */
+.dish-items{overflow-x:auto;margin-bottom:8px;padding-bottom:3px}.dish-compact-head,.dish-compact-row{display:grid;grid-template-columns:minmax(170px,1fr) 64px 64px 118px 30px;gap:8px;align-items:center;min-width:478px}.dish-compact-head{font-size:12px;color:#536a49;padding:0 0 7px}.dish-compact-row{padding:7px 0;border-bottom:1px solid #e1e7d7}.drawer-body .dish-compact-row input,.catalog-editor .dish-compact-row input{margin:0;width:100%;min-width:0;padding:10px 8px;font-size:15px;height:42px}.dish-compact-row input[type=number]{appearance:textfield;-moz-appearance:textfield}.dish-compact-row input::-webkit-inner-spin-button,.dish-compact-row input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}.dish-compact-row .dish-remove{width:30px;height:36px}@media(max-width:600px){.drawer-body .dish-compact-row input,.catalog-editor .dish-compact-row input{font-size:16px}}
+@media(min-width:601px){.booking-drawer{width:680px}}
