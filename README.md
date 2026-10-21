@@ -1,6 +1,6 @@
 # DPA · Quản trị đặt bàn
 
-Quản lý 43 bàn theo sơ đồ DPA, tông xanh trầm – kem – vàng. Bàn hiển thị tên khách và số mâm; rê chuột hoặc chạm để xem, thêm và sửa tên, số người, giá/bàn, món ăn. Có ngày, ca trưa/tối, đặt nhiều bàn, kiểm tra trùng giờ, xuất CSV và đồng bộ mỗi 10 giây.
+Quản lý 46 bàn theo sơ đồ DPA, tông xanh trầm – kem – vàng. Bàn hiển thị tên khách và số mâm; rê chuột hoặc chạm để xem, thêm và sửa tên, số người, giá/bàn, món ăn. Có ngày, ca trưa/tối, đặt nhiều bàn, kiểm tra trùng giờ, xuất CSV và đồng bộ mỗi 10 giây.
 
 ## Bật đồng bộ trực tuyến
 
@@ -39,3 +39,5 @@ Không đưa `.dev.vars`, `.env`, token, dữ liệu khách hoặc tệp xuất 
 ## Cấu trúc mã nguồn
 
 Các tệp được đặt ở thư mục gốc để có thể tải lên GitHub một lần. `source.html` là trang đầu vào phát triển; `index.html` là bản build chạy ngay trên GitHub Pages. Chạy `npm run build` để tạo lại `index.html` và thư mục `dist` cho Cloudflare. `worker.ts` và `api.ts` xử lý API; `0001_reservations.sql` khởi tạo D1.
+
+Khu **Trước quầy** có ba bàn **20 – 19 – 18**, nằm ở cột bên trái, ngay trên quầy thanh toán. Tổng cộng 46 bàn trong 8 khu vực.

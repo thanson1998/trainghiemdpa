@@ -6,6 +6,7 @@ export const zones = [
  {id:'N3',title:'Trong nhà 3',sub:'Không gian trong nhà',type:'inside',count:4,tables:Array.from({length:4},(_,i)=>`N3-0${i+1}`)},
  {id:'N2',title:'Trong nhà 2',sub:'Không gian trong nhà',type:'inside',count:6,tables:Array.from({length:6},(_,i)=>`N2-0${i+1}`)},
  {id:'N1',title:'Trong nhà 1',sub:'Không gian trong nhà',type:'inside',count:6,tables:Array.from({length:6},(_,i)=>`N1-0${i+1}`)},
+ {id:'FRONT',title:'Trước quầy',sub:'Trước quầy thanh toán',type:'outdoor',count:3,tables:['20','19','18']},
 ];
 export const tableIds=zones.flatMap(z=>z.tables);
 export const zoneOf=(id:string)=>zones.find(z=>z.tables.includes(id))!;

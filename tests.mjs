@@ -56,3 +56,9 @@ test('CORS preflight and API requests support GitHub Pages',async()=>{
  assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
  const invalid=await worker.default.fetch(new Request('https://dpa.example/api/bookings',{method:'PATCH'}),env);assert.equal(invalid.status,405);
 });
+test('front-cashier tables 20, 19 and 18 support bookings and overlap protection',async()=>{
+ const b=booking({tables:['20','19','18']});
+ assert.equal((await api.POST(req('POST',b),db)).status,200);
+ const saved=await(await get()).json();assert.deepEqual(saved.bookings[0].tables,['20','19','18']);
+ assert.equal((await api.POST(req('POST',booking({tables:['19']})),db)).status,409);
+});
