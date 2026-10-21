@@ -10,6 +10,19 @@ export function readMenu(value:string):MenuItem[]{
  }
  return value.split(/\r?\n/).map(name=>name.trim()).filter(Boolean).map(name=>({name,price:null}));
 }
+// Keep the first row's edited price and unit when the same dish is added again.
+export function mergeMenuItems(items:MenuItem[]):MenuItem[]{
+ const merged:MenuItem[]=[],indices=new Map<string,number>();
+ for(const item of items){
+  const key=item.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN');
+  const index=key?indices.get(key):undefined;
+  if(index===undefined){if(key)indices.set(key,merged.length);merged.push({...item});continue;}
+  const quantity=Math.round((itemQuantity(merged[index])+itemQuantity(item))*100)/100;
+  if(quantity>1000)throw new Error('Tổng số lượng của một món không được vượt quá 1.000.');
+  merged[index]={...merged[index],quantity};
+ }
+ return merged;
+}
 export const writeMenu=(items:MenuItem[])=>prefix+JSON.stringify(items);
 export function validMenu(value:string):boolean{
  if(!value.startsWith(prefix))return value.length<=4000;

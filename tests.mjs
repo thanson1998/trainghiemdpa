@@ -149,3 +149,17 @@ test('receipt shows quantities, units, notes, deposit and remaining balance',()=
  for(const expected of ['2 đĩa / bàn','Tổng: 4 đĩa / 2 bàn','Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
  for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
 });
+
+test('duplicate dishes combine quantities and retain existing edited price and unit',()=>{
+ const first={name:'Trâu nướng lá lốt',price:230000,unit:'đĩa',quantity:1.25};
+ const added={name:'  TRÂU  nướng lá lốt  ',price:250000,unit:'phần',quantity:2.5};
+ const result=menu.mergeMenuItems([first,{name:'Cơm rang',price:100000},added]);
+ assert.equal(result.length,2);assert.deepEqual(result[0],{...first,quantity:3.75});
+ assert.equal(first.quantity,1.25);assert.equal(added.quantity,2.5);
+ assert.equal(menu.menuSum(menu.writeMenu(result)),962500);
+ const fractional=menu.mergeMenuItems([{name:'Gà',price:null,quantity:.1},{name:'Ga\u0300',price:10,quantity:.2}]);
+ assert.equal(fractional.length,1);assert.equal(fractional[0].quantity,.3);assert.equal(fractional[0].price,null);
+ assert.equal(menu.mergeMenuItems(Array.from({length:81},()=>({name:'Gà',price:20}))).length,1);
+ assert.equal(menu.mergeMenuItems([{name:'',price:null},{name:'',price:null}]).length,2);
+ assert.throws(()=>menu.mergeMenuItems([{name:'Gà',price:20,quantity:1000},{name:'gà',price:20}]),/1.000/);
+});
