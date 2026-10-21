@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {Plus,Trash2} from 'lucide-react';
 import {money} from './model';
+import {PriceInput} from './price-input';
 import {readMenu,writeMenu,itemQuantity,mergeMenuItems,menuSum,type MenuItem} from './menu';
 import {type Catalog} from './catalog-model';
 const newItem=():MenuItem=>({name:'',price:null,quantity:1,unit:'đĩa'});
@@ -27,7 +28,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
    <input aria-label={`Tên món ${i+1}`} maxLength={200} value={item.name} placeholder="Tên món ăn" onBlur={mergeTyped} onChange={e=>update(i,{name:e.target.value})}/>
    <input aria-label={`Số lượng món ${i+1}`} type="number" min="0.01" max="1000" step="0.01" value={itemQuantity(item)} onChange={e=>update(i,{quantity:Number(e.target.value)})}/>
    <input aria-label={`Đơn vị món ${i+1}`} maxLength={30} value={item.unit??'phần'} placeholder="đĩa" onChange={e=>update(i,{unit:e.target.value})}/>
-   <input aria-label={`Giá món ${i+1} (VNĐ)`} type="number" min="0" max="100000000" step="1" value={item.price??''} placeholder="Chưa nhập" onChange={e=>update(i,{price:e.target.value===''?null:Number(e.target.value)})}/>
+   <PriceInput label={`Giá món ${i+1} (VNĐ)`} value={item.price} placeholder="Chưa nhập" onChange={price=>update(i,{price})}/>
    <button type="button" className="icon-btn dish-remove" aria-label={`Xóa món ${i+1}`} onClick={()=>onChange(writeMenu(items.filter((_,index)=>index!==i)))}><Trash2 size={16}/></button>
   </div>)}
   </div>

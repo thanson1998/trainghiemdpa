@@ -163,3 +163,10 @@ test('duplicate dishes combine quantities and retain existing edited price and u
  assert.equal(menu.mergeMenuItems([{name:'',price:null},{name:'',price:null}]).length,2);
  assert.throws(()=>menu.mergeMenuItems([{name:'Gà',price:20,quantity:1000},{name:'gà',price:20}]),/1.000/);
 });
+
+test('unit prices use comma thousands separators without changing numeric values',()=>{
+ for(const value of [0,900,1000,250000,1500000,100000000])assert.equal(menu.parseUnitPrice(menu.formatUnitPrice(value)),value);
+ assert.equal(menu.formatUnitPrice(250000),'250,000');assert.equal(menu.formatUnitPrice(1500000),'1,500,000');
+ assert.equal(menu.formatUnitPrice(null),'');assert.equal(menu.parseUnitPrice(''),null);assert.equal(menu.parseUnitPrice(' 250,000 '),250000);
+ for(const invalid of ['-1','1.5','abc','100000001'])assert.equal(menu.parseUnitPrice(invalid),undefined);
+});

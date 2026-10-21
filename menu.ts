@@ -34,3 +34,10 @@ export function validMenu(value:string):boolean{
 const currency=(value:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(value);
 export const menuText=(value:string)=>readMenu(value).filter(item=>item.name.trim()).map(item=>item.name+' · '+itemQuantity(item)+' '+itemUnit(item)+(item.price===null?'':' × '+currency(item.price)+' = '+currency(itemAmount(item)))).join('\n');
 export const menuSum=(value:string)=>readMenu(value).filter(item=>item.name.trim()).reduce((total,item)=>total+itemAmount(item),0);
+
+export const formatUnitPrice=(value:number|null)=>value===null?'':new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(value);
+export function parseUnitPrice(value:string):number|null|undefined{
+ if(!/^[\d,\s]*$/.test(value))return undefined;
+ const digits=value.replace(/[,\s]/g,'');if(!digits)return null;
+ const amount=Number(digits);return Number.isSafeInteger(amount)&&amount<=100000000?amount:undefined;
+}
