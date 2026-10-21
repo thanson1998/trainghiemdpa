@@ -1,5 +1,5 @@
 export const zones = [
- {id:'OUT',title:'Khu bàn 7–15',sub:'Ngoài trời',type:'outdoor',count:9,tables:Array.from({length:9},(_,i)=>String(i+7))},
+ {id:'OUT',title:'Khu Bàn Đá',sub:'Ngoài trời',type:'outdoor',count:11,tables:Array.from({length:11},(_,i)=>String(i+7))},
  {id:'S3',title:'Sân nhà 3',sub:'Sân vườn',type:'patio',count:6,tables:Array.from({length:6},(_,i)=>`S3-0${i+1}`)},
  {id:'S2',title:'Sân nhà 2',sub:'Sân vườn',type:'patio',count:6,tables:Array.from({length:6},(_,i)=>`S2-0${i+1}`)},
  {id:'S1',title:'Sân nhà 1',sub:'Sân vườn',type:'patio',count:6,tables:Array.from({length:6},(_,i)=>`S1-0${i+1}`)},
