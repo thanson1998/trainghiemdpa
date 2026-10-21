@@ -44,4 +44,10 @@ Khu **Trước quầy** có ba bàn **20 – 19 – 18**, nằm ở cột bên t
 
 ## In menu
 
-Mở chi tiết đặt bàn và nhấn **In menu**, hoặc nhấn **In menu** ở dòng khách trong Danh sách đặt bàn. Bản xem trước A4 hiển thị tên khách, ngày giờ, vị trí từng bàn, số người và số mâm mỗi bàn/tổng, danh sách món, giá mỗi bàn và tổng tiền. Nhấn **In / Lưu PDF** để mở hộp thoại in của thiết bị. Bản in lấy thông tin đang hiển thị khi mở xem trước; in menu không tự lưu thay đổi đặt bàn.
+Mở chi tiết đặt bàn và nhấn **In menu**, hoặc nhấn **In menu** ở dòng khách trong Danh sách đặt bàn. Bản xem trước 80 mm hiển thị tên khách, ngày giờ, vị trí từng bàn, số người và số mâm mỗi bàn/tổng, danh sách món, giá mỗi bàn và tổng tiền. Nhấn **In / Lưu PDF** để mở hộp thoại in của thiết bị. Bản in lấy thông tin đang hiển thị khi mở xem trước; in menu không tự lưu thay đổi đặt bàn.
+
+## Giá từng món
+
+Thực đơn cho phép thêm/xóa dòng, nhập tên và giá cho từng món (giá mỗi bàn). Giá có thể để trống. Tổng giá đã nhập hiển thị bên dưới; nhấn **Dùng tổng món làm giá bàn** khi đã nhập đủ giá để cập nhật giá bàn. Giá bàn vẫn có thể nhập riêng theo giá thỏa thuận. Bản in, tooltip và CSV đều hiển thị giá từng món. Thực đơn cũ dạng văn bản vẫn được đọc và giữ nguyên; giá chưa có được để trống. Dữ liệu được lưu trong cột menu hiện có, không cần thay đổi bảng hoặc xóa dữ liệu.
+
+Bản in dùng giấy cuộn 80 mm, chiều dài theo nội dung. Trong trình điều khiển máy in chọn giấy 80 mm, tỷ lệ 100%, tắt đầu/chân trang của trình duyệt.

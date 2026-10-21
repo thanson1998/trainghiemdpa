@@ -9,10 +9,12 @@ const ts=require('typescript');
 const dataUrl=code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
-const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
+const menu=await import(menuUrl);
+const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
 const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./api'",JSON.stringify(dataUrl(compile(source)))))));
-const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
+const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
@@ -71,4 +73,22 @@ test('menu print includes table locations, guests, dishes and correct per-table 
  const text=html.replace(/<[^>]*>/g,'');
  for(const expected of ['Chị Hương','Trước quầy thanh toán','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','6 mâm','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000)])assert.ok(text.includes(expected),'Missing print content: '+expected);
  assert.ok(!html.includes('<script>alert(1)</script>'));
+});
+
+test('dish prices round trip through shared storage and legacy menus remain readable',async()=>{
+ assert.deepEqual(menu.readMenu('Gà hấp\nLẩu cá'),[{name:'Gà hấp',price:null},{name:'Lẩu cá',price:null}]);
+ const value=menu.writeMenu([{name:'Gà hấp',price:240000},{name:'Trà',price:0},{name:'Lẩu cá',price:null}]);
+ assert.equal(menu.validMenu(value),true);assert.equal(menu.menuSum(value),240000);
+ assert.ok(menu.menuText(value).includes('Gà hấp'));assert.ok(!menu.menuText(value).includes('DPA_MENU'));
+ const b=booking({menu:value});assert.equal((await api.POST(req('POST',b),db)).status,200);
+ assert.equal((await(await get()).json()).bookings[0].menu,value);
+ for(const item of [{name:'Món',price:-1},{name:'Món',price:1.5},{name:'',price:1000}])assert.equal((await api.POST(req('POST',booking({tables:['19'],menu:menu.writeMenu([item])})),db)).status,400);
+});
+test('80mm receipt retains dish prices and negotiated table total',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+ const b=booking({tables:['20','19','18'],price:1200000,menu:menu.writeMenu([{name:'Gà hấp',price:240000},{name:'Tôm',price:180000}])});
+ const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
+ assert.match(html,/size: 80mm/);assert.ok(html.includes('Gà hấp'));
+ for(const amount of [240000,180000,420000,1200000,3600000])assert.ok(html.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
+ const css=fs.readFileSync(new URL('./menu-print.css',import.meta.url),'utf8');assert.ok(css.includes('width:80mm'));assert.ok(!css.includes('A4'));
 });
