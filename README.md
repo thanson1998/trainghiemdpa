@@ -41,3 +41,7 @@ Không đưa `.dev.vars`, `.env`, token, dữ liệu khách hoặc tệp xuất 
 Các tệp được đặt ở thư mục gốc để có thể tải lên GitHub một lần. `source.html` là trang đầu vào phát triển; `index.html` là bản build chạy ngay trên GitHub Pages. Chạy `npm run build` để tạo lại `index.html` và thư mục `dist` cho Cloudflare. `worker.ts` và `api.ts` xử lý API; `0001_reservations.sql` khởi tạo D1.
 
 Khu **Trước quầy** có ba bàn **20 – 19 – 18**, nằm ở cột bên trái, ngay trên quầy thanh toán. Tổng cộng 46 bàn trong 8 khu vực.
+
+## In menu
+
+Mở chi tiết đặt bàn và nhấn **In menu**, hoặc nhấn **In menu** ở dòng khách trong Danh sách đặt bàn. Bản xem trước A4 hiển thị tên khách, ngày giờ, vị trí từng bàn, số người và số mâm mỗi bàn/tổng, danh sách món, giá mỗi bàn và tổng tiền. Nhấn **In / Lưu PDF** để mở hộp thoại in của thiết bị. Bản in lấy thông tin đang hiển thị khi mở xem trước; in menu không tự lưu thay đổi đặt bàn.

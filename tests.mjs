@@ -12,6 +12,8 @@ const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.
 const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
 const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./api'",JSON.stringify(dataUrl(compile(source)))))));
+const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
+const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
  sqlite=new DatabaseSync(':memory:');
@@ -61,4 +63,12 @@ test('front-cashier tables 20, 19 and 18 support bookings and overlap protection
  assert.equal((await api.POST(req('POST',b),db)).status,200);
  const saved=await(await get()).json();assert.deepEqual(saved.bookings[0].tables,['20','19','18']);
  assert.equal((await api.POST(req('POST',booking({tables:['19']})),db)).status,409);
+});
+test('menu print includes table locations, guests, dishes and correct per-table and total amounts',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+ const b=booking({tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
+ const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
+ const text=html.replace(/<[^>]*>/g,'');
+ for(const expected of ['Chị Hương','Trước quầy thanh toán','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','6 mâm','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000)])assert.ok(text.includes(expected),'Missing print content: '+expected);
+ assert.ok(!html.includes('<script>alert(1)</script>'));
 });
