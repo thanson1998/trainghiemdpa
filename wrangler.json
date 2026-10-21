@@ -1,5 +1,5 @@
 {
-  "name": "dpa-dat-ban",
+  "name": "trainghiemdpa",
   "main": "worker.ts",
   "compatibility_date": "2026-10-21",
   "assets": {
@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "dpa-bookings",
-      "database_id": "00000000-0000-4000-8000-000000000000",
+      "database_id": "374dde66-82e6-48ad-be9d-6fd9b0275d22",
       "migrations_dir": "."
     }
   ]
