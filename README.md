@@ -61,3 +61,5 @@ Khu Bàn Đá gồm 11 bàn, đánh số từ 7 đến 17. Tổng toàn bộ sơ
 - Tiền cọc nhập một lần cho toàn bộ đặt bàn; số còn lại = giá mỗi bàn × số bàn − cọc. In cùng ghi chú, đơn vị và tổng số lượng món.
 - Danh sách mặc định xem cả tháng, có cột ngày và thứ tự ngày/giờ; chọn ngày để xem riêng, bấm Xem cả tháng để bỏ lọc ngày.
 - Migration 0002 bổ sung tiền cọc mặc định 0 cho dữ liệu cũ và bảng thư viện có kiểm tra phiên bản chống ghi đè.
+
+Cỡ chữ giao diện được tăng để dễ đọc; tên khách, ngày đặt và số bàn trong danh sách dùng 15 px.
