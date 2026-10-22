@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && node build.mjs",
     "test": "node --test tests.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy"
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy && node verify-ai.mjs",
+    "verify:ai": "node verify-ai.mjs"
   },
   "dependencies": {
     "react": "19.2.6",

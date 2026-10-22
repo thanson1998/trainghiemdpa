@@ -36,6 +36,19 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('AI uses an available FP8 model with a defined JSON schema and accepts wrapped JSON',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ let model,input;const AI={async run(m,i){model=m;input=i;return{response:'```json\n'+JSON.stringify({name:'Test',tables:null,warnings:null,items:[{name:'Gà hấp',price:320000,quantity:2}]})+'\n```'};}};
+ const response=await textImport.IMPORT(req('POST',{text:'Anh Sơn lấy gà hấp 2 đĩa 320k/đĩa'}),{DB:db,AI});assert.equal(response.status,200);assert.equal(model,'@cf/meta/llama-3.1-8b-instruct-fp8');assert.equal(input.response_format.type,'json_schema');assert.ok(input.response_format.json_schema.properties.items);assert.equal((await response.json()).total,640000);
+ assert.throws(()=>textImport.decodeImportResponse('invalid JSON'));assert.throws(()=>textImport.decodeImportResponse([]));
+});
+test('provider failures identify configuration and quota errors without blaming user input or leaking content',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ const AI={async run(){throw new Error('5007 No such model: private diagnostic');}};
+ const response=await textImport.IMPORT(req('POST',{text:'Nội dung khách'}),{DB:db,AI});const data=await response.json();assert.equal(data.code,'AI_MODEL_UNAVAILABLE');assert.ok(!data.error.includes('private diagnostic'));assert.ok(!data.error.includes('Nội dung khách'));
+ assert.equal(textImport.importFailure('ai',new Error('3036 daily allocation exceeded')).code,'AI_DAILY_LIMIT');assert.equal(textImport.importFailure('ai',new Error('JSON Mode could not be met')).code,'AI_RESPONSE_FORMAT');assert.equal(textImport.importFailure('storage',new Error('missing table')).code,'IMPORT_STORAGE');
+});
+
 test('AI booking save adds new dishes and updates explicit prices while preserving templates and prior bookings',async()=>{
  const id=crypto.randomUUID(),template={id:crypto.randomUUID(),name:'Existing template',menu:menu.writeMenu([{name:'Existing',price:100000}])};
  await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[{id,name:'Gà hấp',unit:'đĩa',price:300000}],templates:[template]}),db);

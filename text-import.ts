@@ -68,6 +68,31 @@ export async function prepareNaturalImport(raw:unknown,context:ImportContext,db:
 }
 
 export interface ImportEnv {DB:D1Database;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
+export const importModel='@cf/meta/llama-3.1-8b-instruct-fp8';
+const stringOrNull={type:['string','null']};
+const numberOrNull={type:['number','null']};
+export const importJsonSchema={type:'object',properties:{name:stringOrNull,phone:stringOrNull,date:stringOrNull,start:stringOrNull,end:stringOrNull,note:stringOrNull,zone:{type:['string','null'],enum:['OUT','FRONT','S1','S2','S3','N1','N2','N3',null]},tableCount:numberOrNull,totalPeople:numberOrNull,peoplePerTable:numberOrNull,deposit:numberOrNull,pricePerTable:numberOrNull,totalPrice:numberOrNull,tables:{type:'array',items:{type:'string'}},warnings:{type:'array',items:{type:'string'}},items:{type:'array',items:{type:'object',properties:{name:{type:'string'},quantity:numberOrNull,price:numberOrNull,unit:stringOrNull},required:['name','quantity','price','unit']}}},required:['name','phone','date','start','end','note','zone','tableCount','totalPeople','peoplePerTable','deposit','pricePerTable','totalPrice','tables','warnings','items']};
+export function decodeImportResponse(response:unknown):unknown{
+ let value=response;
+ if(typeof value==='string'){const text=value.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');value=JSON.parse(text);}
+ if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid model result');
+ const data={...value} as Record<string,unknown>;
+ for(const key of ['tables','warnings','items'])if(data[key]==null)data[key]=[];
+ return data;
+}
+export function importFailure(stage:string,error:unknown){
+ const message=error instanceof Error?error.message:'';
+ if(stage==='ai'){
+  if(/5007|3042|no such model|model.*not found|deprecated/i.test(message))return {code:'AI_MODEL_UNAVAILABLE',error:'Mô hình AI đang không khả dụng trên Cloudflare. Cần cập nhật cấu hình máy chủ; bạn không cần đổi cách nhập.'};
+  if(/3036|daily.*allocation|neurons|quota/i.test(message))return {code:'AI_DAILY_LIMIT',error:'Cloudflare đã hết hạn mức AI hôm nay. Hãy thử lại sau 07:00 giờ Việt Nam; văn bản vẫn được giữ.'};
+  if(/5016|5018|3023|3041|5035|unauthori|forbidden|agreement/i.test(message))return {code:'AI_ACCESS_DENIED',error:'Cloudflare chưa cho phép tài khoản chạy mô hình AI này. Cần kiểm tra quyền AI trên máy chủ.'};
+  if(/json|schema|response_format/i.test(message))return {code:'AI_RESPONSE_FORMAT',error:'AI chưa tạo được dữ liệu cho phiếu đặt bàn. Hãy bấm thử lại; bạn có thể giữ nguyên lời nhắn.'};
+  if(/3040|3007|3008|capacity|timeout|busy/i.test(message))return {code:'AI_BUSY',error:'Dịch vụ AI đang bận hoặc phản hồi chậm. Hãy thử lại sau ít phút; văn bản vẫn được giữ.'};
+  return {code:'AI_REQUEST_FAILED',error:'Kết nối tới Cloudflare AI chưa thành công. Hãy thử lại sau ít phút; bạn không cần nhập lại theo mẫu.'};
+ }
+ if(stage==='decode'||stage==='normalize')return {code:'AI_INVALID_RESULT',error:'AI chưa trả về dữ liệu hợp lệ để mở phiếu. Hãy bấm thử lại; chưa có đơn nào được lưu.'};
+ return {code:'IMPORT_STORAGE',error:'Máy chủ chưa đọc được dữ liệu hỗ trợ AI. Cần kiểm tra cấu hình cơ sở dữ liệu; văn bản của bạn vẫn được giữ.'};
+}
 export function naturalPrompt(now=new Date()):string{
  const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(now);
  const weekday=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',weekday:'long'}).format(now);
@@ -76,21 +101,23 @@ export function naturalPrompt(now=new Date()):string{
  Exact allowed table IDs: ${tableIds.join(', ')}. S1=sân nhà 1, S2=sân nhà 2, S3=sân nhà 3, N1=trong nhà 1 (similarly N2,N3); OUT=Khu Bàn Đá, FRONT=trước quầy. Bare table 7..17=OUT; 18..20=FRONT. '2 bàn sân nhà 1' means tableCount=2,zone=S1,tables=[] (not S1-02); server suggests vacant tables. 'Bàn 7 và 8 sân nhà 1' means S1-07,S1-08. If number/area ambiguous, leave IDs empty, retain requested count/area when clear and warn. Multiple bookings: warn to split, never silently merge them. Return only valid JSON.`;
 }
 export async function IMPORT(request:Request,env:ImportEnv):Promise<Response>{
+ let stage='input';
  try{
   if(Number(request.headers.get('Content-Length'))>30000)return Response.json({error:'Văn bản quá dài.'},{status:413});
   const body=await request.text();if(body.length>15000)return Response.json({error:'Văn bản quá dài.'},{status:413});
   let text:unknown,defaultDate:unknown;try{const input=JSON.parse(body);text=input.text;defaultDate=input.defaultDate;}catch{return Response.json({error:'Dữ liệu không hợp lệ.'},{status:400});}
   if(typeof text!=='string'||!text.trim()||text.length>6000)return Response.json({error:'Hãy nhập từ 1 đến 6.000 ký tự.'},{status:400});
   if(!env.AI)return Response.json({error:'AI chưa sẵn sàng trên máy chủ. Văn bản của bạn vẫn được giữ để thử lại.'},{status:503});
-  const day=new Date().toISOString().slice(0,10);
+  stage='storage';const day=new Date().toISOString().slice(0,10);
   const quota=await env.DB.prepare('INSERT INTO text_import_usage(day, used) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<20').bind(day).run();
   if(!quota.meta.changes)return Response.json({error:'Đã dùng đủ 20 lượt đọc AI hôm nay (đặt lại lúc 07:00 giờ Việt Nam). Bạn vẫn có thể nhập đơn thủ công.'},{status:429});
-  const result=await env.AI.run('@cf/meta/llama-3.1-8b-instruct',{
-   messages:[{role:'system',content:naturalPrompt()},{role:'user',content:text}],response_format:{type:'json_object'},max_tokens:1800,temperature:0
+  stage='ai';const result=await env.AI.run(importModel,{
+   messages:[{role:'system',content:naturalPrompt()},{role:'user',content:text}],response_format:{type:'json_schema',json_schema:importJsonSchema},max_tokens:1800,temperature:0
   }) as {response?:unknown};
-  const raw=typeof result.response==='string'?JSON.parse(result.response):result.response;
+  stage='decode';const raw=decodeImportResponse(result.response);
+  stage='storage';
   const {results}=await env.DB.prepare('SELECT data FROM menu_catalog WHERE id=?').bind('dpa-shared').all<{data:string}>();
   const catalog=results[0]?JSON.parse(results[0].data):{dishes:[]};
-  return Response.json(await prepareNaturalImport(raw,{smart:true,defaultDate:validDate(defaultDate)?defaultDate:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date()),dishes:Array.isArray(catalog.dishes)?catalog.dishes:[]},env.DB));
- }catch{return Response.json({error:'Chưa đọc được văn bản bằng AI. Hãy kiểm tra nội dung và thử lại; chưa có đơn nào được lưu.'},{status:503});}
+  stage='normalize';return Response.json(await prepareNaturalImport(raw,{smart:true,defaultDate:validDate(defaultDate)?defaultDate:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date()),dishes:Array.isArray(catalog.dishes)?catalog.dishes:[]},env.DB));
+ }catch(error){const failure=importFailure(stage,error);console.error('Text import failed',{stage,code:failure.code});return Response.json({...failure,error:failure.error+' (Mã: '+failure.code+')'},{status:503});}
 }
