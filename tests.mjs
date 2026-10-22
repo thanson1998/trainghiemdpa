@@ -203,7 +203,7 @@ test('set receipt shows all dishes without individual amounts and retains the co
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:booking({tables:['S1-07','S1-08'],menu:value,people:6,price:1200000}),onClose(){}}));
  const text=html.replace(/<[^>]*>/g,'');
  for(const item of menu.readMenu(value))assert.ok(text.includes(item.name));
- assert.ok(text.includes('2.400.000'));assert.ok(!html.includes('dish-print-price'));assert.ok(text.includes('12 người'));
+ assert.ok(text.includes('2,400,000'));assert.ok(!html.includes('dish-print-price'));assert.ok(text.includes('12 người'));
  const modified=menu.writeMenu([...menu.readMenu(value),{name:'Extra dish',price:100000,quantity:2}],menu.readMenuSet(value));
  assert.equal(menu.pricePerSelectedTable(modified,2),1300000);assert.equal(menu.validMenu(modified),true);
 });
@@ -251,8 +251,8 @@ test('orders overview excludes cancelled value and counts menu quantities once p
  const rows=[booking({price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
  const text=html.replace(/<[^>]+>/g,'');
- assert.ok(text.includes('200.000'));assert.ok(text.includes('50.000'));assert.ok(text.includes('150.000'));
- assert.ok(!text.includes('19.999.998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('S1-07, S1-08'));assert.ok(text.includes('Đã cọc một phần'));
+ assert.ok(text.includes('200,000'));assert.ok(text.includes('50,000'));assert.ok(text.includes('150,000'));
+ assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('S1-07, S1-08'));assert.ok(text.includes('Đã cọc một phần'));
 });
 test('anonymous clients share bookings and price is per table',async()=>{
  const b=booking({tables:['S1-01','S1-02']});assert.equal((await api.POST(req('POST',b),db)).status,200);
@@ -299,7 +299,7 @@ test('menu print includes table locations, guests, dishes and correct per-table 
  const b=booking({tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
  const text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['Chị Hương','Trước quầy thanh toán','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000)])assert.ok(text.includes(expected),'Missing print content: '+expected);
+ for(const expected of ['Chị Hương','Trước quầy thanh toán','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
  assert.ok(!text.includes('mâm'),'Receipt must omit platter counts');
  assert.ok(!html.includes('<script>alert(1)</script>'));
 });
@@ -318,7 +318,7 @@ test('80mm receipt retains dish prices and negotiated table total',()=>{
  const b=booking({tables:['20','19','18'],price:1200000,menu:menu.writeMenu([{name:'Gà hấp',price:240000},{name:'Tôm',price:180000}])});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
  assert.match(html,/size: 80mm/);assert.ok(html.includes('Gà hấp'));
- for(const amount of [240000,180000,420000,1200000,3600000])assert.ok(html.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
+ for(const amount of [240000,180000,420000,1200000,3600000])assert.ok(html.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount).replace(/\./g,',')));
  const css=fs.readFileSync(new URL('./menu-print.css',import.meta.url),'utf8');assert.ok(css.includes('width:80mm'));assert.ok(!css.includes('A4'));
 });
 
@@ -373,7 +373,7 @@ test('receipt shows compact quantity name amount rows and retains notes deposit 
  for(const expected of ['Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
  assert.match(html,/<li><span class="dish-print-count">2<\/span><p>Gà<\/p><b class="dish-print-price">/);
  assert.ok(!html.includes('dish-print-quantity'));assert.ok(!text.includes('Tổng: 4 đĩa'));
- for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
+ for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount).replace(/\./g,',')));
 });
 
 test('duplicate dishes combine quantities and retain existing edited price and unit',()=>{
@@ -393,7 +393,7 @@ test('duplicate dishes combine quantities and retain existing edited price and u
 test('unit prices use comma thousands separators without changing numeric values',()=>{
  for(const value of [0,900,1000,250000,1500000,100000000])assert.equal(menu.parseUnitPrice(menu.formatUnitPrice(value)),value);
  assert.equal(menu.formatUnitPrice(250000),'250,000');assert.equal(menu.formatUnitPrice(1500000),'1,500,000');
- assert.equal(menu.formatUnitPrice(null),'');assert.equal(menu.parseUnitPrice(''),null);assert.equal(menu.parseUnitPrice(' 250,000 '),250000);
+ assert.equal(menu.parseUnitPrice('250,000,000',4800000000),250000000);assert.equal(menu.parseUnitPrice('4,800,000,001',4800000000),undefined);assert.equal(menu.formatUnitPrice(null),'');assert.equal(menu.parseUnitPrice(''),null);assert.equal(menu.parseUnitPrice(' 250,000 '),250000);
  for(const invalid of ['-1','1.5','abc','100000001'])assert.equal(menu.parseUnitPrice(invalid),undefined);
 });
 

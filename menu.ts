@@ -51,15 +51,16 @@ export function validMenu(value:string):boolean{
   return Array.isArray(items)&&items.length<=80&&items.every(item=>item&&typeof item.name==='string'&&item.name.length<=200&&(item.price===null||(typeof item.price==='number'&&Number.isInteger(item.price)&&item.price>=0&&item.price<=100000000))&&(item.quantity===undefined||(typeof item.quantity==='number'&&Number.isFinite(item.quantity)&&item.quantity>0&&item.quantity<=1000&&Math.abs(item.quantity*100-Math.round(item.quantity*100))<0.000001))&&(item.unit===undefined||(typeof item.unit==='string'&&item.unit.length<=30))&&(item.name.trim().length>0||item.price===null));
  }catch{return false}
 }
-const currency=(value:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(value);
+export const formatMoneyText=(text:string)=>text.replace(/\b\d{1,3}(?:\.\d{3})+(?=\s*(?:đ|₫|VNĐ|VND|đồng))/gi,value=>value.replace(/\./g,','));
+const currency=(value:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(value).replace(/\./g,',');
 export const menuText=(value:string)=>readMenu(value).filter(item=>item.name.trim()).map(item=>item.name+' · '+itemQuantity(item)+' '+itemUnit(item)+(item.price===null?'':' × '+currency(item.price)+' = '+currency(itemAmount(item)))).join('\n');
 export const menuSum=(value:string,tableCount=1)=>(readMenuSet(value)?.pricePerTable??0)*menuSetQuantity(value,tableCount)+readMenu(value).filter(item=>item.name.trim()&&!item.included).reduce((total,item)=>total+itemAmount(item),0);
 
 export const formatUnitPrice=(value:number|null)=>value===null?'':new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(value);
-export function parseUnitPrice(value:string):number|null|undefined{
+export function parseUnitPrice(value:string,max=100000000):number|null|undefined{
  if(!/^[\d,\s]*$/.test(value))return undefined;
  const digits=value.replace(/[,\s]/g,'');if(!digits)return null;
- const amount=Number(digits);return Number.isSafeInteger(amount)&&amount<=100000000?amount:undefined;
+ const amount=Number(digits);return Number.isSafeInteger(amount)&&amount<=max?amount:undefined;
 }
 
 export const pricePerSelectedTable=(value:string,count:number)=>count>0?Math.round(menuSum(value,count)/count):0;
