@@ -30,6 +30,16 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('orders overview excludes cancelled value and counts menu quantities once per booking',async()=>{
+ const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
+ const {OrdersDashboard}=await import(dataUrl(compile(source).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
+ const rows=[booking({price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
+ const text=html.replace(/<[^>]+>/g,'');
+ assert.ok(text.includes('200.000'));assert.ok(text.includes('50.000'));assert.ok(text.includes('150.000'));
+ assert.ok(!text.includes('19.999.998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('S1-07, S1-08'));assert.ok(text.includes('Đã cọc một phần'));
+});
 test('anonymous clients share bookings and price is per table',async()=>{
  const b=booking({tables:['S1-01','S1-02']});assert.equal((await api.POST(req('POST',b),db)).status,200);
  const first=await(await get()).json();assert.equal(first.bookings[0].name,'Chị Hương');assert.equal(first.bookings[0].price,1500000);
