@@ -36,6 +36,22 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('Gemini sends the key only as a server header and requests a structured booking',async()=>{
+ let url,options;const fakeKey='TEST_ONLY_NOT_A_REAL_KEY';
+ const response=await textImport.extractWithGemini('Gà hấp 2 đĩa 320k/đĩa',{DB:db,GEMINI_API_KEY:fakeKey},async(u,o)=>{url=String(u);options=o;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{thought:true,text:'Do not parse thoughts'},{text:JSON.stringify({name:'Test',tables:['S1-07'],items:[{name:'Gà hấp',price:320000,quantity:2}]})}]}}]});});
+ assert.ok(url.includes('gemini-3.1-flash-lite:generateContent'));assert.ok(!url.includes(fakeKey));assert.ok(!options.body.includes(fakeKey));assert.equal(options.headers['x-goog-api-key'],fakeKey);assert.equal(JSON.parse(options.body).generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');assert.equal(textImport.normalizeImport(textImport.decodeImportResponse(response.response)).total,640000);
+});
+test('configured Gemini takes priority and a rejected key never silently sends data to Cloudflare',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ const previous=globalThis.fetch;let cloudflareCalls=0;const env={DB:db,GEMINI_API_KEY:'TEST_ONLY_NOT_A_REAL_KEY',AI:{async run(){cloudflareCalls++;throw Error('Must not call Cloudflare');}}};
+ try{
+  globalThis.fetch=async()=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({tables:['S1-07'],totalPeople:6,items:[{name:'Gà hấp',quantity:2,price:320000}]})}]}}]});
+  const response=await textImport.IMPORT(req('POST',{text:'Gà hấp 2 đĩa 320k/đĩa'}),env);const data=await response.json();assert.equal(response.status,200);assert.equal(data.provider,'gemini');assert.equal(data.fields.price,640000);assert.ok(!JSON.stringify(data).includes(env.GEMINI_API_KEY));
+  globalThis.fetch=async()=>Response.json({error:{message:'Sensitive provider details'}},{status:403});
+  const denied=await textImport.IMPORT(req('POST',{text:'Gà hấp'}),env);const failure=await denied.json();assert.equal(failure.code,'GEMINI_ACCESS_DENIED');assert.ok(!JSON.stringify(failure).includes('Sensitive provider details'));assert.equal(cloudflareCalls,0);
+ }finally{globalThis.fetch=previous;}
+});
+
 test('JSON-mode failure retries generation while keeping validation and explicit prices',async()=>{
  sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
  let calls=0;const AI={async run(model,input){calls++;if(input.response_format)throw new Error('JSON Mode could not be met');return{response:JSON.stringify({tables:['S1-07'],totalPeople:6,items:[{name:'Gà hấp',quantity:2,price:320000}]})};}};

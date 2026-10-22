@@ -1,7 +1,7 @@
 import {IMPORT} from './text-import';
 import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE} from './api';
-interface Env {DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
+interface Env {DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
   const url=new URL(request.url);

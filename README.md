@@ -63,3 +63,9 @@ Khu Bàn Đá gồm 11 bàn, đánh số từ 7 đến 17. Tổng toàn bộ sơ
 - Migration 0002 bổ sung tiền cọc mặc định 0 cho dữ liệu cũ và bảng thư viện có kiểm tra phiên bản chống ghi đè.
 
 Cỡ chữ giao diện được tăng để dễ đọc; tên khách, ngày đặt và số bàn trong danh sách dùng 15 px.
+## Kết nối Gemini cho nhập đặt bàn bằng AI
+
+Trong Cloudflare, chọn Worker `trainghiemdpa` → Settings → Variables and Secrets → Add. Chọn loại **Secret**, đặt tên **GEMINI_API_KEY**, nhập key Google AI Studio và Deploy. Không ghi key vào GitHub, `wrangler.json`, `config.js` hoặc mã giao diện.
+
+Khi Secret đã có, máy chủ tự dùng Gemini 3.1 Flash-Lite. Có thể đổi mô hình bằng biến `GEMINI_MODEL`. Khi chưa có Secret, ứng dụng tiếp tục dùng Cloudflare AI. Phiếu nhập ghi rõ dịch vụ đã đọc văn bản. Nếu Gemini từ chối key hoặc hết hạn mức, ứng dụng báo lỗi cụ thể; không tự gửi lời nhắn sang dịch vụ khác.
+
