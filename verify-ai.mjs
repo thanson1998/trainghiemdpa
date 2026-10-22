@@ -10,9 +10,10 @@ const response=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/imp
 });
 const data=await response.json();
 if(!response.ok)throw new Error('Live AI check failed: HTTP '+response.status+' '+(data.code||data.error));
+if(data.provider!=='gemini')throw new Error('GEMINI_NOT_CONFIGURED: server is not using Gemini; check GEMINI_API_KEY Secret on the production Worker');
 const {fields}=data;
 if(fields.date!=='2026-10-25'||fields.start!=='18:00'||fields.end!=='21:00'||fields.tables.length!==1||fields.tables[0]!=='S1-07'||fields.people!==6||fields.price!==640000||fields.deposit!==100000)throw new Error('Live AI check returned incorrect booking fields');
-console.log('LIVE_AI_IMPORT_OK: real Cloudflare inference produced the expected date, time, table, guests, dish price and deposit. No booking or catalog changes were saved.');
+console.log('LIVE_GEMINI_IMPORT_OK: Gemini produced the expected date, time, table, guests, dish price and deposit. No booking or catalog changes were saved.');
 lastError=undefined;break;
 }catch(error){lastError=error;console.error('Live AI verification attempt '+(attempt+1)+' failed: '+error.message);}
 }
