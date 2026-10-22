@@ -111,9 +111,10 @@ export async function IMPORT(request:Request,env:ImportEnv):Promise<Response>{
   stage='storage';const day=new Date().toISOString().slice(0,10);
   const quota=await env.DB.prepare('INSERT INTO text_import_usage(day, used) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<20').bind(day).run();
   if(!quota.meta.changes)return Response.json({error:'Đã dùng đủ 20 lượt đọc AI hôm nay (đặt lại lúc 07:00 giờ Việt Nam). Bạn vẫn có thể nhập đơn thủ công.'},{status:429});
-  stage='ai';const result=await env.AI.run(importModel,{
-   messages:[{role:'system',content:naturalPrompt()},{role:'user',content:text}],response_format:{type:'json_schema',json_schema:importJsonSchema},max_tokens:1800,temperature:0
-  }) as {response?:unknown};
+  stage='ai';const input={messages:[{role:'system',content:naturalPrompt()},{role:'user',content:text}],max_tokens:1800,temperature:0};
+  let result:{response?:unknown};
+  try{result=await env.AI.run(importModel,{...input,response_format:{type:'json_schema',json_schema:importJsonSchema}}) as {response?:unknown};}
+  catch(error){if(importFailure('ai',error).code!=='AI_RESPONSE_FORMAT')throw error;result=await env.AI.run(importModel,input) as {response?:unknown};}
   stage='decode';const raw=decodeImportResponse(result.response);
   stage='storage';
   const {results}=await env.DB.prepare('SELECT data FROM menu_catalog WHERE id=?').bind('dpa-shared').all<{data:string}>();

@@ -36,6 +36,12 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('JSON-mode failure retries generation while keeping validation and explicit prices',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ let calls=0;const AI={async run(model,input){calls++;if(input.response_format)throw new Error('JSON Mode could not be met');return{response:JSON.stringify({tables:['S1-07'],totalPeople:6,items:[{name:'Gà hấp',quantity:2,price:320000}]})};}};
+ const response=await textImport.IMPORT(req('POST',{text:'Gà hấp 2 đĩa 320k/đĩa, 6 người bàn S1-07'}),{DB:db,AI});assert.equal(response.status,200);assert.equal(calls,2);assert.equal((await response.json()).fields.price,640000);
+});
+
 test('AI uses an available FP8 model with a defined JSON schema and accepts wrapped JSON',async()=>{
  sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
  let model,input;const AI={async run(m,i){model=m;input=i;return{response:'```json\n'+JSON.stringify({name:'Test',tables:null,warnings:null,items:[{name:'Gà hấp',price:320000,quantity:2}]})+'\n```'};}};
