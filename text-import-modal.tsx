@@ -1,0 +1,24 @@
+import {useEffect,useRef,useState} from 'react';
+import {X,Sparkles,LoaderCircle} from 'lucide-react';
+import {apiRequest} from './sync';
+import {money} from './model';
+import {readMenu} from './menu';
+import type {ImportResult} from './text-import';
+import './text-import.css';
+const example=`Khách: Anh Sơn
+Ngày: 25/10/2026, từ 18:00 đến 21:00
+Bàn: S1-07, S1-08
+Tổng số người: 12
+2 đĩa gà hấp, đơn giá 300.000đ/đĩa
+2 đĩa tôm hấp, đơn giá 250.000đ/đĩa
+2 đĩa cơm chiên, đơn giá 100.000đ/đĩa
+Tiền cọc: 500.000đ
+Ghi chú: Ít cay`;
+export function TextImportModal({onClose,onApply}:{onClose:()=>void;onApply:(result:ImportResult)=>void}){
+ const [text,setText]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<ImportResult|null>(null);
+ const modal=useRef<HTMLDivElement>(null),input=useRef<HTMLTextAreaElement>(null);
+ useEffect(()=>{const previous=document.activeElement as HTMLElement;const old=document.body.style.overflow;document.body.style.overflow='hidden';input.current?.focus();return()=>{document.body.style.overflow=old;previous?.focus();};},[]);
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const els=Array.from(modal.current?.querySelectorAll<HTMLElement>('button:not(:disabled),textarea:not(:disabled)')??[]);const first=els[0],last=els.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[busy,onClose]);
+ async function analyze(){setBusy(true);setError('');setResult(null);try{const r=await apiRequest('/api/import-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),signal:AbortSignal.timeout(60000)});const j=await r.json() as ImportResult&{error?:string};if(!r.ok)throw new Error(j.error);setResult(j);}catch(e){setError(e instanceof Error?e.message:'Không đọc được văn bản.');}finally{setBusy(false);}}
+ return <div className="modal-backdrop centered text-import-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target&&!busy)onClose();}}><div ref={modal} className="text-import-modal" role="dialog" aria-modal="true" aria-labelledby="text-import-title" aria-busy={busy}><div className="text-import-heading"><div><h2 id="text-import-title">Nhập đặt bàn bằng AI</h2><p>Dán nội dung, đọc kết quả rồi kiểm tra trong phiếu trước khi lưu.</p></div><button className="icon-btn" aria-label="Đóng nhập văn bản" disabled={busy} onClick={onClose}><X/></button></div><label>Nội dung đặt bàn<textarea ref={input} rows={9} maxLength={6000} disabled={busy} value={text} onChange={e=>{setText(e.target.value);setResult(null);}} placeholder={example}/></label><div className="text-import-hint"><span>{text.length}/6.000 ký tự · 20 lượt/ngày</span><button className="text-btn" disabled={busy} onClick={()=>{setText(example);setResult(null);}}>Điền ví dụ</button></div><p className="field-help">Ghi rõ mã bàn, tổng số người, số lượng và đơn giá từng món. Nội dung được gửi tới Cloudflare AI khi bạn bấm Đọc văn bản.</p>{error&&<div className="form-error" role="alert">{error}</div>}{result&&<section className="text-import-result" aria-live="polite"><h3>Kết quả đọc — chưa lưu đơn</h3><dl><dt>Khách</dt><dd>{result.fields.name||'Chưa có tên'}</dd><dt>Ngày / giờ</dt><dd>{result.fields.date||'Chưa có ngày'} · {result.fields.start||'?'}–{result.fields.end||'?'}</dd><dt>Bàn</dt><dd>{result.fields.tables.join(', ')||'Cần chọn bàn'}</dd><dt>Số người</dt><dd>{result.fields.people}/bàn · {result.fields.people*result.fields.tables.length} người toàn bộ</dd><dt>Tiền cọc</dt><dd>{money(result.fields.deposit??0)}</dd></dl><div className="text-import-table"><table><thead><tr><th>Món ăn</th><th>SL</th><th>Đơn giá</th></tr></thead><tbody>{readMenu(result.fields.menu).map((item,i)=><tr key={i}><td>{item.name}</td><td>{item.quantity} {item.unit}</td><td>{item.price===null?'Chưa có giá':money(item.price)}</td></tr>)}</tbody></table></div><p><b>Tổng món: {money(result.total)}</b> · {money(result.fields.price)}/bàn</p>{result.fields.note&&<p>Ghi chú: {result.fields.note}</p>}{result.warnings.length>0&&<div className="text-import-warnings"><b>Cần kiểm tra / bổ sung</b><ul>{result.warnings.map((s,i)=><li key={i}>{s}</li>)}</ul></div>}</section>}<div className="text-import-actions"><button className="secondary-btn" disabled={busy} onClick={onClose}>Đóng</button><button className="primary-btn" disabled={busy||!text.trim()} onClick={analyze}>{busy?<LoaderCircle size={18} className="spin"/>:<Sparkles size={18}/>} {busy?'Đang đọc…':result?'Đọc lại':'Đọc văn bản'}</button>{result&&<button className="primary-btn" onClick={()=>onApply(result)}>Điền vào phiếu để kiểm tra</button>}</div></div></div>;
+}

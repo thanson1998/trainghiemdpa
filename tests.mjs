@@ -15,7 +15,9 @@ const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace
 const api=await import(dataUrl(compile(source)));
 const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
@@ -31,6 +33,33 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('text import computes whole-booking totals and per-table guests without duplicating dishes',()=>{
+ const result=textImport.normalizeImport({name:'Anh Son',date:'2026-10-25',start:'18:00',end:'21:00',tables:['S1-07','S1-08','S1-07'],totalPeople:12,deposit:500000,items:[{name:'Ga',quantity:2,price:300000},{name:'Tom',quantity:2,price:250000},{name:'Com',quantity:2,price:100000}]});
+ assert.equal(result.total,1300000);assert.equal(result.fields.price,650000);assert.equal(result.fields.people,6);assert.equal(result.fields.deposit,500000);assert.equal(result.warnings.length,0);
+ const merged=textImport.normalizeImport({items:[{name:'Ga',quantity:2,price:300000},{name:'ga',quantity:3,price:300000}]});assert.equal(menu.readMenu(merged.fields.menu)[0].quantity,5);assert.equal(merged.total,1500000);
+ assert.throws(()=>textImport.normalizeImport({items:[{name:'Ga',price:1},{name:'ga',price:2}]}));
+});
+test('text import exposes uncertain dates, tables, guests and prices',()=>{
+ const result=textImport.normalizeImport({date:'2026-02-30',start:'26:00',tables:['UNKNOWN','S1-07','S1-08'],totalPeople:13,deposit:500000,items:[{name:'Ga',price:null}]});
+ assert.equal(result.fields.date,'');assert.equal(result.fields.start,'');assert.equal(result.fields.deposit,0);assert.equal(menu.readMenu(result.fields.menu)[0].price,null);assert.ok(result.warnings.length>=6);assert.deepEqual(result.fields.tables,['S1-07','S1-08']);
+ assert.equal(textImport.normalizeImport({date:'2026-99-99'}).fields.date,'');assert.throws(()=>textImport.normalizeImport({items:[{name:'Ga',price:-1}]}));
+});
+test('AI route applies an atomic daily quota without changing existing bookings or catalog',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ const original=booking();await api.POST(req('POST',original),db);const before=JSON.stringify((await(await get()).json()).bookings);
+ let calls=0;const env={DB:db,ASSETS:{},AI:{async run(){calls++;return{response:JSON.stringify({name:'Test',tables:['S1-07'],items:[{name:'Ga',quantity:2,price:300000}]})};}}};
+ const request=()=>new Request('https://worker.example/api/import-text',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://thanson1998.github.io'},body:JSON.stringify({text:'Test AI import only'})});
+ for(let i=0;i<20;i++){const r=await worker.default.fetch(request(),env);assert.equal(r.status,200);assert.equal((await r.json()).total,600000);}
+ assert.equal((await worker.default.fetch(request(),env)).status,429);assert.equal(calls,20);assert.equal(JSON.stringify((await(await get()).json()).bookings),before);
+});
+test('AI route handles invalid input, unavailable binding and malformed output',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ const request=text=>new Request('https://worker.example/api/import-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+ assert.equal((await textImport.IMPORT(request(''),{DB:db})).status,400);assert.equal((await textImport.IMPORT(request('x'.repeat(6001)),{DB:db})).status,400);assert.equal((await textImport.IMPORT(request('Valid'),{DB:db})).status,503);
+ assert.equal((await textImport.IMPORT(request('Valid'),{DB:db,AI:{async run(){return{response:'not json'};}}})).status,503);
+ const response=await worker.default.fetch(new Request('https://worker.example/api/import-text'),{DB:db,ASSETS:{}});assert.equal(response.status,405);
+});
 
 test('table transfer atomically reserves the new tables and preserves every other booking field',async()=>{
  const original=booking({tables:['S1-01','S1-02'],price:1200000,deposit:400000,people:6,note:'Preserve this note',menu:menu.writeMenu([{name:'Original menu',price:null,quantity:2}])});
