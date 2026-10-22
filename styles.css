@@ -13,3 +13,5 @@
 
 .booking-list td{font-size:15px}.booking-list th{font-size:12px}.booking-list td small{font-size:12px;line-height:1.7}.booking-list td>b{font-weight:500}
 .booking-list td,.booking-list th{padding:18px 14px}.booking-list td>b{font-size:15px;font-weight:500}.booking-list td:nth-child(3),.booking-list td:nth-child(4),.booking-list td:nth-child(5){white-space:nowrap}.booking-list td small{color:#687461}.booking-list th{color:#66735a}.map-date{font-size:12px}.month-list-control label,.month-list-control .secondary-btn{font-size:13px}.month-list-control input{font-size:14px}
+
+.time-24-field{min-width:0;margin-bottom:18px}.time-24-field>span{display:block;font-size:14px;color:#5b7050}.time-24-field i{color:#aa755b;font-style:normal}.time-24-control{display:grid;grid-template-columns:minmax(0,1fr) 10px minmax(0,1fr);align-items:center;gap:6px;margin-top:7px}.drawer-body .time-24-control select{width:100%;min-width:0;margin:0;font-size:16px;font-variant-numeric:tabular-nums}.time-24-control>span{text-align:center;font-size:18px;color:#315545}
