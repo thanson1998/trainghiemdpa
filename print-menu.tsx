@@ -1,12 +1,35 @@
 import {readMenu,menuSum,itemQuantity,itemAmount} from './menu';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {Printer,X} from 'lucide-react';
+import {Printer,X,Download,LoaderCircle} from 'lucide-react';
+import html2canvas from 'html2canvas';
 import {money,zones,type Booking} from './model';
 
 export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>void}){
  const dialog=useRef<HTMLDivElement>(null);
  const sheet=useRef<HTMLElement>(null);
  const [paperHeight,setPaperHeight]=useState(160);
+ const [savingImage,setSavingImage]=useState(false),[imageNotice,setImageNotice]=useState('');
+ async function saveImage(){
+  if(!sheet.current||savingImage)return;
+  setSavingImage(true);setImageNotice('');
+  try{
+   await document.fonts.ready;
+   const height=Math.max(1,sheet.current.scrollHeight);
+   const scale=Math.min(3,Math.sqrt(12000000/(303*height)),16000/height);
+   const canvas=await html2canvas(sheet.current,{scale,backgroundColor:'#fff',logging:false,scrollX:0,scrollY:0,onclone:(doc,clonedSheet)=>{
+    doc.body.appendChild(clonedSheet);
+    Object.assign(clonedSheet.style,{position:'absolute',left:'0',top:'0',width:'80mm',maxWidth:'none',height:'auto',margin:'0',boxShadow:'none'});
+    doc.body.style.overflow='visible';doc.documentElement.style.overflow='visible';
+   }});
+   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(result=>result?resolve(result):reject(new Error('Không tạo được ảnh.')),'image/png'));
+   const url=URL.createObjectURL(blob),link=document.createElement('a');
+   const tables=booking.tables.join('-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,100)||'chua-chon';
+   link.href=url;link.download='DPA-menu-'+booking.date+'-ban-'+tables+'.png';link.style.display='none';
+   document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+   setImageNotice('Đã tải ảnh PNG của toàn bộ phiếu in.');
+  }catch{setImageNotice('Chưa lưu được ảnh. Vui lòng thử lại.');}finally{setSavingImage(false);}
+ }
+
  useLayoutEffect(()=>{if(sheet.current)setPaperHeight(Math.max(40,Math.ceil(sheet.current.scrollHeight*25.4/96)+4));},[booking]);
  useEffect(()=>{
   const previous=document.activeElement as HTMLElement|null;
@@ -28,7 +51,8 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
  const dishes=readMenu(booking.menu).filter(item=>item.name.trim());
  const date=new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(booking.date+'T12:00:00'));
  return <div className="menu-print-overlay" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="print-menu-title">
-  <div className="menu-print-toolbar"><div><b>Xem trước menu</b><small>Giấy cuộn 80 mm · Chọn khổ 80 mm và tỷ lệ 100% khi in</small></div><button type="button" className="secondary-btn" onClick={onClose}><X size={16}/>Đóng</button><button type="button" className="primary-btn" onClick={()=>window.print()}><Printer size={16}/>In / Lưu PDF</button></div>
+  <div className="menu-print-toolbar"><div><b>Xem trước menu</b><small>Giấy cuộn 80 mm · Chọn khổ 80 mm và tỷ lệ 100% khi in</small></div><button type="button" className="secondary-btn" onClick={onClose}><X size={16}/>Đóng</button><button type="button" className="secondary-btn" disabled={savingImage} onClick={()=>void saveImage()}>{savingImage?<LoaderCircle size={16} className="spin"/>:<Download size={16}/>} {savingImage?'Đang tạo ảnh…':'Lưu ảnh phiếu in'}</button><button type="button" className="primary-btn" onClick={()=>window.print()}><Printer size={16}/>In / Lưu PDF</button></div>
+  {imageNotice&&<p className="menu-print-export-status" role="status">{imageNotice}</p>}
   <style media="print">{`@page { size: 80mm ${paperHeight}mm; margin: 0; }`}</style>
   <article className="menu-print-sheet" ref={sheet}>
    <header className="menu-print-heading"><div className="menu-print-brand">DPA<span>TRẢI NGHIỆM · THÁI NGUYÊN</span></div><p>TRÂN TRỌNG ĐÓN TIẾP</p><h1 id="print-menu-title">THỰC ĐƠN ĐẶT TIỆC</h1><h2>{booking.name}</h2></header>
