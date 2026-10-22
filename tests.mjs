@@ -11,7 +11,9 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
-const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl));
+const learningUrl=dataUrl(compile(learningSource));const learning=await import(learningUrl);
+const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./catalog-learning'",JSON.stringify(learningUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
 const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
@@ -33,6 +35,52 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('AI booking save adds new dishes and updates explicit prices while preserving templates and prior bookings',async()=>{
+ const id=crypto.randomUUID(),template={id:crypto.randomUUID(),name:'Existing template',menu:menu.writeMenu([{name:'Existing',price:100000}])};
+ await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[{id,name:'Gà hấp',unit:'đĩa',price:300000}],templates:[template]}),db);
+ const old=booking({price:300000,menu:menu.writeMenu([{name:'Gà hấp',price:300000,quantity:1}])});await api.POST(req('POST',old),db);
+ const next=booking({tables:['S1-02'],price:740000,menu:menu.writeMenu([{name:'Gà hấp',unit:'đĩa',price:320000,quantity:2},{name:'Món mới',unit:'bát',price:100000,quantity:1}]),learnDishNames:['Gà hấp','Món mới']});
+ assert.equal((await api.POST(req('POST',next),db)).status,200);
+ const catalog=(await(await catalogApi.GET_CATALOG(req('GET'),db)).json());assert.equal(catalog.dishes.length,2);assert.equal(catalog.dishes[0].id,id);assert.equal(catalog.dishes[0].price,320000);assert.equal(catalog.dishes[1].price,100000);assert.equal(catalog.dishes[1].unit,'bát');assert.deepEqual(catalog.templates,[template]);
+ const bookings=(await(await get()).json()).bookings;assert.equal(bookings.find(b=>b.id===old.id).price,300000);assert.equal(menu.readMenu(bookings.find(b=>b.id===old.id).menu)[0].price,300000);
+ assert.equal(await learning.learnCatalogFromMenu(db,next.menu,next.learnDishNames),'');const repeated=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(repeated.version,catalog.version);assert.equal(repeated.dishes.length,2);
+});
+test('reading a draft never changes catalog and only stated prices are selected for learning',async()=>{
+ const dishes=[{name:'Gà hấp',unit:'đĩa',price:300000},{name:'Tôm hấp',unit:'đĩa',price:250000}];
+ const result=textImport.normalizeImport({items:[{name:'ga hap',quantity:2,price:320000},{name:'Tôm hấp',quantity:2},{name:'Món mới',quantity:1,price:100000}]},{dishes});
+ assert.deepEqual(result.learnDishNames,['Gà hấp','Món mới']);
+ const catalog={version:1,dishes:dishes.map(d=>({...d,id:crypto.randomUUID()})),templates:[]};
+ const merged=learning.mergeLearnedDishes({...catalog,dishes:catalog.dishes.map(d=>d.name==='Tôm hấp'?{...d,price:270000}:d)},result.fields.menu,result.learnDishNames);
+ assert.equal(merged.catalog.dishes.find(d=>d.name==='Tôm hấp').price,270000);assert.equal(merged.catalog.dishes.find(d=>d.name==='Gà hấp').price,320000);assert.equal(catalog.dishes[0].price,300000);
+ assert.equal(sqlite.prepare('SELECT count(*) AS n FROM menu_catalog').get().n,0);
+});
+test('failed booking save cannot teach a changed price and catalog failure does not lose a saved booking',async()=>{
+ const original=booking();await api.POST(req('POST',original),db);
+ const rejected=booking({menu:menu.writeMenu([{name:'Wrong price',price:900000}]),learnDishNames:['Wrong price']});assert.equal((await api.POST(req('POST',rejected),db)).status,409);assert.equal(sqlite.prepare('SELECT count(*) AS n FROM menu_catalog').get().n,0);
+ sqlite.exec('DROP TABLE menu_catalog');const next=booking({tables:['S1-02'],menu:menu.writeMenu([{name:'New',price:100000}]),learnDishNames:['New']});const response=await api.POST(req('POST',next),db);assert.equal(response.status,200);assert.ok((await response.json()).catalogWarning);assert.equal((await(await get()).json()).bookings.length,2);
+});
+
+test('natural import fills library prices only for unique matches and keeps explicit prices',()=>{
+ const dishes=[{name:'Gà hấp',price:300000,unit:'đĩa'},{name:'Tôm hấp',price:250000,unit:'đĩa'},{name:'Tôm rang',price:270000,unit:'đĩa'}];
+ const result=textImport.normalizeImport({name:'Anh Sơn',tableCount:2,totalPeople:12,items:[{name:'ga hap',quantity:2},{name:'Tôm hấp',quantity:2,price:200000},{name:'Tôm',quantity:1}]},{smart:true,defaultDate:'2026-10-25',dishes});
+ const items=menu.readMenu(result.fields.menu);assert.equal(items[0].name,'Gà hấp');assert.equal(items[0].price,300000);assert.equal(items[0].unit,'đĩa');assert.equal(items[1].price,200000);assert.equal(items[2].price,null);
+ assert.equal(result.fields.people,6);assert.equal(result.fields.date,'2026-10-25');assert.equal(result.fields.start,'18:00');assert.equal(result.fields.end,'21:00');assert.ok(result.warnings.some(w=>w.includes('thư viện')));assert.ok(result.warnings.some(w=>w.includes('tạm')));
+});
+test('natural import suggests vacant tables within the requested area without saving a booking',async()=>{
+ await api.POST(req('POST',booking({tables:['S1-01'],start:'18:00',end:'21:00'})),db);
+ const data={name:'Anh Sơn',date:'2026-10-25',start:'18:30',tableCount:2,zone:'S1',totalPeople:12,items:[{name:'Gà hấp',quantity:2}]};
+ const result=await textImport.prepareNaturalImport(data,{smart:true,dishes:[{name:'Gà hấp',price:300000,unit:'đĩa'}]},db);
+ assert.deepEqual(result.fields.tables,['S1-02','S1-03']);assert.equal(result.fields.people,6);assert.equal(result.fields.price,300000);assert.equal(result.fields.end,'21:30');assert.ok(result.warnings[0].includes('Gợi ý'));assert.equal((await(await get()).json()).bookings.length,1);
+ const shortage=await textImport.prepareNaturalImport({...data,tableCount:8},{smart:true},db);assert.equal(shortage.fields.tables.length,0);assert.ok(shortage.warnings.some(w=>w.includes('không đủ')));
+ const explicit=await textImport.prepareNaturalImport({...data,tables:['S1-01','S1-08']},{smart:true},db);assert.deepEqual(explicit.fields.tables,['S1-01','S1-08']);
+});
+test('natural import preserves agreed table totals and original guest count in the draft',()=>{
+ const result=textImport.normalizeImport({tableCount:2,totalPeople:12,pricePerTable:1200000,deposit:500000,items:[{name:'Món chưa có giá',quantity:2}]},{smart:true,defaultDate:'2026-10-25'});
+ assert.equal(result.fields.price,1200000);assert.equal(result.total,2400000);assert.equal(result.fields.deposit,500000);assert.ok(result.fields.note.includes('12 người'));assert.ok(result.fields.note.includes('2 bàn'));
+ const noGuess=textImport.normalizeImport({tables:['UNKNOWN'],date:'2026-99-99',start:'26:00'},{smart:true,defaultDate:'2026-10-25'});assert.equal(noGuess.fields.date,'');assert.equal(noGuess.fields.start,'');
+ const prompt=textImport.naturalPrompt(new Date('2026-10-22T20:00:00Z'));assert.ok(prompt.includes('2026-10-23'));assert.ok(prompt.includes('18:30'));assert.ok(prompt.includes('tableCount=2,zone=S1,tables=[]'));
+});
 
 test('text import computes whole-booking totals and per-table guests without duplicating dishes',()=>{
  const result=textImport.normalizeImport({name:'Anh Son',date:'2026-10-25',start:'18:00',end:'21:00',tables:['S1-07','S1-08','S1-07'],totalPeople:12,deposit:500000,items:[{name:'Ga',quantity:2,price:300000},{name:'Tom',quantity:2,price:250000},{name:'Com',quantity:2,price:100000}]});
