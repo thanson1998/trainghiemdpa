@@ -142,11 +142,13 @@ test('catalog starts empty, synchronizes dishes and templates and protects concu
  const current=await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json();assert.equal(current.dishes[0].price,250000);assert.equal(menu.readMenu(current.templates[0].menu)[0].price,240000);
  const response=await worker.default.fetch(new Request('https://dpa.example/api/catalog',{headers:{Origin:'https://thanson1998.github.io'}}),{DB:db});assert.equal(response.status,200);assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
 });
-test('receipt shows quantities, units, notes, deposit and remaining balance',()=>{
+test('receipt shows compact quantity name amount rows and retains notes deposit and balance',()=>{
  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
  const b=booking({tables:['16','17'],price:1200000,deposit:500000,menu:menu.writeMenu([{name:'Gà',quantity:2,unit:'đĩa',price:240000}]),note:'Không cay; ra món lúc 19h'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));const text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['2 đĩa / bàn','Tổng: 4 đĩa / 2 bàn','Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
+ for(const expected of ['Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
+ assert.match(html,/<li><span class="dish-print-count">2<\/span><p>Gà<\/p><b class="dish-print-price">/);
+ assert.ok(!html.includes('dish-print-quantity'));assert.ok(!text.includes('Tổng: 4 đĩa'));
  for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount)));
 });
 
