@@ -36,3 +36,15 @@ export async function DELETE(req:Request,db:D1Database){
  if(!result.meta.changes)return out({error:'Dữ liệu vừa thay đổi. Hãy tải lại trước khi xóa.'},409);return out({ok:true});
  }catch{return out({error:'Không thể xóa. Vui lòng thử lại.'},503)}
 }
+export async function MOVE(req:Request,db:D1Database){
+ try{
+  const parsed=z.object({id:z.string().uuid(),version:z.number().int().min(1),tables:z.array(z.enum(tableIds as [string,...string[]])).min(1).max(tableIds.length).refine(ids=>new Set(ids).size===ids.length)}).safeParse(await req.json());
+  if(!parsed.success)return out({error:'Chọn các bàn hợp lệ, không trùng nhau.'},400);
+  const b=parsed.data,tables=JSON.stringify(b.tables);
+  const result=await db.prepare(`UPDATE reservations AS target SET table_ids=?,version=version+1,updated_at=?
+   WHERE id=? AND user_id=? AND version=? AND status<>'cancelled' AND json_array_length(table_ids)=?
+   AND NOT EXISTS(SELECT 1 FROM reservations r WHERE r.user_id=target.user_id AND r.date=target.date AND r.id<>target.id AND r.status<>'cancelled' AND r.start<target.end AND r.end>target.start AND EXISTS(SELECT 1 FROM json_each(r.table_ids) a JOIN json_each(?) b ON a.value=b.value))`).bind(tables,new Date().toISOString(),b.id,'dpa-shared',b.version,b.tables.length,tables).run();
+  if(!result.meta.changes)return out({error:'Không thể chuyển: bàn mới đã có lịch, số bàn không khớp, đơn đã hủy hoặc dữ liệu vừa thay đổi. Hãy tải lại danh sách bàn.'},409);
+  return out({ok:true,version:b.version+1});
+ }catch(e){console.error('Table transfer failed',e);return out({error:'Chưa chuyển được bàn. Vui lòng thử lại.'},503);}
+}

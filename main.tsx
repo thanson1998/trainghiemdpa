@@ -6,3 +6,5 @@ import './menu-editor.css';
 import './catalog.css';
 createRoot(document.getElementById('root')!).render(<Dashboard/>);
 import './orders-dashboard.css';
+
+import './table-transfer.css';

@@ -32,6 +32,37 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('table transfer atomically reserves the new tables and preserves every other booking field',async()=>{
+ const original=booking({tables:['S1-01','S1-02'],price:1200000,deposit:400000,people:6,note:'Preserve this note',menu:menu.writeMenu([{name:'Original menu',price:null,quantity:2}])});
+ assert.equal((await api.POST(req('POST',original),db)).status,200);
+ const occupied=booking({tables:['S1-07']});assert.equal((await api.POST(req('POST',occupied),db)).status,200);
+ const before=(await(await get()).json()).bookings.find(b=>b.id===original.id);
+ const transfer=tables=>api.MOVE(req('POST',{id:original.id,version:1,tables,price:0,name:'Do not apply',menu:''}),db);
+ assert.equal((await transfer(['S1-07','S1-08'])).status,409);
+ assert.equal((await transfer(['S1-08'])).status,409);
+ assert.equal((await transfer(['S1-08','S1-08'])).status,400);
+ assert.equal((await transfer(['unknown','S1-08'])).status,400);
+ assert.equal((await transfer(['S1-08','S1-06'])).status,200);
+ const after=(await(await get()).json()).bookings.find(b=>b.id===original.id);
+ assert.deepEqual(after.tables,['S1-08','S1-06']);assert.equal(after.version,2);
+ const stable=b=>{const {tables,version,updatedAt,...rest}=b;return rest;};assert.deepEqual(stable(after),stable(before));
+ assert.equal((await transfer(['S1-03','S1-04'])).status,409);
+ assert.equal((await api.POST(req('POST',booking({tables:['S1-01','S1-02']})),db)).status,200);
+ assert.equal((await api.POST(req('POST',booking({tables:['S1-08']})),db)).status,409);
+ assert.equal((await api.POST(req('POST',{...before,name:'Stale draft',version:1}),db)).status,409);
+});
+
+test('transfer route supports same-day adjacent bookings, rejects cancelled orders and enforces JSON',async()=>{
+ const original=booking({tables:['S1-01']});await api.POST(req('POST',original),db);
+ await api.POST(req('POST',booking({tables:['S1-08'],start:'14:00',end:'16:00'})),db);
+ const moveRequest=new Request('https://worker.example/api/bookings/move',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://thanson1998.github.io'},body:JSON.stringify({id:original.id,version:1,tables:['S1-08']})});
+ const response=await worker.default.fetch(moveRequest,{DB:db,ASSETS:{}});assert.equal(response.status,200);assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
+ const current=(await(await get()).json()).bookings.find(b=>b.id===original.id);await api.POST(req('POST',{...current,status:'cancelled'}),db);
+ assert.equal((await api.MOVE(req('POST',{id:original.id,version:3,tables:['S1-07']}),db)).status,409);
+ assert.equal((await worker.default.fetch(new Request('https://worker.example/api/bookings/move',{method:'POST',body:'{}'}),{DB:db,ASSETS:{}})).status,415);
+ const getMove=await worker.default.fetch(new Request('https://worker.example/api/bookings/move'),{DB:db,ASSETS:{}});assert.equal(getMove.status,405);assert.equal(getMove.headers.get('Allow'),'POST, OPTIONS');
+});
+
 test('explicit set quantity scales included dishes and price once, independent of selected tables',async()=>{
  sqlite.exec(fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8'));
  const template=JSON.parse(sqlite.prepare('SELECT data FROM menu_catalog WHERE id=?').get('dpa-shared').data).templates[0];
