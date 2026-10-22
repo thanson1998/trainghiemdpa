@@ -32,6 +32,32 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('hotpot set migration preserves catalog and seeds seven included items with one set price',async()=>{
+ const existing={dishes:[{id:crypto.randomUUID(),name:'Existing dish',price:100000,unit:'plate'}],templates:[{id:crypto.randomUUID(),name:'Existing template',menu:menu.writeMenu([{name:'Existing item',price:200000}])}],version:0};
+ assert.equal((await catalogApi.POST_CATALOG(req('POST',existing),db)).status,200);
+ const migration=fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8');
+ sqlite.exec(migration);sqlite.exec(migration);
+ const catalog=await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json();
+ assert.deepEqual(catalog.dishes,existing.dishes);assert.deepEqual(catalog.templates[0],existing.templates[0]);assert.equal(catalog.templates.length,2);assert.equal(catalog.version,2);
+ const set=catalog.templates[1];assert.equal(menu.validMenu(set.menu),true);assert.equal(menu.readMenu(set.menu).length,7);assert.equal(menu.readMenuSet(set.menu).pricePerTable,1200000);assert.equal(menu.readMenuSet(set.menu).people,6);
+ assert.ok(menu.readMenu(set.menu).every(item=>item.price===null&&item.included));
+ assert.equal(menu.menuSum(set.menu,2),2400000);assert.equal(menu.pricePerSelectedTable(set.menu,2),1200000);assert.equal(menu.readMenu(set.menu,2)[0].quantity,2);
+ assert.equal((await catalogApi.POST_CATALOG(req('POST',catalog),db)).status,200);
+ assert.equal((await api.POST(req('POST',booking({menu:set.menu,price:1200000,people:6})),db)).status,200);
+});
+
+test('set receipt shows all dishes without individual amounts and retains the correct booking total',()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8'));
+ const stored=JSON.parse(sqlite.prepare('SELECT data FROM menu_catalog WHERE id=?').get('dpa-shared').data);
+ const value=stored.templates[0].menu;
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:booking({tables:['S1-07','S1-08'],menu:value,people:6,price:1200000}),onClose(){}}));
+ const text=html.replace(/<[^>]*>/g,'');
+ for(const item of menu.readMenu(value))assert.ok(text.includes(item.name));
+ assert.ok(text.includes('2.400.000'));assert.ok(!html.includes('dish-print-price'));assert.ok(text.includes('12 người'));
+ const modified=menu.writeMenu([...menu.readMenu(value),{name:'Extra dish',price:100000,quantity:2}],menu.readMenuSet(value));
+ assert.equal(menu.pricePerSelectedTable(modified,2),1300000);assert.equal(menu.validMenu(modified),true);
+});
+
 test('daily order codes are persistent, date-based and never reuse a deleted number',async()=>{
  const first=booking({date:'2026-10-22',tables:['S1-07']}),second=booking({date:'2026-10-22',tables:['S1-08']}),other=booking({date:'2026-10-23',tables:['S1-07']});
  for(const b of [first,second,other])assert.equal((await api.POST(req('POST',{...b,orderCode:'FORGED'}),db)).status,200);
