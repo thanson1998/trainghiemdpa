@@ -172,3 +172,14 @@ test('unit prices use comma thousands separators without changing numeric values
  assert.equal(menu.formatUnitPrice(null),'');assert.equal(menu.parseUnitPrice(''),null);assert.equal(menu.parseUnitPrice(' 250,000 '),250000);
  for(const invalid of ['-1','1.5','abc','100000001'])assert.equal(menu.parseUnitPrice(invalid),undefined);
 });
+
+test('whole-menu total divides automatically over selected tables',()=>{
+ const value=menu.writeMenu([{name:'Gà',price:300000,quantity:2},{name:'Cơm',price:100000,quantity:2}]);
+ assert.equal(menu.menuSum(value),800000);
+ assert.equal(menu.pricePerSelectedTable(value,2),400000);
+ assert.equal(menu.pricePerSelectedTable(value,4),200000);
+ assert.equal(menu.pricePerSelectedTable(value,0),0);
+ assert.equal(menu.pricePerSelectedTable(menu.writeMenu([]),2),0);
+ assert.equal(menu.pricePerSelectedTable(menu.writeMenu([{name:'Món',price:100000,quantity:1}]),3),33333);
+ assert.equal(menu.pricePerSelectedTable(menu.writeMenu([{name:'Gà',price:300000,quantity:4}]),2),600000);
+});

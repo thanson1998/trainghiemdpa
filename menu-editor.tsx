@@ -18,7 +18,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
  const mergeTyped=()=>{if(items.some((item,i)=>items.slice(0,i).some(other=>other.name.trim()&&other.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN')===item.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN'))))commitMerged(items,'');};
 
  return <section className="dish-editor" aria-label="Món ăn và giá tiền">
-  <div className="dish-editor-heading"><span>Món ăn / thực đơn</span><small>Số lượng và thành tiền tính cho mỗi bàn</small></div>
+  <div className="dish-editor-heading"><span>Món ăn / thực đơn</span><small>Số lượng và thành tiền tính cho toàn bộ thực đơn</small></div>
   {catalog&&<div className="menu-library-picker"><label>Chọn món từ thư viện<select aria-label="Chọn món từ thư viện" value={selection} onChange={e=>setSelection(e.target.value)}><option value="">{catalog.dishes.length?'Chọn món đã lưu…':'Chưa có món mẫu — tự thêm ở Thư viện thực đơn'}</option>{catalog.dishes.map(dish=><option key={dish.id} value={dish.id}>{dish.name} · {dish.unit}{dish.price!==null?' · '+money(dish.price):''}</option>)}</select></label><button type="button" className="secondary-btn" disabled={!selection} onClick={()=>{const dish=catalog.dishes.find(x=>x.id===selection);if(dish)append([{name:dish.name,unit:dish.unit,price:dish.price,quantity:1}]);}}>Thêm món đã chọn</button>
    {allowTemplates&&<><label>Chọn thực đơn mẫu<select aria-label="Chọn thực đơn mẫu" value={template} onChange={e=>setTemplate(e.target.value)}><option value="">{catalog.templates.length?'Chọn thực đơn đã lưu…':'Chưa có thực đơn mẫu'}</option>{catalog.templates.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label><button type="button" className="secondary-btn" disabled={!template} onClick={()=>{const t=catalog.templates.find(x=>x.id===template);if(t)append(readMenu(t.menu).filter(x=>x.name.trim()));}}>Thêm thực đơn mẫu</button></>}<small>Giá mẫu chỉ dùng để điền nhanh. Sửa giá tại đây không đổi thư viện.</small>
   </div>}
@@ -33,6 +33,6 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
   </div>)}
   </div>
   <button type="button" className="text-btn dish-add" disabled={items.length>=80} onClick={()=>onChange(writeMenu([...items,newItem()]))}><Plus size={15}/>Thêm món</button>
-  {priced.length>0&&<div className="dish-editor-total"><div><span>Tổng giá đã nhập / bàn</span><strong>{money(total)}</strong></div>{onApplyTotal&&<button type="button" className="secondary-btn" disabled={!complete||total>100000000} onClick={()=>onApplyTotal(total)}>Dùng tổng món làm giá bàn</button>}{!complete&&<small>Nhập đủ giá và số lượng các món để áp dụng tổng vào giá bàn.</small>}</div>}
+  {priced.length>0&&<div className="dish-editor-total"><div><span>Tổng giá thực đơn đã nhập</span><strong>{money(total)}</strong></div>{onApplyTotal&&<button type="button" className="secondary-btn" disabled={!complete||total>100000000} onClick={()=>onApplyTotal(total)}>Dùng tổng món làm giá bàn</button>}{!complete&&<small>Nhập đủ giá và số lượng các món để áp dụng tổng vào giá bàn.</small>}</div>}
  </section>
 }

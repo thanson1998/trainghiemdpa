@@ -41,3 +41,5 @@ export function parseUnitPrice(value:string):number|null|undefined{
  const digits=value.replace(/[,\s]/g,'');if(!digits)return null;
  const amount=Number(digits);return Number.isSafeInteger(amount)&&amount<=100000000?amount:undefined;
 }
+
+export const pricePerSelectedTable=(value:string,count:number)=>count>0?Math.round(menuSum(value)/count):0;
