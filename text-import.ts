@@ -130,9 +130,6 @@ export async function IMPORT(request:Request,env:ImportEnv):Promise<Response>{
   let text:unknown,defaultDate:unknown;try{const input=JSON.parse(body);text=input.text;defaultDate=input.defaultDate;}catch{return Response.json({error:'Dữ liệu không hợp lệ.'},{status:400});}
   if(typeof text!=='string'||!text.trim()||text.length>6000)return Response.json({error:'Hãy nhập từ 1 đến 6.000 ký tự.'},{status:400});
   if(!env.AI&&!env.GEMINI_API_KEY?.trim())return Response.json({error:'AI chưa sẵn sàng trên máy chủ. Văn bản của bạn vẫn được giữ để thử lại.'},{status:503});
-  stage='storage';const day=new Date().toISOString().slice(0,10);
-  const quota=await env.DB.prepare('INSERT INTO text_import_usage(day, used) VALUES (?,1) ON CONFLICT(day) DO UPDATE SET used=used+1 WHERE used<20').bind(day).run();
-  if(!quota.meta.changes)return Response.json({error:'Đã dùng đủ 20 lượt đọc AI hôm nay (đặt lại lúc 07:00 giờ Việt Nam). Bạn vẫn có thể nhập đơn thủ công.'},{status:429});
   const provider=env.GEMINI_API_KEY?.trim()?'gemini':'cloudflare';
   stage='ai';const input={messages:[{role:'system',content:naturalPrompt()},{role:'user',content:text}],max_tokens:1800,temperature:0};
   let result:{response?:unknown};

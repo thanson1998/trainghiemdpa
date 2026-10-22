@@ -128,13 +128,14 @@ test('text import exposes uncertain dates, tables, guests and prices',()=>{
  assert.equal(result.fields.date,'');assert.equal(result.fields.start,'');assert.equal(result.fields.deposit,0);assert.equal(menu.readMenu(result.fields.menu)[0].price,null);assert.ok(result.warnings.length>=6);assert.deepEqual(result.fields.tables,['S1-07','S1-08']);
  assert.equal(textImport.normalizeImport({date:'2026-99-99'}).fields.date,'');assert.throws(()=>textImport.normalizeImport({items:[{name:'Ga',price:-1}]}));
 });
-test('AI route applies an atomic daily quota without changing existing bookings or catalog',async()=>{
+test('AI route allows more than twenty reads even after the previous quota was exhausted',async()=>{
  sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
+ sqlite.prepare('INSERT INTO text_import_usage(day,used) VALUES (?,20)').run(new Date().toISOString().slice(0,10));
  const original=booking();await api.POST(req('POST',original),db);const before=JSON.stringify((await(await get()).json()).bookings);
  let calls=0;const env={DB:db,ASSETS:{},AI:{async run(){calls++;return{response:JSON.stringify({name:'Test',tables:['S1-07'],items:[{name:'Ga',quantity:2,price:300000}]})};}}};
  const request=()=>new Request('https://worker.example/api/import-text',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://thanson1998.github.io'},body:JSON.stringify({text:'Test AI import only'})});
- for(let i=0;i<20;i++){const r=await worker.default.fetch(request(),env);assert.equal(r.status,200);assert.equal((await r.json()).total,600000);}
- assert.equal((await worker.default.fetch(request(),env)).status,429);assert.equal(calls,20);assert.equal(JSON.stringify((await(await get()).json()).bookings),before);
+ for(let i=0;i<45;i++){const r=await worker.default.fetch(request(),env);assert.equal(r.status,200);assert.equal((await r.json()).total,600000);}
+ assert.equal(calls,45);assert.equal(JSON.stringify((await(await get()).json()).bookings),before);assert.equal(sqlite.prepare('SELECT used FROM text_import_usage').get().used,20);
 });
 test('AI route handles invalid input, unavailable binding and malformed output',async()=>{
  sqlite.exec(fs.readFileSync(new URL('./0005_text_import_usage.sql',import.meta.url),'utf8'));
