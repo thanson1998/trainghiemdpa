@@ -9,3 +9,5 @@
 @media(min-width:601px){.booking-drawer{width:680px}}
 
 .menu-set-summary{display:flex;flex-direction:column;gap:7px;background:#edf4e4;border:1px solid #cfddc5;padding:14px;border-radius:8px;margin-bottom:14px;font-size:14px}.menu-set-summary small{font-size:12px;line-height:1.7}.set-included-price{font-size:12px;color:#70816b;padding:10px 0}.menu-print-set-name{font-size:11pt;font-weight:700}
+
+.menu-set-picker-quantity{grid-column:1/-1}.menu-set-picker-quantity input{max-width:150px;border:1px solid #dce4d4;border-radius:5px;padding:10px;font-size:16px;background:#fff}.menu-set-summary .form-row{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}.menu-set-summary strong{font-size:16px;color:#315545}

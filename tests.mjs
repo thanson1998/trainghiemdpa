@@ -32,6 +32,29 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('explicit set quantity scales included dishes and price once, independent of selected tables',async()=>{
+ sqlite.exec(fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8'));
+ const template=JSON.parse(sqlite.prepare('SELECT data FROM menu_catalog WHERE id=?').get('dpa-shared').data).templates[0];
+ const two=menu.setMenuQuantity(template.menu,2);
+ assert.equal(menu.readMenuSet(two).quantity,2);
+ assert.ok(menu.readMenu(two,1).every(item=>item.quantity===2));
+ assert.ok(menu.readMenu(two,4).every(item=>item.quantity===2));
+ assert.equal(menu.menuSum(two,4),2400000);assert.equal(menu.pricePerSelectedTable(two,2),1200000);assert.equal(menu.pricePerSelectedTable(two,1),2400000);
+ assert.equal((await api.POST(req('POST',booking({menu:two,tables:['S1-07','S1-08'],price:1200000})),db)).status,200);
+ const saved=(await(await get()).json()).bookings[0];assert.equal(saved.menu,two);assert.equal(menu.readMenu(saved.menu,saved.tables.length)[0].quantity,2);
+ const three=menu.setMenuQuantity(two,3);assert.ok(menu.readMenu(three,2).every(item=>item.quantity===3));assert.equal(menu.menuSum(three,2),3600000);
+ const withExtra=menu.writeMenu([...menu.readMenu(two),{name:'Extra',price:100000,quantity:3}],menu.readMenuSet(two));
+ const resized=menu.setMenuQuantity(withExtra,3);assert.equal(menu.readMenu(resized).at(-1).quantity,3);assert.equal(menu.menuSum(resized,5),3900000);
+ assert.ok(menu.readMenu(menu.setMenuQuantity(three,1),5).every(item=>item.quantity===1));
+ for(const invalid of [0,-1,1.5,1001])assert.throws(()=>menu.setMenuQuantity(two,invalid));
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:{...saved,menu:two,tables:['S1-07','S1-08']},onClose(){}}));
+ assert.ok(html.includes('2 set'));assert.ok(!html.includes('dish-print-price'));
+ assert.equal((html.match(/class="dish-print-count">2</g)||[]).length,7);
+ // Existing reservations without an explicit set count retain their prior totals.
+ assert.equal(menu.menuSum(template.menu,2),2400000);assert.equal(menu.readMenu(template.menu,2)[0].quantity,2);
+ assert.equal(menu.menuSum(menu.setMenuQuantity(template.menu,2,2),4),2400000);
+});
+
 test('hotpot set migration preserves catalog and seeds seven included items with one set price',async()=>{
  const existing={dishes:[{id:crypto.randomUUID(),name:'Existing dish',price:100000,unit:'plate'}],templates:[{id:crypto.randomUUID(),name:'Existing template',menu:menu.writeMenu([{name:'Existing item',price:200000}])}],version:0};
  assert.equal((await catalogApi.POST_CATALOG(req('POST',existing),db)).status,200);
