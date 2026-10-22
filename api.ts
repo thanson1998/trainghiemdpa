@@ -11,7 +11,7 @@ export async function GET(req:Request,db:D1Database){
  if((date&&month)||(!month&&!validDate)||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))return out({error:'Ngày hoặc tháng không hợp lệ.'},400);
  try{const statement=month?db.prepare('SELECT * FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,month+'-01',month+'-31'):db.prepare('SELECT * FROM reservations WHERE user_id=? AND date=? ORDER BY start, name, id').bind(u.userId,date);
  const {results}=await statement.all<any>();
- return out({bookings:results.map(r=>({id:r.id,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version,updatedAt:r.updated_at}))});
+ return out({bookings:results.map(r=>({id:r.id,orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version,updatedAt:r.updated_at}))});
  }catch(e){console.error('Booking read failed',e);return out({error:'Không tải được dữ liệu. Vui lòng thử lại.'},503)}
 }
 export async function POST(req:Request,db:D1Database){

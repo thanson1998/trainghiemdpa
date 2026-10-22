@@ -23,6 +23,7 @@ beforeEach(()=>{
  sqlite=new DatabaseSync(':memory:');
  sqlite.exec(fs.readFileSync(new URL('./0001_reservations.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0002_menu_catalog_deposit.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0003_order_codes.sql',import.meta.url),'utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);return{bind(...values){return{async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}}}}}};
 });
@@ -30,6 +31,43 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('daily order codes are persistent, date-based and never reuse a deleted number',async()=>{
+ const first=booking({date:'2026-10-22',tables:['S1-07']}),second=booking({date:'2026-10-22',tables:['S1-08']}),other=booking({date:'2026-10-23',tables:['S1-07']});
+ for(const b of [first,second,other])assert.equal((await api.POST(req('POST',{...b,orderCode:'FORGED'}),db)).status,200);
+ const read=async date=>(await(await api.GET(new Request('https://dpa.example/api/bookings?date='+date),db)).json()).bookings;
+ let rows=await read('2026-10-22');
+ assert.equal(rows.find(b=>b.id===first.id).orderCode,'DPA-22102026-01');
+ assert.equal(rows.find(b=>b.id===second.id).orderCode,'DPA-22102026-02');
+ assert.equal((await read('2026-10-23'))[0].orderCode,'DPA-23102026-01');
+ assert.equal((await api.POST(req('POST',{...first,name:'Changed name',version:1}),db)).status,200);
+ assert.equal((await read('2026-10-22')).find(b=>b.id===first.id).orderCode,'DPA-22102026-01');
+ assert.equal((await api.DELETE(req('DELETE',{id:second.id,version:1}),db)).status,200);
+ assert.equal((await api.POST(req('POST',booking({date:'2026-10-22',tables:['S1-08']})),db)).status,200);
+ rows=await read('2026-10-22');assert.ok(rows.some(b=>b.orderCode==='DPA-22102026-03'));assert.ok(!rows.some(b=>b.orderCode==='DPA-22102026-02'));
+ assert.equal((await api.POST(req('POST',{...first,date:'2026-10-23',tables:['S1-08'],version:2}),db)).status,200);
+ assert.equal((await read('2026-10-23')).find(b=>b.id===first.id).orderCode,'DPA-23102026-02');
+ // A refused duplicate does not advance the day counter.
+ assert.equal((await api.POST(req('POST',booking({date:'2026-10-23',tables:['S1-07']})),db)).status,409);
+ assert.equal((await api.POST(req('POST',booking({date:'2026-10-23',tables:['S1-06']})),db)).status,200);
+ assert.ok((await read('2026-10-23')).some(b=>b.orderCode==='DPA-23102026-03'));
+});
+
+test('order-code migration numbers existing bookings once without changing booking data',()=>{
+ const old=new DatabaseSync(':memory:');
+ try{
+  for(const file of ['0001_reservations.sql','0002_menu_catalog_deposit.sql'])old.exec(fs.readFileSync(new URL('./'+file,import.meta.url),'utf8'));
+  const insert=old.prepare('INSERT INTO reservations(id,user_id,date,start,end,name,table_ids,people,platters,price,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+  insert.run('a','dpa-shared','2026-10-22','11:00','14:00','A','["7"]',10,1,123456,'2026-10-20T01:00:00Z');
+  insert.run('b','dpa-shared','2026-10-22','15:00','17:00','B','["8"]',12,1,500000,'2026-10-20T02:00:00Z');
+  const before=old.prepare('SELECT id,date,name,price,table_ids,version,updated_at FROM reservations ORDER BY id').all();
+  old.exec(fs.readFileSync(new URL('./0003_order_codes.sql',import.meta.url),'utf8'));
+  assert.deepEqual(old.prepare('SELECT id,date,name,price,table_ids,version,updated_at FROM reservations ORDER BY id').all(),before);
+  assert.deepEqual(old.prepare('SELECT order_code FROM reservations ORDER BY id').all().map(r=>r.order_code),['DPA-22102026-01','DPA-22102026-02']);
+  insert.run('c','dpa-shared','2026-10-22','18:00','20:00','C','["9"]',10,1,250000,'2026-10-22T01:00:00Z');
+  assert.equal(old.prepare('SELECT order_code FROM reservations WHERE id=?').get('c').order_code,'DPA-22102026-03');
+ }finally{old.close();}
+});
 
 test('orders overview excludes cancelled value and counts menu quantities once per booking',async()=>{
  const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));

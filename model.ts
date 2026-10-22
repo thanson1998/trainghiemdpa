@@ -10,7 +10,7 @@ export const zones = [
 ];
 export const tableIds=zones.flatMap(z=>z.tables);
 export const zoneOf=(id:string)=>zones.find(z=>z.tables.includes(id))!;
-export type Booking={id:string;date:string;start:string;end:string;name:string;phone:string;tables:string[];people:number;platters:number;price:number;deposit?:number;menu:string;note:string;status:'reserved'|'arrived'|'completed'|'cancelled';version:number;updatedAt?:string};
+export type Booking={id:string;orderCode?:string;date:string;start:string;end:string;name:string;phone:string;tables:string[];people:number;platters:number;price:number;deposit?:number;menu:string;note:string;status:'reserved'|'arrived'|'completed'|'cancelled';version:number;updatedAt?:string};
 export const money=(n:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(n);
 export const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
 export const statusNames={reserved:'Đã đặt',arrived:'Đang phục vụ',completed:'Hoàn tất',cancelled:'Đã hủy'};

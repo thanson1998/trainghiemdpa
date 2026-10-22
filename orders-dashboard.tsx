@@ -5,7 +5,7 @@ import {readMenu,itemQuantity} from './menu';
 
 type Props={bookings:Booking[];loading:boolean;error:string;date:string;monthly:boolean;onDay:(date:string)=>void;onMonth:(month:string)=>void;onWholeMonth:()=>void;onOpen:(b:Booking)=>void;onPrint:(b:Booking)=>void};
 const valueOf=(b:Booking)=>b.price*b.tables.length;
-const codeOf=(b:Booking)=>'DPA-'+b.id.replaceAll('-','').slice(0,8).toUpperCase();
+const codeOf=(b:Booking)=>b.orderCode||'Chờ cấp mã';
 const depositState=(b:Booking)=>!b.deposit?'none':valueOf(b)>0&&b.deposit>=valueOf(b)?'full':'partial';
 const depositLabels={none:'Chưa cọc',partial:'Đã cọc một phần',full:'Đã cọc đủ'};
 
