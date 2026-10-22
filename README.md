@@ -69,3 +69,12 @@ Trong Cloudflare, chọn Worker `trainghiemdpa` → Settings → Variables and S
 
 Khi Secret đã có, máy chủ tự dùng Gemini 3.1 Flash-Lite. Có thể đổi mô hình bằng biến `GEMINI_MODEL`. Khi chưa có Secret, ứng dụng tiếp tục dùng Cloudflare AI. Phiếu nhập ghi rõ dịch vụ đã đọc văn bản. Nếu Gemini từ chối key hoặc hết hạn mức, ứng dụng báo lỗi cụ thể; không tự gửi lời nhắn sang dịch vụ khác.
 
+## Luồng quản lý đặt bàn mới
+
+- Trang mở đầu hiển thị tổng quan hôm nay. Trên điện thoại có thẻ đơn hàng và sơ đồ theo từng khu, không cần vuốt ngang toàn bộ mặt bằng.
+- Form gồm Khách & thời gian, Bàn & tổng số khách, Thực đơn & tiền. Giá tự chia và giá đã chốt là hai chế độ riêng. Đơn cũ mặc định giữ giá đã chốt.
+- Nhập AI có phần xem cấu hình và kiểm tra kết nối. Chỉ kiểm tra khi bấm nút; website không đặt giới hạn số lượt/ngày.
+- Sau khi lưu đơn, in và chuyển phiếu cho bếp, bấm **Đã gửi bếp — ghi nhận**. Lần sau có thể chọn **In món bổ sung / thay đổi** để in phần thêm, giảm/hủy và đổi bàn so với lần xác nhận trước. In thử hoặc hủy hộp thoại in không tự xác nhận gửi bếp.
+- Mỗi lần tạo, sửa, chuyển hoặc xóa đơn đều có lịch sử. Mục **Lịch sử & sao lưu** cho phép khôi phục một phiên bản sau khi kiểm tra trùng bàn và phiên bản mới nhất. Đơn đã xóa được cấp mã đơn mới khi khôi phục; các phiên bản cũ vẫn được giữ.
+- **Tải bản sao lưu** xuất JSON gồm đơn hàng, thư viện món, lịch sử và các lần gửi bếp. Tệp có thông tin khách, nên lưu ở nơi quản lý DPA sử dụng.
+

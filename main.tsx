@@ -8,3 +8,5 @@ createRoot(document.getElementById('root')!).render(<Dashboard/>);
 import './orders-dashboard.css';
 
 import './table-transfer.css';
+
+import './workflow.css';

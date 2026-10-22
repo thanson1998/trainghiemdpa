@@ -20,7 +20,10 @@ const catalogApi=await import(dataUrl(compile(catalogSource)));
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
 const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
-const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
+const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
+const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
+const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
+const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw new Error("not used during SSR");}'))).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
@@ -28,13 +31,85 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0001_reservations.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0002_menu_catalog_deposit.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0003_order_codes.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0006_booking_workflow.sql',import.meta.url),'utf8'));
 
- db={prepare(sql){const statement=sqlite.prepare(sql);return{bind(...values){return{async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}}}}}};
+ db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
 afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('Gemini accepts older REST schema formats without leaking provider details or changing user text',async()=>{
+ let calls=0;const text='Gà hấp 2 đĩa, mỗi đĩa 320k';
+ const result=await textImport.extractWithGemini(text,{DB:db,GEMINI_API_KEY:'TEST_ONLY_NOT_A_REAL_KEY'},async(url,options)=>{calls++;const body=JSON.parse(options.body);assert.equal(body.contents[0].parts[0].text,text);if(calls===1)return Response.json({error:{message:'Unknown name "responseFormat" at generationConfig'}},{status:400});assert.equal(body.generationConfig.responseMimeType,'application/json');assert.ok(!body.generationConfig.responseFormat);return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({items:[{name:'Gà hấp',quantity:2,price:320000}]})}]}}]});});
+ assert.equal(calls,2);assert.equal(textImport.normalizeImport(textImport.decodeImportResponse(result.response)).total,640000);
+});
+
+test('agreed prices survive menu and table edits, automatic prices change only in automatic mode',()=>{
+ const original=booking({price:1500000,priceMode:'agreed',totalPeople:13,menu:menu.writeMenu([{name:'Gà',quantity:2,price:320000}])});
+ const edited=bookingLogic.updateBookingDraft(original,'tables',['S1-01','S1-02']);assert.equal(edited.price,1500000);assert.equal(edited.totalPeople,13);assert.equal(edited.people,7);
+ const auto=bookingLogic.updateBookingDraft(edited,'priceMode','auto');assert.equal(auto.price,320000);
+ const locked=bookingLogic.updateBookingDraft(auto,'price',500000);assert.equal(locked.priceMode,'agreed');assert.equal(bookingLogic.updateBookingDraft(locked,'menu',menu.writeMenu([{name:'New',price:1}])).price,500000);
+});
+test('odd total guest counts persist and print accurately while legacy guest counts remain readable',async()=>{
+ const b=booking({tables:['S1-01','S1-02'],people:7,totalPeople:13,priceMode:'agreed'});assert.equal((await api.POST(req('POST',b),db)).status,200);
+ const saved=(await(await get()).json()).bookings[0];assert.equal(saved.totalPeople,13);assert.equal(saved.priceMode,'agreed');
+ const model=await import(modelUrl);assert.equal(model.guestCount(saved),13);assert.equal(model.guestCount(booking({tables:['S1-01','S1-02'],people:6})),12);
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:saved,onClose(){}}));assert.ok(html.includes('13'));assert.ok(!html.includes('14 người'));assert.ok(!html.includes('7 người / bàn'));
+ const imported=textImport.normalizeImport({totalPeople:13,tables:['S1-01','S1-02']});assert.equal(imported.fields.totalPeople,13);assert.equal(imported.fields.people,7);
+});
+test('history restores deleted bookings with higher versions and rejects stale clients',async()=>{
+ const original=booking();await api.POST(req('POST',original),db);let current=(await(await get()).json()).bookings[0];const oldCode=current.orderCode;
+ await api.POST(req('POST',{...current,name:'Edited'}),db);current=(await(await get()).json()).bookings[0];assert.equal((await api.DELETE(req('DELETE',{id:original.id,version:2}),db)).status,200);
+ const entries=(await(await api.HISTORY(req('GET'),db)).json()).history;assert.equal(entries.filter(e=>e.action==='created').length,1);assert.equal(entries[0].action,'deleted');
+ assert.equal((await api.RESTORE(req('POST',{id:entries[0].id,expectedVersion:0}),db)).status,200);
+ const restored=(await(await get()).json()).bookings[0];assert.equal(restored.id,original.id);assert.equal(restored.name,'Edited');assert.equal(restored.version,3);assert.notEqual(restored.orderCode,oldCode);
+ assert.equal((await api.POST(req('POST',{...restored,version:1,name:'Stale'}),db)).status,409);assert.equal((await api.POST(req('POST',{...restored,version:2,name:'Stale'}),db)).status,409);
+});
+test('history restore checks current versions and overlapping tables',async()=>{
+ const original=booking();await api.POST(req('POST',original),db);const created=(await(await api.HISTORY(req('GET'),db)).json()).history[0];
+ let current=(await(await get()).json()).bookings[0];await api.POST(req('POST',{...current,name:'Changed',totalPeople:13}),db);
+ assert.equal((await api.RESTORE(req('POST',{id:created.id,expectedVersion:1}),db)).status,409);
+ assert.equal((await api.RESTORE(req('POST',{id:created.id,expectedVersion:2}),db)).status,200);current=(await(await get()).json()).bookings[0];assert.equal(current.name,original.name);assert.equal(current.totalPeople,undefined);
+ await api.DELETE(req('DELETE',{id:current.id,version:current.version}),db);await api.POST(req('POST',booking()),db);
+ assert.equal((await api.RESTORE(req('POST',{id:created.id,expectedVersion:0}),db)).status,409);assert.equal((await(await get()).json()).bookings.length,1);
+});
+
+test('workflow migration preserves existing booking codes, prices, menus, guests and deposits',()=>{
+ const legacy=new DatabaseSync(':memory:');try{
+  for(const file of ['0001_reservations.sql','0002_menu_catalog_deposit.sql','0003_order_codes.sql'])legacy.exec(fs.readFileSync(new URL('./'+file,import.meta.url),'utf8'));
+  const b=booking({people:6,price:1555000,deposit:500000,menu:menu.writeMenu([{name:'Original price',quantity:2,price:400000}])});
+  legacy.prepare('INSERT INTO reservations(id,user_id,date,start,end,name,phone,table_ids,people,platters,price,deposit,menu,note,status,version,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(b.id,'dpa-shared',b.date,b.start,b.end,b.name,b.phone,JSON.stringify(b.tables),b.people,b.platters,b.price,b.deposit,b.menu,b.note,b.status,1,new Date().toISOString());
+  const before=legacy.prepare('SELECT * FROM reservations').get();legacy.exec(fs.readFileSync(new URL('./0006_booking_workflow.sql',import.meta.url),'utf8'));const after=legacy.prepare('SELECT * FROM reservations').get();
+  const {total_people,price_mode,...unchanged}=after;assert.deepEqual(unchanged,{...before});assert.equal(total_people,null);assert.equal(price_mode,'agreed');const baseline=JSON.parse(legacy.prepare('SELECT snapshot FROM reservation_history').get().snapshot);assert.equal(baseline.price,b.price);assert.equal(baseline.orderCode,before.order_code);assert.equal(baseline.menu,b.menu);
+ }finally{legacy.close();}
+});
+test('kitchen confirmation rejects unsaved changes and retains the last confirmed menu',async()=>{
+ const original=booking({menu:menu.writeMenu([{name:'Gà',quantity:2,price:300000}])});await api.POST(req('POST',original),db);let current=(await(await get()).json()).bookings[0];
+ const read=()=>api.GET_PRINT(new Request('https://dpa.example/api/bookings/prints?id='+original.id),db);
+ assert.equal((await(await read()).json()).last,null);
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:{...current,menu:menu.writeMenu([{name:'Gà',quantity:3,price:300000}])}}),db)).status,409);
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:current}),db)).status,200);const first=(await(await read()).json()).last;assert.equal(first.menu,current.menu);
+ await api.POST(req('POST',{...current,menu:menu.writeMenu([{name:'Gà',quantity:3,price:300000}])}),db);current=(await(await get()).json()).bookings[0];assert.equal((await(await read()).json()).last.menu,first.menu);
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:current}),db)).status,200);assert.equal((await(await read()).json()).last.version,2);
+});
+test('kitchen delta prints added and removed quantities once including resized sets',()=>{
+ const first=booking({menu:menu.writeMenu([{name:'Gà',quantity:2,price:300000},{name:'Tôm',quantity:2,price:200000}])});
+ const next={...first,tables:['S1-02'],menu:menu.writeMenu([{name:'Gà',quantity:3,price:320000}])};const diff=kitchen.kitchenDelta(first,next);
+ assert.equal(diff.added[0].quantity,1);assert.equal(diff.removed[0].quantity,2);assert.ok(diff.notes.some(n=>n.includes('Chuyển bàn')));assert.ok(diff.notes.some(n=>n.includes('Đổi đơn giá')));assert.equal(kitchen.kitchenDelta(first,first).changed,false);
+ const set=menu.writeMenu([{name:'Gà trong set',quantity:2,price:null,included:true}],{name:'Set',quantity:2,pricePerTable:1200000,people:6});const setBooking=booking({tables:['S1-01','S1-02'],menu:set});const resized={...setBooking,menu:menu.setMenuQuantity(set,3)};assert.equal(kitchen.kitchenDelta(setBooking,resized).added[0].quantity,1);
+});
+test('backup contains bookings, menu library, audit history and confirmed prints in one snapshot',async()=>{
+ const original=booking();await api.POST(req('POST',original),db);const current=(await(await get()).json()).bookings[0];await api.CONFIRM_PRINT(req('POST',{booking:current}),db);
+ const r=await api.BACKUP(req('GET'),db),data=await r.json();assert.equal(r.status,200);assert.equal(data.format,'DPA_BACKUP_V1');assert.equal(data.bookings.length,1);assert.ok(data.history.length);assert.equal(data.prints.length,1);assert.ok(Array.isArray(data.catalog));assert.equal((await(await get()).json()).bookings[0].version,1);
+});
+test('AI status reveals the configured provider without exposing its key and real-check does not save data',async()=>{
+ const secret='TEST_ONLY_STATUS_KEY';const env={DB:db,ASSETS:{},GEMINI_API_KEY:secret};
+ const status=await worker.default.fetch(new Request('https://worker.example/api/ai-status'),env);const state=await status.json();assert.equal(state.provider,'gemini');assert.equal(state.configured,true);assert.ok(!JSON.stringify(state).includes(secret));
+ const checkEnv={DB:db,ASSETS:{},AI:{async run(){return{response:JSON.stringify({name:'Test',date:'2026-10-25',start:'18:00',end:'21:00',tables:['S1-07'],totalPeople:6,items:[{name:'Gà',quantity:2,price:320000}]})};}}};
+ const check=await worker.default.fetch(new Request('https://worker.example/api/ai-check',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),checkEnv);assert.equal(check.status,200);assert.equal((await check.json()).provider,'cloudflare');assert.equal((await(await get()).json()).bookings.length,0);
+});
 
 test('Gemini sends the key only as a server header and requests a structured booking',async()=>{
  let url,options;const fakeKey='TEST_ONLY_NOT_A_REAL_KEY';
@@ -263,7 +338,7 @@ test('order-code migration numbers existing bookings once without changing booki
 });
 
 test('orders overview excludes cancelled value and counts menu quantities once per booking',async()=>{
- const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
+ const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./booking-cards'",JSON.stringify(cardsUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
  const {OrdersDashboard}=await import(dataUrl(compile(source).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
  const rows=[booking({price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));

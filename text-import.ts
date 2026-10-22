@@ -5,7 +5,7 @@ import {writeMenu,validMenu,menuSum,pricePerSelectedTable,type MenuItem} from '.
 const nullableText=z.string().max(2000).nullable().optional();
 const integer=z.number().int().min(0).max(100000000).nullable().optional();
 const extraction=z.object({name:nullableText,phone:nullableText,date:nullableText,start:nullableText,end:nullableText,tables:z.array(z.string().max(50)).max(50).default([]),totalPeople:integer,peoplePerTable:integer,deposit:integer,note:nullableText,warnings:z.array(z.string().max(300)).max(20).default([]),items:z.array(z.object({name:z.string().min(1).max(200),quantity:z.number().positive().max(1000).nullable().optional(),price:integer,unit:z.string().max(30).nullable().optional()})).max(80).default([])});
-export type ImportResult={fields:Pick<Booking,'name'|'phone'|'date'|'start'|'end'|'tables'|'people'|'deposit'|'menu'|'note'|'price'>;warnings:string[];total:number;learnDishNames?:string[];provider?:'gemini'|'cloudflare';model?:string};
+export type ImportResult={fields:Pick<Booking,'name'|'phone'|'date'|'start'|'end'|'tables'|'people'|'totalPeople'|'priceMode'|'deposit'|'menu'|'note'|'price'>;warnings:string[];total:number;learnDishNames?:string[];provider?:'gemini'|'cloudflare';model?:string};
 type ImportContext={defaultDate?:string;smart?:boolean;dishes?:{name:string;price:number|null;unit:string}[]};
 const naturalExtraction=extraction.extend({tableCount:z.number().int().min(1).max(50).nullable().optional(),zone:z.enum(['OUT','FRONT','S1','S2','S3','N1','N2','N3']).nullable().optional(),pricePerTable:integer,totalPrice:integer});
 const validDate=(value:unknown):value is string=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
@@ -29,7 +29,7 @@ export function normalizeImport(raw:unknown,context:ImportContext={}):ImportResu
  const count=tables.length||extra.tableCount||0;
  if(extra.tableCount&&tables.length&&extra.tableCount!==tables.length)warnings.push('Số bàn trong lời nhắn khác số mã bàn đã đọc. Hãy kiểm tra lại.');
  let people=d.peoplePerTable??0;
- if(d.totalPeople&&count){if(d.totalPeople%count===0){const divided=d.totalPeople/count;if(people&&people!==divided)warnings.push('Số người tổng và số người/bàn không khớp.');else people=divided;}else warnings.push('Tổng '+d.totalPeople+' người không chia đều cho '+count+' bàn. Hãy sửa số người/bàn.');}
+ if(d.totalPeople&&count){if(d.totalPeople%count===0){const divided=d.totalPeople/count;if(people&&people!==divided)warnings.push('Số người tổng và số người/bàn không khớp.');else people=divided;}else {people=Math.ceil(d.totalPeople/count);warnings.push('Giữ đúng tổng '+d.totalPeople+' khách; số khách mỗi bàn có thể khác nhau.');}}
  if(people<1||people>1000){people=1;warnings.push('Chưa xác định số người/bàn; phiếu tạm điền 1, cần sửa trước khi lưu.');}
  const items:MenuItem[]=[],learnDishNames:string[]=[];
  for(const item of d.items){const quantity=item.quantity??1;let price=item.price??null;
@@ -53,7 +53,7 @@ export function normalizeImport(raw:unknown,context:ImportContext={}):ImportResu
  if(tables.length&&total%tables.length)warnings.push('Giá/bàn được làm tròn đến đồng; cần kiểm tra tổng tiền trước khi lưu.');
  let deposit=d.deposit??0;if(deposit>price*count){deposit=0;warnings.push('Tiền cọc vượt tổng tiền đang đọc được; tạm để 0 để bạn kiểm tra lại.');}
  const notes=[d.note?.trim(),!tables.length&&extra.tableCount?'Yêu cầu '+extra.tableCount+' bàn'+(extra.zone?' tại '+zones.find(z=>z.id===extra.zone)?.title:'')+'.':'',d.totalPeople?'Tổng khách theo lời nhắn: '+d.totalPeople+' người.':''].filter(Boolean).join('\n').slice(0,2000);
- return {fields:{name:d.name?.trim().slice(0,100)||'',phone:d.phone?.trim().slice(0,30)||'',date,start,end,tables,people,deposit,menu,note:notes,price},warnings:[...new Set(warnings)],total,learnDishNames:[...new Set(learnDishNames)]};
+ return {fields:{name:d.name?.trim().slice(0,100)||'',phone:d.phone?.trim().slice(0,30)||'',date,start,end,tables,people,...(d.totalPeople?{totalPeople:d.totalPeople}:d.peoplePerTable&&count?{totalPeople:d.peoplePerTable*count}:{}),priceMode:extra.pricePerTable!=null||extra.totalPrice!=null?'agreed':'auto',deposit,menu,note:notes,price},warnings:[...new Set(warnings)],total,learnDishNames:[...new Set(learnDishNames)]};
 }
 
 export async function prepareNaturalImport(raw:unknown,context:ImportContext,db:D1Database):Promise<ImportResult>{
@@ -72,12 +72,27 @@ export const geminiModel='gemini-3.1-flash-lite';
 export async function extractWithGemini(text:string,env:ImportEnv,fetcher:typeof fetch=fetch):Promise<{response:unknown}>{
  const model=env.GEMINI_MODEL?.trim()||geminiModel;
  if(!/^gemini-[a-z0-9.-]+$/.test(model))throw new Error('GEMINI_MODEL_INVALID');
- const response=await fetcher('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{
+ const requestBody={system_instruction:{parts:[{text:naturalPrompt()}]},contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0.1,maxOutputTokens:4096,responseFormat:{text:{mimeType:'APPLICATION_JSON',schema:importJsonSchema}}}};
+ const url='https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent';
+ const requestOptions={method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY!.trim()}};
+ let response=await fetcher(url,{
   method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY!.trim()},signal:AbortSignal.timeout(45000),
-  body:JSON.stringify({system_instruction:{parts:[{text:naturalPrompt()}]},contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0.1,maxOutputTokens:4096,responseFormat:{text:{mimeType:'APPLICATION_JSON',schema:importJsonSchema}}}})
+  body:JSON.stringify(requestBody)
  });
+ if(response.status===400){
+  let message='';try{const data=await response.clone().json() as {error?:{message?:string}};message=data.error?.message??'';}catch{/* Invalid error bodies are handled below. */}
+  if(/unknown (?:name|field).*response_?format|response_?format.*not supported/i.test(message)){
+   const {responseFormat,...config}=requestBody.generationConfig;
+   response=await fetcher(url,{...requestOptions,signal:AbortSignal.timeout(45000),body:JSON.stringify({...requestBody,generationConfig:{...config,responseMimeType:'application/json',responseJsonSchema:importJsonSchema}})});
+  }
+ }
  // Do not surface provider response bodies: they can contain credentials or user data.
- if(!response.ok)throw new Error(response.status===401||response.status===403?'GEMINI_ACCESS_DENIED':response.status===400?'GEMINI_REQUEST_REJECTED':response.status===404?'GEMINI_MODEL_INVALID':response.status===429?'GEMINI_QUOTA':'GEMINI_UNAVAILABLE');
+ if(!response.ok){
+  let reason='';try{const body=await response.json() as {error?:{message?:string;details?:{reason?:string}[]}};reason=(body.error?.message??'')+' '+(body.error?.details??[]).map(d=>d.reason??'').join(' ');}catch{/* No provider body is exposed. */}
+  if(/API_KEY_INVALID|API key not valid|key.*expired|key.*revoked|API_KEY_EXPIRED/i.test(reason))throw new Error('GEMINI_KEY_INVALID');
+  if(/SERVICE_DISABLED|API_KEY_SERVICE_BLOCKED|has not been used.*before|is disabled/i.test(reason))throw new Error('GEMINI_API_DISABLED');
+  throw new Error(response.status===401||response.status===403?'GEMINI_ACCESS_DENIED':response.status===400?'GEMINI_REQUEST_REJECTED':response.status===404?'GEMINI_MODEL_INVALID':response.status===429?'GEMINI_QUOTA':'GEMINI_UNAVAILABLE');
+ }
  const data=await response.json() as {candidates?:{finishReason?:string;content?:{parts?:{text?:string;thought?:boolean}[]}}[]};
  const candidate=data.candidates?.[0];if(!candidate||candidate.finishReason&&candidate.finishReason!=='STOP')throw new Error('GEMINI_INVALID_RESULT');
  const output=candidate.content?.parts?.filter(p=>!p.thought).map(p=>p.text??'').join('');if(!output)throw new Error('GEMINI_INVALID_RESULT');
@@ -98,7 +113,10 @@ export function decodeImportResponse(response:unknown):unknown{
 export function importFailure(stage:string,error:unknown){
  const message=error instanceof Error?error.message:'';
  if(stage==='gemini'){
-  if(message==='GEMINI_ACCESS_DENIED'||message==='GEMINI_REQUEST_REJECTED')return {code:'GEMINI_ACCESS_DENIED',error:'Gemini chưa chấp nhận key hoặc cấu hình yêu cầu. Hãy kiểm tra Secret GEMINI_API_KEY và quyền truy cập Gemini API trên Google AI Studio.'};
+  if(message==='GEMINI_KEY_INVALID')return {code:'GEMINI_KEY_INVALID',error:'Google báo API key không hợp lệ, đã hết hạn hoặc bị thu hồi. Hãy tạo key mới trong Google AI Studio và cập nhật Secret GEMINI_API_KEY trên Cloudflare.'};
+  if(message==='GEMINI_API_DISABLED')return {code:'GEMINI_API_DISABLED',error:'Gemini API chưa được bật hoặc bị chặn trong dự án Google của key. Hãy kiểm tra dự án và quyền dùng Generative Language API.'};
+  if(message==='GEMINI_ACCESS_DENIED')return {code:'GEMINI_ACCESS_DENIED',error:'Google từ chối quyền truy cập Gemini. Hãy kiểm tra quyền của key và dự án Google AI Studio.'};
+  if(message==='GEMINI_REQUEST_REJECTED')return {code:'GEMINI_REQUEST_REJECTED',error:'Google chưa chấp nhận cấu hình yêu cầu đọc văn bản. Cần kiểm tra mô hình và định dạng trên máy chủ; bạn không cần sửa lời nhắn.'};
   if(message==='GEMINI_QUOTA')return {code:'GEMINI_QUOTA',error:'Gemini đã chạm hạn mức sử dụng. Hãy kiểm tra hạn mức và thanh toán của dự án Google AI Studio.'};
   if(message==='GEMINI_MODEL_INVALID')return {code:'GEMINI_MODEL_INVALID',error:'Mô hình Gemini được cấu hình chưa khả dụng cho dự án này.'};
   if(message==='GEMINI_INVALID_RESULT')return {code:'GEMINI_INVALID_RESULT',error:'Gemini chưa trả được phiếu hoàn chỉnh. Hãy thử lại với lời nhắn ngắn hơn.'};
