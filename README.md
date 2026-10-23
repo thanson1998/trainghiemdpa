@@ -84,3 +84,11 @@ Khi Secret đã có, máy chủ tự dùng Gemini 3.1 Flash-Lite. Có thể đ�
 Tab Thanh toán mặc định ngày hôm nay, có lọc ngày/tháng và tìm theo khách, mã đơn hoặc bàn. Số cần thu = giá đã chốt mỗi bàn × số bàn − cọc. Nhập tiền khách đưa (tiền mặt có tính trả lại) hoặc số đã nhận chuyển khoản, kiểm tra rồi xác nhận đã nhận đủ. Thao tác này chỉ ghi nhận nội bộ, không kết nối ngân hàng.
 
 Thanh toán lưu một lần cùng ảnh chụp dữ liệu đơn, thời điểm và phương thức; đơn chuyển sang Hoàn tất. Đơn đã thanh toán khóa sửa/xóa/chuyển bàn/khôi phục để giữ số liệu đối soát. Đơn Hoàn tất từ trước vẫn thuộc Chưa thanh toán nếu chưa có bản ghi thu tiền. In lại phiếu 80mm trong danh sách Đã thanh toán. Thống kê theo ngày đặt bàn, tách tiền cọc và phần thu thêm; bản sao lưu JSON bao gồm thanh toán. Migration 0007 chỉ tạo bảng/trigger mới, không đánh dấu đơn cũ đã thu tiền.
+
+## POS Bán hàng
+
+Tab POS dùng chung thư viện, mã đơn, lịch sử, gửi bếp và thanh toán với hệ thống hiện có. Máy tính có phiếu bên trái và lưới món/bàn bên phải; điện thoại chuyển giữa chọn món/bàn và phiếu. Tìm không dấu (F2), chọn món nhiều lần để cộng số lượng, sửa đơn giá riêng, áp dụng thực đơn mẫu/set và số set, ghi chú bếp, cọc, giữ giá đã chốt và chuyển bàn. Ctrl+S lưu đơn.
+
+Tối đa 10 phiếu đang mở, nháp tự giữ trên trình duyệt này. Nháp chưa được đồng bộ cho tới khi bấm Lưu đơn; đóng nháp có thay đổi cần xác nhận. Đơn đang mở tải từ máy chủ theo ngày của phiếu, kiểm tra phiên bản khi cập nhật. Lỗi mạng giữ nháp và ID để tránh tạo đơn trùng; có thể tải bản máy chủ sau khi kiểm tra.
+
+Gửi bếp và Thanh toán lưu đơn trước khi mở thao tác; bấm Đã gửi bếp trên phiếu in để ghi nhận. Thanh toán xác nhận thủ công đã nhận tiền, dùng cùng API chống thu trùng, có tiền trả lại và phiếu 80mm. Bàn đã thanh toán không chặn lượt khách tiếp theo dù còn trong khung giờ đặt cũ. Không có thao tác thanh toán thử nào được chạy trên dữ liệu thật trong lúc phát triển.

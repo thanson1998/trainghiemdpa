@@ -12,3 +12,5 @@ import './table-transfer.css';
 import './workflow.css';
 
 import './payments.css';
+
+import './pos.css';

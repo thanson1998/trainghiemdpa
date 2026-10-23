@@ -60,7 +60,7 @@ export async function prepareNaturalImport(raw:unknown,context:ImportContext,db:
  const parsed=naturalExtraction.safeParse(raw);if(!parsed.success)return normalizeImport(raw,context);
  const data=parsed.data;let result=normalizeImport(data,context);
  if(data.tables.length||!data.zone||!data.tableCount||!result.fields.date||!result.fields.start||!result.fields.end||result.fields.end<=result.fields.start)return result;
- const {results}=await db.prepare("SELECT table_ids FROM reservations WHERE user_id=? AND date=? AND status<>'cancelled' AND start<? AND end>?").bind('dpa-shared',result.fields.date,result.fields.end,result.fields.start).all<{table_ids:string}>();
+ const {results}=await db.prepare("SELECT table_ids FROM reservations WHERE user_id=? AND date=? AND status<>'cancelled' AND NOT EXISTS(SELECT 1 FROM booking_payments paid WHERE paid.booking_id=reservations.id) AND start<? AND end>?").bind('dpa-shared',result.fields.date,result.fields.end,result.fields.start).all<{table_ids:string}>();
  const busy=new Set(results.flatMap(r=>JSON.parse(r.table_ids) as string[]));const zone=zones.find(z=>z.id===data.zone)!;
  const free=zone.tables.filter(t=>!busy.has(t));
  if(free.length<data.tableCount){result.warnings.push(zone.title+' không đủ '+data.tableCount+' bàn trống trong giờ này. Hãy đổi khu hoặc giờ trong phiếu.');return result;}

@@ -23,6 +23,7 @@ const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',im
 const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
+const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
 const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
 const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw new Error("not used during SSR");}'))).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
@@ -42,11 +43,35 @@ const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:0
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
+test('POS combines repeated dishes, preserves edited prices and expands legacy sets exactly once',()=>{
+ const original=booking({tables:['S1-01','S1-02'],priceMode:'auto',menu:menu.writeMenu([{name:'Gà',price:300000,quantity:1,unit:'đĩa'}])});
+ const added=posLogic.posAppend(original,[{name:' gà ',price:350000,quantity:1,unit:'phần'}]);assert.equal(menu.readMenu(added.menu).length,1);assert.equal(menu.readMenu(added.menu)[0].price,300000);assert.equal(menu.readMenu(added.menu)[0].quantity,2);assert.equal(added.price,300000);
+ const agreed={...added,priceMode:'agreed',price:1000000};assert.equal(posLogic.posAppend(agreed,[{name:'Tôm',quantity:1,price:200000}]).price,1000000);
+ const legacy=booking({tables:['S1-01','S1-02'],priceMode:'auto',menu:menu.writeMenu([{name:'Trong set',quantity:1,price:null,included:true}],{name:'Lẩu',people:6,pricePerTable:1200000})});
+ const next=posLogic.posAppend(legacy,[{name:'Bia',quantity:3,unit:'chai',price:20000}]);assert.equal(menu.readMenu(next.menu,2)[0].quantity,2);assert.equal(menu.readMenuSet(next.menu).quantity,2);assert.equal(menu.menuSum(next.menu,2),2460000);assert.equal(next.price,1230000);
+ const edited=posLogic.posEditItem(next,1,{quantity:4});assert.equal(menu.readMenu(edited.menu,2)[0].quantity,2);assert.equal(menu.menuSum(edited.menu,2),2480000);
+ assert.throws(()=>posLogic.posAppend(legacy,[{name:'Trong set',price:300000,quantity:1}]),/ngoài giá set/);
+});
+test('POS saves one shared order and settled tables can immediately serve a new party',async()=>{
+ let b=posLogic.newPosBooking('2026-10-25');assert.equal(posLogic.posIssue(b),'Chọn ít nhất một bàn trước khi lưu.');b={...b,tables:['S1-01'],start:'18:00',end:'21:00'};
+ b=posLogic.posAppend(b,[{name:'Gà',price:300000,quantity:2,unit:'đĩa'}]);assert.equal(posLogic.posIssue(b),'');assert.equal((await api.POST(req('POST',b),db)).status,200);const current=(await(await get()).json()).bookings[0];assert.match(current.orderCode,/^DPA-25102026-/);assert.equal(current.price,600000);
+ assert.equal((await api.POST(req('POST',b),db)).status,409);assert.equal((await(await get()).json()).bookings.length,1);
+ const other={...b,id:crypto.randomUUID()};assert.equal((await api.POST(req('POST',other),db)).status,409);
+ assert.equal((await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:600000,deposit:0,tendered:600000,method:'cash'}),db)).status,200);
+ assert.equal((await api.POST(req('POST',other),db)).status,200);assert.equal((await(await get()).json()).bookings.length,2);
+});
+test('POS keeps recoverable draft tabs and identifies missing prices and invalid time',()=>{
+ const b=booking({menu:menu.writeMenu([{name:'Món mới',price:null}]),priceMode:'auto'});assert.ok(posLogic.posIssue(b).includes('Nhập đủ giá'));assert.equal(posLogic.posIssue({...b,priceMode:'agreed'}),'');assert.ok(posLogic.posIssue({...b,start:'8:0'}).includes('24h'));
+ const t={booking:b,saved:posLogic.posFingerprint(b)};assert.equal(posLogic.posDirty(t),false);assert.equal(posLogic.posDirty({...t,booking:{...b,name:'Thay đổi'}}),true);
+ const recovered=posLogic.readPosTickets(JSON.stringify({format:'DPA_POS_V1',tickets:[t],selected:b.id}));assert.equal(recovered.selected,b.id);assert.equal(recovered.tickets[0].booking.menu,b.menu);assert.equal(posLogic.readPosTickets('not JSON'),null);
+});
+
 test('payment records exact agreed total minus deposit, change and a completed audit entry once',async()=>{
  const original=booking({tables:['S1-01','S1-02'],price:1250000,deposit:500000,totalPeople:13});await api.POST(req('POST',original),db);
  const current=(await(await get()).json()).bookings[0];const body={id:current.id,version:current.version,total:2500000,deposit:500000,tendered:2100000,method:'cash'};
  const r=await paymentsApi.PAY(req('POST',body),db),j=await r.json();assert.equal(r.status,200);assert.equal(j.payment.received,2000000);assert.equal(j.payment.tendered-j.payment.received,100000);assert.equal(j.payment.booking.totalPeople,13);
  const saved=(await(await get()).json()).bookings[0];assert.equal(saved.status,'completed');assert.equal(saved.version,2);assert.ok(saved.paidAt);assert.equal(saved.price,1250000);
+ assert.equal((await import(modelUrl)).balanceDue(saved),0);
  assert.equal((await paymentsApi.PAY(req('POST',{...body,version:2}),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM booking_payments').get().n,1);assert.equal((await(await get()).json()).bookings[0].version,2);
  const history=(await(await api.HISTORY(req('GET'),db)).json()).history;assert.equal(history[0].booking.status,'completed');assert.equal(history[0].version,2);
  const backup=await(await api.BACKUP(req('GET'),db)).json();assert.equal(backup.payments.length,1);

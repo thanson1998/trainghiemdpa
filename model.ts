@@ -16,3 +16,5 @@ export const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Mi
 export const statusNames={reserved:'Đã đặt',arrived:'Đang phục vụ',completed:'Hoàn tất',cancelled:'Đã hủy'};
 
 export const guestCount=(booking:Pick<Booking,'people'|'tables'|'totalPeople'>)=>booking.totalPeople??booking.people*booking.tables.length;
+
+export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'>)=>b.paidAt?0:Math.max(0,b.price*b.tables.length-(b.deposit??0));
