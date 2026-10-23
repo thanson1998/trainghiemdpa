@@ -9,11 +9,12 @@ export function readMenuSet(value:string):MenuSet|undefined{
 export const menuSetQuantity=(value:string,tableCount=1)=>readMenuSet(value)?.quantity??tableCount;
 export const hasPricedMenu=(value:string)=>!!readMenuSet(value)||readMenu(value).some(item=>item.name.trim()&&item.price!==null);
 export const itemQuantity=(item:MenuItem)=>item.quantity??1;
-export const itemUnit=(item:MenuItem)=>item.unit?.trim()||'phần';
+export const normalizeUnit=(unit?:string)=>!unit?.trim()||unit.trim().normalize('NFC').toLocaleLowerCase('vi')==='phần'?'đĩa':unit.trim();
+export const itemUnit=(item:MenuItem)=>normalizeUnit(item.unit);
 export const itemAmount=(item:MenuItem)=>Math.round((item.price??0)*itemQuantity(item));
 export function readMenu(value:string,tableCount=1,expandSet=true):MenuItem[]{
  if(value.startsWith(prefix)||value.startsWith(setPrefix)){
-  try{const parsed=JSON.parse(value.slice(value.startsWith(setPrefix)?setPrefix.length:prefix.length));const items=Array.isArray(parsed)?parsed:parsed.items;if(Array.isArray(items))return items.map(item=>({name:typeof item?.name==='string'?item.name:'',price:typeof item?.price==='number'?item.price:null,...(item?.quantity!==undefined?{quantity:item.quantity}:{}),...(item?.unit!==undefined?{unit:item.unit}:{}),...(value.startsWith(setPrefix)&&item?.included?{included:true,quantity:(item.quantity??1)*(expandSet&&readMenuSet(value)?.quantity===undefined?tableCount:1)}:{})}));}catch{/* Rejected on save. */}
+  try{const parsed=JSON.parse(value.slice(value.startsWith(setPrefix)?setPrefix.length:prefix.length));const items=Array.isArray(parsed)?parsed:parsed.items;if(Array.isArray(items))return items.map(item=>({name:typeof item?.name==='string'?item.name:'',price:typeof item?.price==='number'?item.price:null,...(item?.quantity!==undefined?{quantity:item.quantity}:{}),...(item?.unit!==undefined?{unit:normalizeUnit(item.unit)}:{}),...(value.startsWith(setPrefix)&&item?.included?{included:true,quantity:(item.quantity??1)*(expandSet&&readMenuSet(value)?.quantity===undefined?tableCount:1)}:{})}));}catch{/* Rejected on save. */}
   return [];
  }
  return value.split(/\r?\n/).map(name=>name.trim()).filter(Boolean).map(name=>({name,price:null}));
@@ -37,7 +38,8 @@ export function mergeMenuItems(items:MenuItem[]):MenuItem[]{
  }
  return merged;
 }
-export const writeMenu=(items:MenuItem[],set?:MenuSet)=>set?setPrefix+JSON.stringify({items,set}):prefix+JSON.stringify(items);
+const normalizeItemUnit=(item:MenuItem)=>item.unit!==undefined?{...item,unit:normalizeUnit(item.unit)}:item;
+export const writeMenu=(items:MenuItem[],set?:MenuSet)=>set?setPrefix+JSON.stringify({items:items.map(normalizeItemUnit),set}):prefix+JSON.stringify(items.map(normalizeItemUnit));
 export function validMenu(value:string):boolean{
  if(value.startsWith(setPrefix)){
   try{

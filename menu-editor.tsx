@@ -36,7 +36,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
   {items.map((item,i)=><div className="dish-compact-row" key={i}>
    <input aria-label={`Tên món ${i+1}`} maxLength={200} value={item.name} placeholder="Tên món ăn" onBlur={mergeTyped} onChange={e=>update(i,{name:e.target.value})}/>
    <input aria-label={`Số lượng món ${i+1}`} type="number" min="0.01" max="1000" step="0.01" value={itemQuantity(item)} onChange={e=>update(i,{quantity:Number(e.target.value)})}/>
-   <input aria-label={`Đơn vị món ${i+1}`} maxLength={30} value={item.unit??'phần'} placeholder="đĩa" onChange={e=>update(i,{unit:e.target.value})}/>
+   <input aria-label={`Đơn vị món ${i+1}`} maxLength={30} value={item.unit??'đĩa'} placeholder="đĩa" onChange={e=>update(i,{unit:e.target.value})}/>
    {item.included?<span className="set-included-price">Trong giá set</span>:<PriceInput label={`Giá món ${i+1} (VNĐ)`} value={item.price} placeholder="Chưa nhập" onChange={price=>update(i,{price})}/> }
    <button type="button" className="icon-btn dish-remove" aria-label={`Xóa món ${i+1}`} onClick={()=>onChange(writeMenu(items.filter((_,index)=>index!==i),set))}><Trash2 size={16}/></button>
   </div>)}
