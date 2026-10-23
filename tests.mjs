@@ -632,3 +632,29 @@ test('dish group survives menu edits, set resizing and validation',()=>{
  assert.equal(menu.validMenu(menu.writeMenu([{...item,category:'a'.repeat(61)}])),false);
  assert.equal(menu.validMenu(menu.writeMenu([{name:'Món cũ',price:50000}])),true);
 });
+
+test('set dishes cannot silently absorb separately charged extras',()=>{
+ const included={name:'Gà',price:null,quantity:1,included:true};
+ const extra={name:'Gà',price:300000,quantity:1};
+ assert.throws(()=>menu.mergeMenuItems([included,extra]),/ngoài giá set/);
+ assert.throws(()=>menu.mergeMenuItems([extra,included]),/ngoài giá set/);
+ assert.equal(menu.mergeMenuItems([included,{...included,quantity:2}])[0].quantity,3);
+ const distinct=menu.mergeMenuItems([included,{...extra,name:'Gà gọi thêm'}]);
+ assert.equal(menu.menuSum(menu.writeMenu(distinct,{name:'Lẩu',pricePerTable:1200000,quantity:1})),1500000);
+});
+test('payment guard detects unsaved POS changes without blocking clean or unrelated tickets',()=>{
+ const b=booking(),clean={booking:b,saved:posLogic.posFingerprint(b)};
+ const raw=tickets=>JSON.stringify({format:'DPA_POS_V1',tickets,selected:b.id});
+ assert.equal(posLogic.hasUnsavedPosTicket(raw([clean]),b.id),false);
+ assert.equal(posLogic.hasUnsavedPosTicket(raw([{...clean,booking:{...b,note:'Gọi thêm'}}]),b.id),true);
+ assert.equal(posLogic.hasUnsavedPosTicket(raw([{...clean,saved:''}]),crypto.randomUUID()),false);
+ assert.equal(posLogic.hasUnsavedPosTicket('invalid',b.id),false);
+});
+test('explicit sync settings override defaults and invalid saved values cannot blank the app',async()=>{
+ const config=await import(dataUrl(compile(fs.readFileSync(new URL('./sync-config.ts',import.meta.url),'utf8'))));
+ assert.equal(config.resolveApiBase(['https://selected.workers.dev','https://default.workers.dev']),'https://selected.workers.dev');
+ assert.equal(config.resolveApiBase(['bad value','https://default.workers.dev']),'https://default.workers.dev');
+ assert.equal(config.resolveApiBase(['javascript:alert(1)','http://unsafe.example','https://user:pass@example.com']), '');
+ assert.equal(config.resolveApiBase(['http://127.0.0.1:4180']),'http://127.0.0.1:4180');
+ assert.throws(()=>config.validOrigin('https://example.com/api'));
+});

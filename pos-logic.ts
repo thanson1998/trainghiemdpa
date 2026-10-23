@@ -46,3 +46,6 @@ export function readPosTickets(raw:string|null):{tickets:PosTicket[];selected:st
  return tickets.length?{tickets,selected:tickets.some((t:PosTicket)=>t.booking.id===j.selected)?j.selected:tickets[0].booking.id}:null;
  }catch{return null;}
 }
+
+
+export function hasUnsavedPosTicket(raw:string|null,id:string){const ticket=readPosTickets(raw)?.tickets.find(t=>t.booking.id===id);return !!ticket&&posDirty(ticket);}

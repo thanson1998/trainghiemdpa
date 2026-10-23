@@ -13,6 +13,7 @@ export function TableTransfer({booking,onClose,onMoved}:{booking:Booking;onClose
   if(!r.ok)throw new Error(j.error||'Không tải được lịch bàn.');
   const current=j.bookings?.find(b=>b.id===booking.id);
   if(!current||current.version!==booking.version)throw new Error('Đơn vừa thay đổi. Đóng hộp này, tải lại dữ liệu và mở lại chi tiết trước khi chuyển bàn.');
+  if(current.paidAt)throw new Error('Đơn đã thanh toán không thể chuyển bàn.');
   if(current.status==='cancelled')throw new Error('Đơn đã hủy không thể chuyển bàn.');
   setSource(current);setRows(j.bookings??[]);setSelected([...current.tables]);
  }catch(e){if(mounted.current&&seq===requestId.current){setSource(null);setError(e instanceof Error?e.message:'Không tải được lịch bàn.');}}finally{if(mounted.current&&seq===requestId.current)setLoading(false);}}
@@ -22,7 +23,7 @@ export function TableTransfer({booking,onClose,onMoved}:{booking:Booking;onClose
   const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(!busy.current)onClose();}if(e.key==='Tab'){const controls=Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),select:not(:disabled)')??[]);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};
   window.addEventListener('keydown',key);return()=>{document.body.style.overflow=overflow;window.removeEventListener('keydown',key);previous?.focus();};
  },[onClose]);
- const occupied=new Set(source?rows.filter(b=>b.id!==source.id&&b.status!=='cancelled'&&b.start<source.end&&b.end>source.start).flatMap(b=>b.tables):[]);
+ const occupied=new Set(source?rows.filter(b=>b.id!==source.id&&b.status!=='cancelled'&&!b.paidAt&&b.start<source.end&&b.end>source.start).flatMap(b=>b.tables):[]);
  const unchanged=!!source&&selected.length===source.tables.length&&selected.every(id=>source.tables.includes(id));
  const canMove=!!source&&!loading&&!saving&&selected.length===source.tables.length&&!unchanged&&!selected.some(id=>occupied.has(id));
  async function move(){if(!source||!canMove)return;setSaving(true);setError('');try{
@@ -39,3 +40,4 @@ export function TableTransfer({booking,onClose,onMoved}:{booking:Booking;onClose
   </div><footer><div><small>Bàn sau khi chuyển</small><b>{selected.join(', ')||'Chưa chọn bàn'}</b>{source&&<span>Đã chọn {selected.length}/{source.tables.length} bàn</span>}</div><button type="button" className="secondary-btn" disabled={saving} onClick={onClose}>Giữ nguyên</button><button type="button" className="primary-btn" disabled={!canMove} onClick={()=>void move()}>{saving?<LoaderCircle size={17} className="spin"/>:<ArrowRightLeft size={17}/>} {saving?'Đang chuyển…':'Xác nhận chuyển bàn'}</button></footer>
  </div></div>;
 }
+

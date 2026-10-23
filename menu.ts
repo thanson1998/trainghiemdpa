@@ -32,6 +32,7 @@ export function mergeMenuItems(items:MenuItem[]):MenuItem[]{
   const key=item.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN');
   const index=key?indices.get(key):undefined;
   if(index===undefined){if(key)indices.set(key,merged.length);merged.push({...item});continue;}
+  if(!!merged[index].included!==!!item.included)throw new Error('Món này đã nằm trong set. Hãy đặt tên phân biệt cho món gọi thêm ngoài giá set, ví dụ Gà gọi thêm.');
   const quantity=Math.round((itemQuantity(merged[index])+itemQuantity(item))*100)/100;
   if(quantity>1000)throw new Error('Tổng số lượng của một món không được vượt quá 1.000.');
   merged[index]={...merged[index],quantity};
