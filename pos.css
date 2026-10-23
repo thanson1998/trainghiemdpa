@@ -57,28 +57,52 @@
 @media print{body:has(.checkout-bill-overlay)>*{display:none!important}body:has(.checkout-bill-overlay)>.checkout-bill-overlay{display:block!important;position:static!important;background:#fff!important;padding:0!important;overflow:visible!important}body:has(.checkout-bill-overlay){margin:0!important;padding:0!important;overflow:visible!important;height:auto!important}.checkout-bill-print-dialog{margin:0!important;padding:0!important;border-radius:0!important;background:#fff!important}.checkout-bill-print-actions{display:none!important}.checkout-bill-paper{margin:0!important;max-width:80mm!important}.checkout-bill *{color:#000!important}.checkout-bill-table tr{break-inside:avoid}.checkout-bill-totals{break-inside:avoid}}
 
 
-/* Keep both POS columns in view; only their contents scroll. */
-@media(min-width:801px){
- .pos-workbench{height:calc(100dvh - 210px);min-height:520px;align-items:stretch}
- .pos-cart{height:100%;max-height:100%;overflow:hidden;min-height:0}
- .pos-cart-body,.cart-expanded .pos-cart-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
- .pos-cart-head,.pos-cart-footer{flex-shrink:0}
- .pos-cart-footer{max-height:48%;overflow:auto}
- .pos-catalog{position:sticky;top:12px;min-height:0;height:100%;max-height:100%;overflow:auto;overscroll-behavior:contain}
- .pos-catalog-header{position:sticky;top:-18px;z-index:3;background:#fff;padding-top:10px}
-}
-@media(min-width:801px) and (max-height:750px){.pos-workbench{height:calc(100dvh - 170px);min-height:420px}.pos-cart-footer{padding:10px 14px}.pos-amount.due>strong{font-size:22px}.pos-save-state{margin:7px 0}}
+/* The catalog header never participates in the product/table scroller. */
+.pos-catalog{padding:0;overflow:hidden}
+.pos-catalog-header{position:relative;top:auto;flex:0 0 auto;background:#fff;padding:12px 14px 0;border-bottom:1px solid #dce6df;z-index:3}
+.pos-catalog-header .pos-pane-tabs{margin-bottom:10px}
+.pos-catalog-header .pos-search{margin-bottom:12px}
+.pos-catalog-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px 14px}
+.pos-categories{position:sticky;top:-12px;z-index:2;background:#fff;padding:8px 0;border-bottom:1px solid #e1e9e3;margin:0 0 12px}
 @media(min-width:801px){
  .app-shell.pos-active .workspace{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
- .app-shell.pos-active .topbar{flex-shrink:0}
- .app-shell.pos-active .main-content{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;margin:0;overflow:hidden}
- .app-shell.pos-active .sync-settings{flex-shrink:0;margin-bottom:14px;max-height:35dvh;overflow:auto}
+ .app-shell.pos-active .topbar{height:48px;flex-shrink:0}
+ .app-shell.pos-active .main-content{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;margin:0;padding:10px 16px;overflow:hidden}
+ .app-shell.pos-active .sync-settings{flex-shrink:0;padding:8px 12px;margin-bottom:8px;max-height:30dvh;overflow:auto}
  .pos-panel{flex:1;min-height:0;display:flex;flex-direction:column}
  .pos-topline,.pos-ticket-tabs,.pos-panel>.form-error{flex-shrink:0}
- .pos-workbench{flex:1;height:auto;min-height:0;overflow:hidden}
- .pos-cart,.pos-catalog{min-height:0;height:100%;max-height:100%}
- .pos-cart-head{padding:12px 16px}.pos-cart-footer{max-height:47%;padding:10px 14px}
- .pos-cart-footer .pos-amount{margin:4px 0}.pos-cart-footer .pos-save-state{margin:6px 0}
- .pos-catalog .mini-floor-map{min-width:400px;gap:5px}.pos-catalog .mini-zone{padding:6px 4px}.pos-catalog .mini-zone-tables{gap:4px}.pos-catalog .mini-zone-tables button{font-size:10px;min-height:30px}.pos-catalog .mini-zone-OUT button{min-height:25px}
+ .pos-topline{margin-bottom:8px}.pos-topline h1{font-size:21px}
+ .pos-topline>.secondary-btn{min-height:34px;padding:8px 12px}
+ .pos-ticket-tabs{margin-bottom:8px}.pos-ticket-tabs button{min-height:36px;padding:7px 10px}
+ .pos-workbench{flex:1;height:auto;min-height:0;overflow:hidden;align-items:stretch;grid-template-columns:minmax(350px,.8fr) minmax(0,1.2fr);gap:14px}
+ .pos-cart,.pos-catalog{position:static;min-height:0;height:100%;max-height:100%;overflow:hidden}
+ .pos-cart-body,.cart-expanded .pos-cart-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px}
+ .pos-cart-head,.pos-cart-footer{flex-shrink:0}
+ .pos-cart-head{padding:10px 12px;gap:8px}.pos-cart-head h2{font-size:20px;margin:3px 0}
+ .pos-cart-head span{font-size:11px}.pos-cart-view-actions{gap:5px}
+ .pos-cart-view-actions button{font-size:12px;padding:7px 8px;min-height:34px}
+ .pos-cart-footer{max-height:44%;overflow:auto;padding:9px 12px}
+ .pos-cart-footer .pos-amount{margin:3px 0}.pos-amount>strong{font-size:20px}.pos-amount.due>strong{font-size:22px}
+ .pos-cart-footer .pos-save-state{margin:6px 0}.pos-actions button{min-height:40px;font-size:12px;padding:8px 6px}
+ .pos-customer{gap:8px;grid-template-columns:minmax(0,1fr) 70px}.pos-customer label{font-size:12px;gap:5px}
+ .pos-customer input{min-height:36px;padding:7px 8px;font-size:14px}
+ .pos-details{margin:10px 0;padding:8px}.pos-details summary{font-size:12px}
+ .pos-cart-columns,.pos-cart .pos-cart-item{grid-template-columns:minmax(85px,1fr) minmax(240px,1.6fr);gap:6px}
+ .pos-controls-head,.pos-cart .pos-item-controls{grid-template-columns:84px 24px minmax(60px,1fr) minmax(60px,1fr);gap:4px}
+ .pos-cart .pos-item-title>b{font-size:13px}.pos-cart .pos-item-controls>strong{font-size:12px}
+ .pos-catalog-body .mini-floor-map{min-width:400px;gap:5px}.pos-catalog-body .mini-zone{padding:6px 4px}
+ .pos-catalog-body .mini-zone-tables{gap:4px}.pos-catalog-body .mini-zone-tables button{font-size:11px;min-height:34px}
+ .pos-catalog-body .mini-zone-OUT button{min-height:25px}
 }
-@media(min-width:801px){.app-shell.pos-active .topbar{height:54px}.app-shell.pos-active .main-content{padding:12px 20px}.app-shell.pos-active .sync-settings{padding:10px 16px;margin-bottom:10px}.pos-topline{margin-bottom:10px}.pos-ticket-tabs{margin-bottom:10px}}
+@media(min-width:801px) and (max-width:1050px){
+ .pos-workbench{grid-template-columns:minmax(330px,.85fr) minmax(0,1.15fr);gap:10px}
+ .pos-cart .pos-cart-item{display:block}.pos-cart .pos-item-controls{margin-top:4px}
+ .pos-cart-columns{display:block}.pos-cart-columns>span{display:none}
+}
+@media(max-width:800px){
+ .pos-catalog{overflow:visible}
+ .pos-catalog-header{position:sticky;top:0;border-radius:14px 14px 0 0}
+ .pos-catalog-header .pos-pane-tabs{position:static;padding:0}
+ .pos-catalog-body{overflow:visible;flex:initial;min-height:0;padding:10px 12px}
+ .pos-categories{position:static;padding:0;border:0}
+}
