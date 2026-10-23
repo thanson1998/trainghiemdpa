@@ -1,4 +1,4 @@
-export type MenuItem={name:string;price:number|null;quantity?:number;unit?:string;included?:boolean};
+export type MenuItem={name:string;price:number|null;quantity?:number;unit?:string;included?:boolean;category?:string};
 export type MenuSet={name:string;pricePerTable:number;people?:number;quantity?:number};
 const prefix='DPA_MENU_V1:';
 const setPrefix='DPA_MENU_V2:';
@@ -14,7 +14,7 @@ export const itemUnit=(item:MenuItem)=>normalizeUnit(item.unit);
 export const itemAmount=(item:MenuItem)=>Math.round((item.price??0)*itemQuantity(item));
 export function readMenu(value:string,tableCount=1,expandSet=true):MenuItem[]{
  if(value.startsWith(prefix)||value.startsWith(setPrefix)){
-  try{const parsed=JSON.parse(value.slice(value.startsWith(setPrefix)?setPrefix.length:prefix.length));const items=Array.isArray(parsed)?parsed:parsed.items;if(Array.isArray(items))return items.map(item=>({name:typeof item?.name==='string'?item.name:'',price:typeof item?.price==='number'?item.price:null,...(item?.quantity!==undefined?{quantity:item.quantity}:{}),...(item?.unit!==undefined?{unit:normalizeUnit(item.unit)}:{}),...(value.startsWith(setPrefix)&&item?.included?{included:true,quantity:(item.quantity??1)*(expandSet&&readMenuSet(value)?.quantity===undefined?tableCount:1)}:{})}));}catch{/* Rejected on save. */}
+  try{const parsed=JSON.parse(value.slice(value.startsWith(setPrefix)?setPrefix.length:prefix.length));const items=Array.isArray(parsed)?parsed:parsed.items;if(Array.isArray(items))return items.map(item=>({name:typeof item?.name==='string'?item.name:'',price:typeof item?.price==='number'?item.price:null,...(item?.quantity!==undefined?{quantity:item.quantity}:{}),...(item?.unit!==undefined?{unit:normalizeUnit(item.unit)}:{}),...(typeof item?.category==='string'?{category:item.category.trim()}:{}),...(value.startsWith(setPrefix)&&item?.included?{included:true,quantity:(item.quantity??1)*(expandSet&&readMenuSet(value)?.quantity===undefined?tableCount:1)}:{})}));}catch{/* Rejected on save. */}
   return [];
  }
  return value.split(/\r?\n/).map(name=>name.trim()).filter(Boolean).map(name=>({name,price:null}));
@@ -50,7 +50,7 @@ export function validMenu(value:string):boolean{
  if(!value.startsWith(prefix))return value.length<=4000;
  try{
   const items=JSON.parse(value.slice(prefix.length));
-  return Array.isArray(items)&&items.length<=80&&items.every(item=>item&&typeof item.name==='string'&&item.name.length<=200&&(item.price===null||(typeof item.price==='number'&&Number.isInteger(item.price)&&item.price>=0&&item.price<=100000000))&&(item.quantity===undefined||(typeof item.quantity==='number'&&Number.isFinite(item.quantity)&&item.quantity>0&&item.quantity<=1000&&Math.abs(item.quantity*100-Math.round(item.quantity*100))<0.000001))&&(item.unit===undefined||(typeof item.unit==='string'&&item.unit.length<=30))&&(item.name.trim().length>0||item.price===null));
+  return Array.isArray(items)&&items.length<=80&&items.every(item=>item&&typeof item.name==='string'&&item.name.length<=200&&(item.price===null||(typeof item.price==='number'&&Number.isInteger(item.price)&&item.price>=0&&item.price<=100000000))&&(item.quantity===undefined||(typeof item.quantity==='number'&&Number.isFinite(item.quantity)&&item.quantity>0&&item.quantity<=1000&&Math.abs(item.quantity*100-Math.round(item.quantity*100))<0.000001))&&(item.unit===undefined||(typeof item.unit==='string'&&item.unit.length<=30))&&(item.category===undefined||(typeof item.category==='string'&&item.category.trim().length>0&&item.category.length<=60))&&(item.name.trim().length>0||item.price===null));
  }catch{return false}
 }
 export const formatMoneyText=(text:string)=>text.replace(/\b\d{1,3}(?:\.\d{3})+(?=\s*(?:đ|₫|VNĐ|VND|đồng))/gi,value=>value.replace(/\./g,','));
@@ -66,3 +66,4 @@ export function parseUnitPrice(value:string,max=100000000):number|null|undefined
 }
 
 export const pricePerSelectedTable=(value:string,count:number)=>count>0?Math.round(menuSum(value,count)/count):0;
+

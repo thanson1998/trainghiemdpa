@@ -146,3 +146,24 @@
 }
 @media(min-width:1100px){.app-shell.pos-active .sidebar{width:190px;padding:22px 12px 14px}.app-shell.pos-active .workspace{margin-left:190px}.app-shell.pos-active .brand{padding:0 8px 24px}.app-shell.pos-active .brand b{font-size:29px}.app-shell.pos-active .brand-mark{width:36px;height:39px}.app-shell.pos-active .brand small{font-size:8px;letter-spacing:2px}.app-shell.pos-active .nav-label{font-size:9px;padding-bottom:12px}.app-shell.pos-active .nav-item{font-size:11px;padding:10px 9px;gap:8px;margin-bottom:4px}.app-shell.pos-active .nav-item svg{width:17px;height:17px}.app-shell.pos-active .private{font-size:10px;padding:10px 8px}.app-shell.pos-active .profile{margin-top:12px}}
 @media(min-width:801px) and (max-width:1050px){.pos-cart .pos-cart-item{display:block}.pos-cart-columns{display:block}}
+
+.pos-item-name{flex:1;min-width:0}.pos-item-name>b{display:block;font-size:13px;line-height:1.4;overflow-wrap:anywhere}.pos-item-name>small{display:block;font-size:10px;line-height:1.5;color:#65766b;margin-top:2px}
+.pos-add-dish select{font:inherit;background:#fff;color:#20382c;border:1px solid #bacdbf;border-radius:8px;padding:10px;min-height:42px;width:100%}.pos-add-dish input,.pos-add-dish select{font-size:15px}.pos-add-dish form{gap:13px}
+@media(min-width:801px){
+ .pos-panel{font-size:13px}.pos-topline h1{font-size:20px}.pos-topline>div>span{font-size:12px}
+ .pos-ticket-tabs button{font-size:12px;min-height:31px}.pos-cart-head h2{font-size:18px}.pos-cart-head span{font-size:11px}
+ .pos-cart-view-actions button{font-size:11px;min-height:30px}.pos-panel label,.pos-customer label{font-size:12px}
+ .pos-panel input,.pos-panel select,.pos-panel textarea,.pos-customer input{font-size:13px;min-height:34px;padding:6px 8px}
+ .pos-details summary{font-size:11px;min-height:20px}.pos-cart-label,.pos-cart-columns{font-size:11px}
+ .pos-cart .pos-item-title>b,.pos-item-name>b{font-size:13px}.pos-item-name>small{font-size:11px}
+ .pos-cart .pos-item-controls>input,.pos-cart .pos-quantity input,.pos-cart .pos-item-controls>strong{font-size:12px;min-height:29px}
+ .pos-cart .pos-quantity button{min-height:29px}.pos-cart .pos-included,.pos-cart .pos-item-unit{font-size:11px}
+ .pos-amount>span{font-size:13px}.pos-amount>strong{font-size:18px}.pos-amount.due>strong{font-size:20px}
+ .pos-actions button{font-size:12px;min-height:35px}.pos-save-state{font-size:11px}.pos-save-state small{font-size:10px}
+ .pos-pane-tabs button,.pos-categories button,.pos-categories .pos-new-dish{font-size:12px;min-height:31px}
+ .pos-search>input{font-size:13px;min-height:35px}.pos-product,.pos-template{min-height:120px;padding:10px;gap:6px}
+ .pos-product>b,.pos-product strong{font-size:13px}.pos-product>small{font-size:11px}.pos-open-action{font-size:11px}
+ .pos-product-symbol{width:28px;height:28px}.pos-product-symbol svg{width:17px;height:17px}
+ .pos-catalog-body .mini-zone h3{font-size:11px}.pos-catalog-body .mini-zone-tables button{font-size:11px;min-height:30px}
+}
+@media(min-width:1100px){.app-shell.pos-active .nav-item{font-size:12px}.app-shell.pos-active .nav-label{font-size:10px}}

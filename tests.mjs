@@ -617,3 +617,18 @@ test('whole-menu total divides automatically over selected tables',()=>{
  assert.equal(menu.pricePerSelectedTable(menu.writeMenu([{name:'Món',price:100000,quantity:1}]),3),33333);
  assert.equal(menu.pricePerSelectedTable(menu.writeMenu([{name:'Gà',price:300000,quantity:4}]),2),600000);
 });
+
+
+test('dish group survives menu edits, set resizing and validation',()=>{
+ const item={name:'Món đặc biệt',price:30000,unit:'cốc',quantity:2,category:'Đồ uống khác'};
+ const encoded=menu.writeMenu([item]);
+ assert.equal(menu.validMenu(encoded),true);
+ assert.equal(menu.readMenu(encoded)[0].category,'Đồ uống khác');
+ assert.equal(menu.readMenu(menu.writeMenu(menu.readMenu(encoded).map(x=>({...x,quantity:3}))))[0].category,'Đồ uống khác');
+ const set={name:'Set thử',pricePerTable:100000,quantity:1};
+ const bundled=menu.writeMenu([{name:'Gà',price:null,included:true,quantity:1},item],set);
+ assert.equal(menu.readMenu(menu.setMenuQuantity(bundled,2)).find(x=>x.name===item.name).category,'Đồ uống khác');
+ assert.equal(menu.validMenu(menu.writeMenu([{...item,category:''}])),false);
+ assert.equal(menu.validMenu(menu.writeMenu([{...item,category:'a'.repeat(61)}])),false);
+ assert.equal(menu.validMenu(menu.writeMenu([{name:'Món cũ',price:50000}])),true);
+});
