@@ -658,3 +658,18 @@ test('explicit sync settings override defaults and invalid saved values cannot b
  assert.equal(config.resolveApiBase(['http://127.0.0.1:4180']),'http://127.0.0.1:4180');
  assert.throws(()=>config.validOrigin('https://example.com/api'));
 });
+
+test('cancelling an unpaid table retains menu deposit and history while releasing all reserved tables',async()=>{
+ const original=booking({tables:['N2-04','N2-05'],deposit:250000,menu:menu.writeMenu([{name:'Gà',price:300000,quantity:2,unit:'đĩa'}])});
+ assert.equal((await api.POST(req('POST',original),db)).status,200);
+ const current=(await(await get()).json()).bookings.find(b=>b.id===original.id);
+ assert.equal((await api.POST(req('POST',{...current,status:'cancelled'}),db)).status,200);
+ const cancelled=(await(await get()).json()).bookings.find(b=>b.id===original.id);
+ for(const key of ['menu','deposit','price','tables','orderCode'])assert.deepEqual(cancelled[key],current[key]);
+ assert.equal(cancelled.status,'cancelled');assert.equal(cancelled.version,current.version+1);
+ const history=(await(await api.HISTORY(new Request('https://dpa.example/api/history'),db)).json()).history;
+ assert.ok(history.some(e=>e.booking.id===original.id&&e.booking.status==='cancelled'));
+ assert.equal((await api.POST(req('POST',{...original,id:crypto.randomUUID()}),db)).status,200);
+ assert.equal((await api.POST(req('POST',current),db)).status,409);
+ assert.equal((await paymentsApi.PAY(req('POST',{id:cancelled.id,version:cancelled.version,total:3000000,deposit:250000,tendered:2750000,method:'cash'}),db)).status,409);
+});
