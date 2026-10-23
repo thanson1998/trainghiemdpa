@@ -42,3 +42,5 @@
 .menu-library-picker:has(.menu-set-picker-quantity){grid-template-columns:minmax(0,1fr) 120px auto}
 .menu-library-picker .menu-set-picker-quantity{grid-column:auto}
 @media(max-width:600px){.menu-library-picker:has(.menu-set-picker-quantity){grid-template-columns:minmax(0,1fr) 100px}.menu-library-picker .secondary-btn{grid-column:1/-1;width:100%;max-width:none}.dish-editor-heading{align-items:flex-start}.dish-compact-head{font-size:11px}.drawer-body .dish-compact-row input,.catalog-editor .dish-compact-row input{padding:8px 5px}}
+
+.stats-grid .stat{border:1px solid #dce5df;border-radius:12px;box-shadow:0 3px 12px #173d2610,0 1px 3px #173d2608;background:#fff}.stats-grid .stat.accent-stat{background:#f3f6ef;border-color:#dce5d5}
