@@ -6,3 +6,14 @@
 @media print{.pos-modal-backdrop{display:none!important}}
 
 .pos-confirm-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px;flex-wrap:wrap}.pos-confirm-dialog>p{color:#506457;line-height:1.6}
+
+/* Give the selected menu room to grow instead of a short inner scroller. */
+.pos-workbench{grid-template-columns:minmax(460px,1.15fr) minmax(0,1fr);height:auto;min-height:calc(100dvh - 210px);align-items:start}
+.pos-cart{overflow:visible}.pos-cart-body{flex:initial;min-height:360px;overflow:visible}.pos-cart-footer{max-height:none;overflow:visible;border-radius:0 0 14px 14px}.pos-cart-head{border-radius:14px 14px 0 0}
+.pos-cart-view-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.pos-cart-view-actions button{font-size:13px;padding:10px 12px}.pos-cart-head{flex-wrap:wrap}
+.pos-catalog{position:sticky;top:12px;max-height:calc(100dvh - 110px);min-height:570px}.pos-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:801px){.pos-workbench.cart-expanded{grid-template-columns:minmax(0,1fr)}.pos-workbench.cart-expanded .pos-catalog{display:none}.cart-expanded .pos-cart-body{min-height:440px}.cart-expanded .pos-cart-items{width:100%}.cart-expanded .pos-cart-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.9fr);gap:20px;align-items:center}.cart-expanded .pos-item-controls{margin-top:0}.cart-expanded .pos-details{max-width:850px}.cart-expanded .pos-order-note{max-width:850px}}
+@media(min-width:1600px){.pos-workbench{grid-template-columns:minmax(540px,1fr) minmax(0,1.1fr)}.pos-product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:801px) and (max-width:1150px){.pos-workbench{grid-template-columns:minmax(400px,1.15fr) minmax(0,1fr)}.pos-cart-view-actions{justify-content:flex-start}.pos-cart-view-actions button{padding:9px}.pos-item-controls{grid-template-columns:108px 32px minmax(85px,1fr) 85px}}
+@media(max-width:800px){.pos-workbench{display:block;min-height:0}.pos-catalog{position:static;max-height:none;min-height:65dvh}.pos-cart-body{min-height:360px}.pos-cart-footer{position:static}.pos-expand-cart{display:none}.pos-cart-view-actions{margin-left:auto}.pos-item-controls{grid-template-columns:108px 32px minmax(72px,1fr) 80px}}
+@media(max-width:370px){.pos-item-controls{grid-template-columns:108px 30px minmax(0,1fr)}.pos-item-controls>strong{grid-column:2/4}}
