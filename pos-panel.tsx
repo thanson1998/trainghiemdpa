@@ -46,11 +46,12 @@ export function PosPanel({catalog,catalogError,onCatalog,onSaveCatalog,catalogLo
  const server=bookings.find(row=>row.id===b.id);const paidElsewhere=!!server?.paidAt;const changedElsewhere=!!server&&server.version!==b.version;
  async function reloadCart(){setError('');try{const r=await apiRequest('/api/bookings?date='+date),j=await r.json() as {error:string;bookings:Booking[]};if(!r.ok)throw Error(j.error);const row=j.bookings.find(row=>row.id===b.id);if(!row)throw Error('Đơn đã bị xóa hoặc đổi ngày. Xem Lịch sử để kiểm tra.');setBooking(row,posFingerprint(row));setBookings(j.bookings);setReloadConfirm(false);setNotice('Đã tải phiên bản trên máy chủ.');}catch(e){setError((e as Error).message);}}
  async function save(action:'save'|'print'|'pay'|'move'='save'){
-  if(inflight.current)return;const issue=posIssue(b);if(issue){setError(issue);setMobile('cart');return;}inflight.current=true;setBusy(true);setError('');
+  if(inflight.current)return;const issue=posIssue(b,action);if(issue){setError(issue);setMobile('cart');return;}inflight.current=true;setBusy(true);setError('');
   try{let saved=b;
    if(dirty){const r=await apiRequest('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}),j=await r.json() as {error:string;version:number};if(!r.ok)throw Error(j.error);saved={...b,version:j.version};setBooking(saved,posFingerprint(saved));}
    const r=await apiRequest('/api/bookings?date='+saved.date,{cache:'no-store'}),j=await r.json() as {error:string;bookings:Booking[]};if(!r.ok)throw Error('Đơn có thể đã lưu. Tải lại để kiểm tra trước khi tiếp tục.');const current=j.bookings.find(row=>row.id===saved.id);if(!current)throw Error('Không tìm thấy đơn vừa lưu. Tải lại để kiểm tra.');
    if(current.version!==saved.version)throw Error('Đơn vừa thay đổi ở thiết bị khác. Dùng “Tải bản máy chủ” để kiểm tra.');setBooking(current,posFingerprint(current));setBookings(j.bookings);onChanged();
+   const currentIssue=posIssue(current,action);if(currentIssue)throw Error(currentIssue);
    if(current.paidAt)throw Error('Đơn đã thanh toán trên thiết bị khác. Mở tab Thanh toán để xem phiếu.');
    setNotice('Đã lưu '+(current.orderCode||'đơn')+' vào hệ thống.');
    if(action==='print')onPrint(current);if(action==='pay')setCheckout(current);if(action==='move')setMove(current);

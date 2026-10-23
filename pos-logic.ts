@@ -20,7 +20,8 @@ export function posEditItem(b:Booking,index:number,patch:Partial<MenuItem>):Book
  return updateBookingDraft(b,'menu',writeMenu(items,explicitSet(b)));
 }
 export const posFingerprint=(b:Booking)=>JSON.stringify(b);
-export function posIssue(b:Booking){
+export function posIssue(b:Booking,action:'save'|'print'|'pay'|'move'='save'){
+ if(b.status==='cancelled'&&action!=='save')return 'Đơn đã hủy. Mở lại đơn và lưu trạng thái Đã đặt / Đang phục vụ trước khi gửi bếp, thanh toán hoặc chuyển bàn.';
  if(b.paidAt)return 'Đơn đã thanh toán. Mở tab Thanh toán để in lại phiếu.';
  if(!b.name.trim())return 'Nhập tên khách.';
  if(!b.tables.length)return 'Chọn ít nhất một bàn trước khi lưu.';

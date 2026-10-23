@@ -11,6 +11,7 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
+const exportSource=fs.readFileSync(new URL('./booking-export.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl));const bookingExport=await import(dataUrl(compile(exportSource)));
 const requestedMenus=JSON.parse(fs.readFileSync(new URL('./menu-templates-20261023.json',import.meta.url),'utf8'));
 test('requested menus retain full bundles, different same-price variants and unknown carp price',()=>{
  assert.equal(requestedMenus.length,23);
@@ -718,4 +719,12 @@ test('payment reversal route enforces allowed origins and JSON without changing 
  assert.equal((await worker.default.fetch(new Request(url,{method:'POST',body:'{}'}),env)).status,415);
  const ready=await worker.default.fetch(new Request(url,{method:'GET'}),env);assert.equal(ready.status,200);assert.deepEqual(await ready.json(),{available:true});
  const result=await worker.default.fetch(new Request(url,{method:'POST',headers:{Origin:'https://thanson1998.github.io','Content-Type':'application/json'},body:'{}'}),env);assert.equal(result.status,400);assert.equal(result.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
+});
+
+test('CSV export uses zero outstanding balance for settled orders and retains deposits and safe quoted cells',()=>{
+ const b=booking({name:'=SUM(A1)',phone:'0900000000',tables:['S1-01','S1-02'],deposit:500000,menu:menu.writeMenu([{name:'Gà',price:300000}]),note:'Ghi chú "đặc biệt"'});
+ const csv=bookingExport.bookingCsv([b,{...b,paidAt:'2026-10-23T12:00:00.000Z',status:'completed'}]);const rows=csv.split('\r\n');assert.equal(rows.length,3);assert.ok(csv.startsWith('\uFEFF'));assert.ok(rows[1].includes('"2500000"'));assert.ok(rows[2].includes('"500000","0",'));assert.ok(rows[1].includes('"\'=SUM(A1)"'));assert.ok(rows[1].includes('"Ghi chú ""đặc biệt"""'));assert.ok(rows[1].includes('"0900000000"'));assert.ok(rows[2].includes('"Hoàn tất"'));
+});
+test('POS rejects cancelled order actions before saving or checkout while retaining cancellation saves',()=>{
+ const b=booking({status:'cancelled',menu:menu.writeMenu([{name:'Gà',price:300000}]),version:1});assert.equal(posLogic.posIssue(b,'save'),'');for(const action of ['print','pay','move'])assert.match(posLogic.posIssue(b,action),/Đơn đã hủy/);assert.equal(posLogic.posIssue({...b,status:'arrived'},'pay'),'');
 });

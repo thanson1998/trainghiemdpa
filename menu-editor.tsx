@@ -14,7 +14,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
  const set=sourceSet?{...sourceSet,quantity:menuSetQuantity(value,tableCount)}:undefined;
  const setCount=menuSetQuantity(value,tableCount);
  const selectedSet=catalog?readMenuSet(catalog.templates.find(t=>t.id===template)?.menu??''):undefined;
- const changeSetCount=(quantity:number)=>{if(!set||!Number.isInteger(quantity)||quantity<1||quantity>1000)return;try{onChange(setMenuQuantity(value,quantity,tableCount));setNotice('');}catch(error){setNotice(error instanceof Error?error.message:'Không thể đổi số lượng set.');}};
+ const changeSetCount=(quantity:number)=>{if(!set||!Number.isInteger(quantity)||quantity<1||quantity>1000)return;try{onChange(setMenuQuantity(value,quantity,tableCount));if(set.people)onApplySet?.(set.people*quantity);setNotice('');}catch(error){setNotice(error instanceof Error?error.message:'Không thể đổi số lượng set.');}};
  const parsed=readMenu(value,tableCount),items=parsed.length?parsed:[newItem()];
  const named=items.filter(item=>item.name.trim());
  const priced=named.filter(item=>item.price!==null);
