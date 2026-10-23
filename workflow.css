@@ -12,3 +12,32 @@
 .booking-customer-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.booking-customer-fields>.form-row{display:contents}.booking-customer-fields>.form-subtitle{display:none}.booking-customer-fields label,.booking-customer-fields .time-24-field{margin:0;min-width:0}.booking-drawer .booking-customer-fields label,.booking-drawer .time-24-field>span{font-size:14px}.booking-drawer .booking-customer-fields input,.booking-drawer .booking-customer-fields select{min-height:40px;padding:8px 10px;font-size:16px;margin-top:5px}.booking-drawer .booking-customer-fields .time-24-control{margin-top:5px;gap:4px}.booking-drawer .booking-customer-fields .time-24-control select{margin:0}.booking-price-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.booking-drawer .booking-price-fields label{margin:0;font-size:14px}.booking-drawer .booking-price-fields input,.booking-drawer .booking-price-fields select{min-height:40px;padding:8px 10px;font-size:16px;margin-top:5px}.booking-drawer .form-section-title{font-size:16px;margin:14px 0 10px}.booking-drawer .field-help{font-size:12px;line-height:1.45;margin:6px 0 10px}.booking-drawer .price-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 12px;margin-bottom:12px}.booking-drawer .price-summary>div{font-size:13px}.booking-drawer .price-summary>div+div{border-top:0;border-left:1px solid #cdd9c8;margin:0;padding:0 0 0 12px}.booking-drawer .price-summary strong{font-size:17px}.booking-drawer .deposit-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.8fr);gap:5px 16px;align-items:center;padding:10px 12px;margin:0 0 14px}.booking-drawer .deposit-editor>label{margin:0;font-size:14px;min-width:0}.booking-drawer .deposit-editor input{min-height:40px;padding:8px 10px;font-size:16px;margin-top:5px}.booking-drawer .deposit-editor>div{margin:0;font-size:13px;align-items:center;gap:10px}.booking-drawer .deposit-editor strong{font-size:16px}.booking-drawer .deposit-editor>small{grid-column:1/-1;font-size:11px;margin-top:2px}.booking-drawer .drawer-head{padding:14px 20px 10px}.booking-drawer .drawer-head h2{font-size:24px}.booking-drawer .booking-form-nav{padding-top:6px;padding-bottom:6px}.booking-drawer .booking-form-nav button{min-height:36px;padding:7px 12px}.booking-drawer .drawer-footer{padding:10px 18px;gap:8px}.booking-drawer .drawer-live-total strong{font-size:20px}
 @media(max-width:650px){.booking-customer-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.booking-drawer .deposit-editor{grid-template-columns:minmax(0,1fr)}.booking-drawer .deposit-editor>div{margin-top:4px}.booking-drawer .deposit-editor>small{grid-column:auto}.booking-drawer .price-summary{gap:8px;padding:9px}.booking-drawer .drawer-head{padding:12px 16px 8px}}
 @media(max-width:420px){.booking-customer-fields>label:first-child{grid-column:1/-1}.booking-customer-fields>label:nth-last-child(2){grid-column:1/-1}.booking-price-fields{grid-template-columns:minmax(0,1fr);gap:9px}.booking-drawer .price-summary{grid-template-columns:minmax(0,1fr);gap:5px}.booking-drawer .price-summary>div+div{border-left:0;padding:0}}
+
+/* Shared caption and control tracks prevent date/time and price fields drifting. */
+.booking-drawer .booking-customer-fields label,.booking-drawer .booking-customer-fields .time-24-field,.booking-drawer .booking-price-fields label{display:grid;grid-template-rows:21px 40px;gap:5px;align-content:start;line-height:21px;margin:0;min-width:0}
+.booking-field-caption,.booking-drawer .booking-customer-fields .time-24-field>span{display:block;line-height:21px;font-size:14px;white-space:nowrap}
+.booking-drawer .booking-customer-fields input,.booking-drawer .booking-customer-fields select,.booking-drawer .booking-price-fields input,.booking-drawer .booking-price-fields select{box-sizing:border-box;height:40px;min-height:40px;margin:0;line-height:22px;width:100%;min-width:0;padding:8px 10px}
+.booking-drawer .booking-customer-fields .time-24-control{margin:0;height:40px;align-items:stretch}
+.booking-drawer .booking-guest-field{max-width:180px;font-size:14px;margin:8px 0}
+.booking-drawer .booking-guest-field input{height:40px;padding:8px 10px;margin-top:4px}
+.booking-drawer .booking-price-fields{gap:10px}
+.booking-drawer .price-summary{padding:7px 10px;margin-bottom:8px;gap:10px}
+.booking-drawer .price-summary strong{font-size:16px}
+.booking-drawer .deposit-editor{padding:8px 10px;margin-bottom:12px;gap:4px 14px}
+.booking-drawer .deposit-editor input{height:40px;margin-top:4px}
+.dish-editor-heading{margin:0 0 9px;padding-top:12px;border-top:1px solid #cbd9c5;align-items:center;gap:6px 12px}
+.dish-editor-heading>span{font-size:17px;font-weight:700;color:#244d3c}
+.dish-editor-heading small{font-size:12px;color:#596e51}
+.menu-library-picker{padding:10px;gap:8px;margin-bottom:10px}
+.menu-library-picker label{font-size:13px!important;line-height:20px}
+.menu-library-picker input,.menu-library-picker select{height:40px;min-height:40px;box-sizing:border-box;padding:8px 10px;font-size:16px!important;margin-top:4px!important}
+.menu-library-picker .secondary-btn{min-height:40px;font-size:13px;padding:8px 10px}
+.menu-library-picker>small{font-size:12px;line-height:1.4}
+.dish-compact-head{background:#eaf0e4;border-bottom:1px solid #cbd9c5;font-weight:650;color:#34543a;padding:8px 0;font-size:13px}
+.dish-compact-row{padding:5px 0}
+.drawer-body .dish-compact-row input,.catalog-editor .dish-compact-row input{height:40px;padding:8px;font-size:16px;line-height:22px}
+.dish-compact-row input:nth-child(2),.dish-compact-row input:nth-child(3){text-align:center}
+.dish-compact-row input:nth-child(4){text-align:right;font-variant-numeric:tabular-nums}
+.menu-library-picker:has(.menu-set-picker-quantity){grid-template-columns:minmax(0,1fr) 120px auto}
+.menu-library-picker .menu-set-picker-quantity{grid-column:auto}
+@media(max-width:600px){.menu-library-picker:has(.menu-set-picker-quantity){grid-template-columns:minmax(0,1fr) 100px}.menu-library-picker .secondary-btn{grid-column:1/-1;max-width:none}.dish-editor-heading{align-items:flex-start}.dish-compact-head{font-size:11px}.drawer-body .dish-compact-row input,.catalog-editor .dish-compact-row input{padding:8px 5px}}

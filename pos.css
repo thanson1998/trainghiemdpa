@@ -7,6 +7,20 @@
 
 .pos-confirm-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px;flex-wrap:wrap}.pos-confirm-dialog>p{color:#506457;line-height:1.6}
 
+/* Small, consistent table targets show more choices in the POS panel. */
+.pos-panel .pos-zone{margin:8px 0 14px}
+.pos-panel .pos-zone h3{font-size:14px;margin:0 0 7px}
+.pos-panel .pos-table-grid{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:7px}
+.pos-panel .pos-table-grid button{position:relative;min-height:66px;padding:7px 5px;gap:3px;border-radius:7px;min-width:0}
+.pos-panel .pos-table-grid button>svg{width:16px;height:16px}
+.pos-panel .pos-table-grid button>b{font-size:16px;line-height:20px}
+.pos-panel .pos-table-grid button small{font-size:11px;line-height:14px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.pos-panel .pos-table-grid button:focus-visible{outline:3px solid #ba943a;outline-offset:2px}
+.pos-panel .pos-table-tools{gap:8px;margin-bottom:6px;font-size:13px}
+.pos-panel .pos-table-tools select{min-height:36px;padding:6px 9px;font-size:14px}
+.pos-panel .pos-table-tools+.field-help{font-size:12px;line-height:1.45;margin:6px 0 10px}
+@media(max-width:400px){.pos-panel .pos-table-grid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px}.pos-panel .pos-table-grid button{min-height:64px}}
+
 /* Give the selected menu room to grow instead of a short inner scroller. */
 .pos-workbench{grid-template-columns:minmax(460px,1.15fr) minmax(0,1fr);height:auto;min-height:calc(100dvh - 210px);align-items:start}
 .pos-cart{overflow:visible}.pos-cart-body{flex:initial;min-height:360px;overflow:visible}.pos-cart-footer{max-height:none;overflow:visible;border-radius:0 0 14px 14px}.pos-cart-head{border-radius:14px 14px 0 0}
