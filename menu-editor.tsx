@@ -1,3 +1,4 @@
+import {MenuActions} from './menu-actions';
 import {DishSearch} from './dish-search';
 import {useState} from 'react';
 import {Plus,Trash2} from 'lucide-react';
@@ -31,6 +32,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
   </div>}
   {notice&&<p className="menu-notice" role="status">{notice}</p>}
   {set&&<div className="menu-set-summary"><b>{formatMoneyText(set.name)}</b><span>{money(set.pricePerTable)} / set{set.people?` · ${set.people} người / set`:""}</span><div className="form-row">{allowTemplates&&<label>Số lượng set<input aria-label="Số lượng set" type="number" min="1" max="1000" step="1" value={setCount} onChange={e=>changeSetCount(Number(e.target.value))}/></label>}<label>Giá / set (VNĐ)<PriceInput label="Giá trọn set (VNĐ)" value={set.pricePerTable} onChange={price=>onChange(writeMenu(items,{...set,pricePerTable:price??0}))}/></label><label>Số người / set<input aria-label="Số người trong set" type="number" min="1" max="1000" placeholder="Không quy định" value={set.people??''} onChange={e=>onChange(writeMenu(items,{...set,people:e.target.value?Number(e.target.value):undefined}))}/></label></div><strong>Tổng {setCount} set: {money(set.pricePerTable*setCount)}</strong><small>Món trong set không có đơn giá riêng. Số lượng bên dưới là tổng cho {setCount} set, không nhân thêm số bàn.</small></div>}
+  <MenuActions value={value} onChange={onChange} tableCount={tableCount}/>
   <button type="button" className="text-btn unit-toggle" aria-expanded={showUnits} onClick={()=>setShowUnits(!showUnits)}>{showUnits?'Thu gọn đơn vị':'Hiện ô sửa đơn vị'}</button>
   <div className={'dish-items '+(showUnits?'show-units':'')}><div className="dish-compact-head" aria-hidden="true"><span>Tên món</span><span>Số lượng</span><span>Đơn vị</span><span>Đơn giá (VNĐ)</span><span/></div>
   {items.map((item,i)=><div className="dish-compact-row" key={i}>
@@ -45,3 +47,4 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
   {priced.length>0&&<div className="dish-editor-total"><div><span>Tổng giá thực đơn đã nhập</span><strong>{money(total)}</strong></div>{onApplyTotal&&<button type="button" className="secondary-btn" disabled={!complete||total>100000000} onClick={()=>onApplyTotal(total)}>Dùng tổng món làm giá bàn</button>}{!complete&&<small>Nhập đủ giá và số lượng các món để áp dụng tổng vào giá bàn.</small>}</div>}
  </section>
 }
+

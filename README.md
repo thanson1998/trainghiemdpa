@@ -100,3 +100,14 @@ Có thể mở nhiều phiếu, nháp tự giữ trên trình duyệt này. Nút
 Gửi bếp và Thanh toán lưu đơn trước khi mở thao tác; bấm Đã gửi bếp trên phiếu in để ghi nhận. Thanh toán xác nhận thủ công đã nhận tiền, dùng cùng API chống thu trùng, có tiền trả lại và phiếu 80mm. Bàn đã thanh toán không chặn lượt khách tiếp theo dù còn trong khung giờ đặt cũ. Không có thao tác thanh toán thử nào được chạy trên dữ liệu thật trong lúc phát triển.
 
 Nút thanh toán tại sơ đồ và POS mở đầy đủ bill trước khi thu tiền: tên khách, bàn, món, số lượng/đơn vị, đơn giá, tổng, cọc và số còn thu. Có in bill tạm tính 80mm, thao tác in không ghi nhận thanh toán. Chỉ xác nhận sau khi đã nhận đủ tiền. Form đặt bàn xếp thông tin khách, ngày/giờ và giá theo các cột phù hợp màn hình, giảm khoảng trống để xem được nhiều món hơn.
+
+
+## Cố định POS, xóa set và chọn bàn theo sơ đồ
+
+Trên máy tính, hai cột POS nằm trong chiều cao màn hình; cuộn danh sách món hoặc nội dung phiếu riêng, các nút Lưu đơn / Gửi bếp / Thanh toán vẫn trong cột phiếu. Điện thoại giữ nút chuyển giữa chọn món/bàn và phiếu.
+
+Xóa set bỏ giá set cùng các món thuộc set, giữ món gọi thêm. Làm mới menu xóa toàn bộ thực đơn trên phiếu đang sửa. Cả hai có Hoàn tác ngay sau thao tác; chỉ đồng bộ khi lưu đơn. Giá đã chốt vẫn theo chế độ giá thỏa thuận hiện có.
+
+Tab Bàn của POS và form đặt bàn dùng sơ đồ thu nhỏ theo vị trí khu, có quầy, lối đi, màu bàn đã chọn và bàn trùng giờ. Có thể chọn nhiều bàn; bàn có đơn khác trùng thời gian bị khóa. Form kiểm tra lịch theo đúng ngày đang sửa, kể cả khi đổi ngày.
+
+Đã kiểm tra TypeScript, build, 64 bài kiểm tra hiện có và thao tác trên trình duyệt với dữ liệu mẫu (chọn bàn, khóa trùng giờ, áp dụng set, thêm món, xóa set, làm mới, hoàn tác; bố cục máy tính và điện thoại).
