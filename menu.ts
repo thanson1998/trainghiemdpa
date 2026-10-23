@@ -1,5 +1,5 @@
 export type MenuItem={name:string;price:number|null;quantity?:number;unit?:string;included?:boolean};
-export type MenuSet={name:string;pricePerTable:number;people:number;quantity?:number};
+export type MenuSet={name:string;pricePerTable:number;people?:number;quantity?:number};
 const prefix='DPA_MENU_V1:';
 const setPrefix='DPA_MENU_V2:';
 export function readMenuSet(value:string):MenuSet|undefined{
@@ -44,7 +44,7 @@ export function validMenu(value:string):boolean{
  if(value.startsWith(setPrefix)){
   try{
    const data=JSON.parse(value.slice(setPrefix.length)),set=data.set;
-   return !!set&&typeof set.name==='string'&&set.name.trim().length>0&&set.name.length<=100&&Number.isInteger(set.pricePerTable)&&set.pricePerTable>=0&&set.pricePerTable<=100000000&&Number.isInteger(set.people)&&set.people>=1&&set.people<=1000&&(set.quantity===undefined||(Number.isInteger(set.quantity)&&set.quantity>=1&&set.quantity<=1000))&&Array.isArray(data.items)&&data.items.some((item:MenuItem)=>item?.included&&item.name?.trim())&&data.items.every((item:MenuItem)=>item.included===undefined||typeof item.included==='boolean')&&data.items.every((item:MenuItem)=>!item.included||item.price===null)&&validMenu(prefix+JSON.stringify(data.items));
+   return !!set&&typeof set.name==='string'&&set.name.trim().length>0&&set.name.length<=100&&Number.isInteger(set.pricePerTable)&&set.pricePerTable>=0&&set.pricePerTable<=100000000&&(set.people===undefined||(Number.isInteger(set.people)&&set.people>=1&&set.people<=1000))&&(set.quantity===undefined||(Number.isInteger(set.quantity)&&set.quantity>=1&&set.quantity<=1000))&&Array.isArray(data.items)&&data.items.some((item:MenuItem)=>item?.included&&item.name?.trim())&&data.items.every((item:MenuItem)=>item.included===undefined||typeof item.included==='boolean')&&data.items.every((item:MenuItem)=>!item.included||item.price===null)&&validMenu(prefix+JSON.stringify(data.items));
   }catch{return false;}
  }
  if(!value.startsWith(prefix))return value.length<=4000;

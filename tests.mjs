@@ -11,6 +11,29 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
+const requestedMenus=JSON.parse(fs.readFileSync(new URL('./menu-templates-20261023.json',import.meta.url),'utf8'));
+test('requested menus retain full bundles, different same-price variants and unknown carp price',()=>{
+ assert.equal(requestedMenus.length,23);
+ for(const template of requestedMenus){assert.ok(menu.validMenu(template.menu),template.name);assert.ok(template.name.length<=100);assert.match(template.id,/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i);const set=menu.readMenuSet(template.menu);if(set){assert.equal(set.quantity,1);assert.ok(menu.readMenu(template.menu).every(x=>x.included&&x.price===null&&x.quantity===1));const doubled=menu.setMenuQuantity(template.menu,2,4);assert.equal(menu.menuSum(doubled,4),set.pricePerTable*2);assert.ok(menu.readMenu(doubled,4).every(x=>x.quantity===2));}}
+ const samePrice=requestedMenus.filter(t=>t.name.startsWith('Lẩu 8 người – 1,200,000đ'));assert.equal(samePrice.length,2);assert.notEqual(samePrice[0].menu,samePrice[1].menu);
+ const carp=requestedMenus.find(t=>t.name.startsWith('Cá chép om dưa'));assert.equal(menu.readMenu(carp.menu)[0].price,null);assert.equal(menu.hasPricedMenu(carp.menu),false);
+ assert.equal(menu.readMenu(requestedMenus.find(t=>t.name.startsWith('Set 9 ')).menu).length,13);
+ const unspecified=requestedMenus.find(t=>t.name.startsWith('Set 1 '));assert.equal(menu.readMenuSet(unspecified.menu).people,undefined);
+ assert.equal(menu.validMenu(menu.writeMenu(menu.readMenu(unspecified.menu),{...menu.readMenuSet(unspecified.menu),people:0})),false);
+});
+test('requested menu import preserves existing catalog, updates the old hotpot once and is repeatable',()=>{
+ const database=new DatabaseSync(':memory:');
+ try{database.exec(fs.readFileSync(new URL('./0001_reservations.sql',import.meta.url),'utf8'));database.exec(fs.readFileSync(new URL('./0002_menu_catalog_deposit.sql',import.meta.url),'utf8'));
+ const custom={id:'e8742ab8-8a56-4c49-a960-8a82d4a319cf',name:'Mẫu riêng của tôi',menu:'DPA_MENU_V1:[{"name":"Món riêng","price":375000}]'};
+ const dish={id:'ab143ea7-e8fb-4145-b509-765cd76df908',name:'Món giá riêng',unit:'bát',price:257000,category:'Nhóm riêng'};
+ database.prepare('INSERT INTO menu_catalog(id,data,version,updated_at) VALUES(?,?,?,?)').run('dpa-shared',JSON.stringify({dishes:[dish],templates:[custom]}),9,'before');
+ database.exec(fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8'));
+ const migration=fs.readFileSync(new URL('./0009_menu_templates_20261023.sql',import.meta.url),'utf8');database.exec(migration);
+ const result=database.prepare('SELECT * FROM menu_catalog').get(),catalog=JSON.parse(result.data);assert.deepEqual(catalog.dishes,[dish]);assert.deepEqual(catalog.templates[0],custom);assert.equal(catalog.templates.length,24);assert.equal(catalog.templates.filter(t=>t.id==='a877208f-3db9-4778-b41e-47327dd29131').length,1);
+ for(const template of requestedMenus)assert.deepEqual(catalog.templates.find(t=>t.id===template.id),template);
+ database.exec(migration);assert.deepEqual(database.prepare('SELECT * FROM menu_catalog').get(),result);
+ }finally{database.close();}
+});
 const groupsUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-groups.ts',import.meta.url),'utf8')));const groups=await import(groupsUrl);
 const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta.url),'utf8').replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl));
 const learningUrl=dataUrl(compile(learningSource));const learning=await import(learningUrl);
