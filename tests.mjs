@@ -28,6 +28,8 @@ const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',impor
 const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
 const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw new Error("not used during SSR");}'))).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
+const checkoutBillSource=fs.readFileSync(new URL('./checkout-bill.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'react-dom'",JSON.stringify(pathToFileURL(require.resolve('react-dom')).href));
+const checkoutBillModule=await import(dataUrl(compile(checkoutBillSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
  sqlite=new DatabaseSync(':memory:');
@@ -43,6 +45,13 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('checkout bill shows dishes, units and set quantities while retaining agreed total, deposit and unpaid balance',()=>{
+ const b=booking({orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b})),text=html.replace(/<[^>]*>/g,'');
+ for(const expected of ['DPA-25102026-01','S1-01, S1-02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Chưa xác nhận thanh toán'])assert.ok(text.includes(expected),expected);
+ assert.match(html,/<b>2<\/b> đĩa/);assert.match(html,/<b>3<\/b> chai/);assert.ok(!text.includes('4 đĩa'));
+});
 
 test('dish group migration classifies Vietnamese names while preserving manual groups, prices, units and templates',async()=>{
  const names=['NƯỚC ÉP - LỰU','Trà quất sả','Rượu nếp','Bia Hà Nội','Cà phê sữa đá','Gà hấp bia','Bò sốt vang','Mận ngâm','Sinh tố xoài','Hướng dương','Cơm rang'];
