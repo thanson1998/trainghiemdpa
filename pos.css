@@ -17,3 +17,15 @@
 @media(min-width:801px) and (max-width:1150px){.pos-workbench{grid-template-columns:minmax(400px,1.15fr) minmax(0,1fr)}.pos-cart-view-actions{justify-content:flex-start}.pos-cart-view-actions button{padding:9px}.pos-item-controls{grid-template-columns:108px 32px minmax(85px,1fr) 85px}}
 @media(max-width:800px){.pos-workbench{display:block;min-height:0}.pos-catalog{position:static;max-height:none;min-height:65dvh}.pos-cart-body{min-height:360px}.pos-cart-footer{position:static}.pos-expand-cart{display:none}.pos-cart-view-actions{margin-left:auto}.pos-item-controls{grid-template-columns:108px 32px minmax(72px,1fr) 80px}}
 @media(max-width:370px){.pos-item-controls{grid-template-columns:108px 30px minmax(0,1fr)}.pos-item-controls>strong{grid-column:2/4}}
+
+/* Compact rows share the same tracks as their visible price headings. */
+.pos-cart-columns,.pos-cart .pos-cart-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,1.6fr);gap:10px;align-items:center}
+.pos-cart-columns{padding:8px 0;background:#f2f7f3;border-top:1px solid #dce6df;border-bottom:1px solid #dce6df;color:#4a6352;font-size:12px;font-weight:700}
+.pos-controls-head,.pos-cart .pos-item-controls{display:grid;grid-template-columns:84px 24px minmax(68px,1fr) minmax(68px,1fr);gap:4px;align-items:center;margin-top:0}
+.pos-controls-head>span{text-align:center}.pos-controls-head>span:nth-child(n+3){text-align:right;padding-right:6px}
+.pos-cart .pos-cart-item{padding:6px 0;min-height:44px}.pos-cart .pos-item-title{gap:4px;min-width:0}.pos-cart .pos-item-title>b{font-size:14px;line-height:1.35;flex:1;min-width:0}.pos-cart .pos-item-title .icon-btn{width:26px;height:30px;min-height:30px;padding:4px}
+.pos-cart .pos-quantity button{width:26px;min-width:26px;min-height:32px}.pos-cart .pos-quantity input{width:32px;min-height:32px;padding:3px 0;font-size:13px}
+.pos-cart .pos-item-controls>input{min-height:32px;padding:6px 5px;font-size:13px}.pos-cart .pos-item-controls>strong{font-size:13px;line-height:1.35;grid-column:auto}.pos-cart .pos-item-unit{font-size:11px;text-align:center}.pos-cart .pos-included{font-size:12px;text-align:right}
+@media(max-width:600px){.pos-cart .pos-cart-item{display:block;padding:5px 0}.pos-cart .pos-item-title .icon-btn{height:28px;min-height:28px}.pos-cart .pos-item-controls{margin-top:2px}.pos-cart-columns{display:block}.pos-cart-columns>span{display:none}.pos-cart .pos-item-title>b{font-size:14px}.pos-controls-head{width:100%}}
+
+.pos-categories .pos-new-dish{display:inline-flex;align-items:center;gap:6px;background:#225e3e;border:1px solid #225e3e;color:#fff;border-radius:8px;font-weight:600;min-height:42px;padding:9px 12px}.pos-add-inline{margin-top:12px}.pos-add-dish form{display:grid;gap:16px;margin-top:20px}.pos-add-dish .pos-fields{margin-top:0}.pos-add-dish .field-help{font-size:13px;line-height:1.5;margin:0}.pos-add-dish header p{font-size:14px;color:#506457}.pos-add-dish form>button{margin-top:4px}
