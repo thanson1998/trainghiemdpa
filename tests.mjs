@@ -19,7 +19,8 @@ const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),
 const catalogApi=await import(dataUrl(compile(catalogSource)));
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
 const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
@@ -32,6 +33,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0002_menu_catalog_deposit.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0003_order_codes.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0006_booking_workflow.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0007_payments.sql',import.meta.url),'utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -39,6 +41,35 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('payment records exact agreed total minus deposit, change and a completed audit entry once',async()=>{
+ const original=booking({tables:['S1-01','S1-02'],price:1250000,deposit:500000,totalPeople:13});await api.POST(req('POST',original),db);
+ const current=(await(await get()).json()).bookings[0];const body={id:current.id,version:current.version,total:2500000,deposit:500000,tendered:2100000,method:'cash'};
+ const r=await paymentsApi.PAY(req('POST',body),db),j=await r.json();assert.equal(r.status,200);assert.equal(j.payment.received,2000000);assert.equal(j.payment.tendered-j.payment.received,100000);assert.equal(j.payment.booking.totalPeople,13);
+ const saved=(await(await get()).json()).bookings[0];assert.equal(saved.status,'completed');assert.equal(saved.version,2);assert.ok(saved.paidAt);assert.equal(saved.price,1250000);
+ assert.equal((await paymentsApi.PAY(req('POST',{...body,version:2}),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM booking_payments').get().n,1);assert.equal((await(await get()).json()).bookings[0].version,2);
+ const history=(await(await api.HISTORY(req('GET'),db)).json()).history;assert.equal(history[0].booking.status,'completed');assert.equal(history[0].version,2);
+ const backup=await(await api.BACKUP(req('GET'),db)).json();assert.equal(backup.payments.length,1);
+ const list=await paymentsApi.GET_PAYMENTS(new Request('https://dpa.example/api/payments?month=2026-10'),db);assert.equal((await list.json()).payments[0].total,2500000);
+});
+test('payment rejects stale totals, missing cash, excess transfer and cancelled bookings without saving',async()=>{
+ const original=booking({deposit:500000});await api.POST(req('POST',original),db);const current=(await(await get()).json()).bookings[0];const body={id:current.id,version:1,total:1500000,deposit:500000,tendered:1000000,method:'transfer'};
+ for(const patch of [{version:2},{total:1400000},{deposit:0}])assert.equal((await paymentsApi.PAY(req('POST',{...body,...patch}),db)).status,409);
+ for(const patch of [{tendered:999999},{tendered:1100000},{method:'card'},{tendered:-1}])assert.equal((await paymentsApi.PAY(req('POST',{...body,...patch}),db)).status,400);
+ await api.POST(req('POST',{...current,status:'cancelled'}),db);assert.equal((await paymentsApi.PAY(req('POST',{...body,version:2}),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM booking_payments').get().n,0);
+});
+test('settled orders reject booking edits, deletion, table moves and history restore',async()=>{
+ const original=booking({deposit:1500000});await api.POST(req('POST',original),db);const before=(await(await get()).json()).bookings[0];const entry=(await(await api.HISTORY(req('GET'),db)).json()).history[0];
+ assert.equal((await paymentsApi.PAY(req('POST',{id:before.id,version:1,total:1500000,deposit:1500000,tendered:0,method:'transfer'}),db)).status,200);const current=(await(await get()).json()).bookings[0];
+ assert.equal((await api.POST(req('POST',{...current,price:2000000}),db)).status,409);assert.equal((await api.DELETE(req('DELETE',{id:current.id,version:2}),db)).status,409);assert.equal((await api.MOVE(req('POST',{id:current.id,version:2,tables:['S1-02']}),db)).status,409);assert.equal((await api.RESTORE(req('POST',{id:entry.id,expectedVersion:2}),db)).status,409);
+ assert.throws(()=>sqlite.prepare('UPDATE reservations SET price=1 WHERE id=?').run(current.id),/PAYMENT_LOCKED/);assert.throws(()=>sqlite.prepare('DELETE FROM reservations WHERE id=?').run(current.id),/PAYMENT_LOCKED/);
+ const saved=(await(await get()).json()).bookings[0];assert.equal(saved.price,1500000);assert.equal(saved.version,2);
+});
+test('payment route follows CORS and JSON rules and leaves old completed orders unpaid',async()=>{
+ const original=booking({status:'completed'});await api.POST(req('POST',original),db);assert.equal((await(await get()).json()).bookings[0].paidAt,undefined);
+ const env={DB:db,ASSETS:{}};const url='https://worker.example/api/payments?month=2026-10';const r=await worker.default.fetch(new Request(url,{headers:{Origin:'https://thanson1998.github.io'}}),env);assert.equal(r.status,200);assert.equal((await r.json()).payments.length,0);assert.equal(r.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
+ assert.equal((await worker.default.fetch(new Request(url,{headers:{Origin:'https://unknown.example'}}),env)).status,403);assert.equal((await worker.default.fetch(new Request(url,{method:'POST',body:'bad'}),env)).status,415);assert.equal((await paymentsApi.GET_PAYMENTS(new Request('https://dpa.example/api/payments?month=bad'),db)).status,400);
+});
 
 test('Gemini accepts older REST schema formats without leaking provider details or changing user text',async()=>{
  let calls=0;const text='Gà hấp 2 đĩa, mỗi đĩa 320k';

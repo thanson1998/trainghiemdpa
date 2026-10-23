@@ -10,15 +10,15 @@ export async function GET(req:Request,db:D1Database){
  const params=new URL(req.url).searchParams;const date=params.get('date'),month=params.get('month');
  const validDate=!!date&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&!Number.isNaN(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;
  if((date&&month)||(!month&&!validDate)||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))return out({error:'Ngày hoặc tháng không hợp lệ.'},400);
- try{const statement=month?db.prepare('SELECT * FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,month+'-01',month+'-31'):db.prepare('SELECT * FROM reservations WHERE user_id=? AND date=? ORDER BY start, name, id').bind(u.userId,date);
+ try{const statement=month?db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,month+'-01',month+'-31'):db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date=? ORDER BY start, name, id').bind(u.userId,date);
  const {results}=await statement.all<any>();
- return out({bookings:results.map(r=>({id:r.id,orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version,updatedAt:r.updated_at}))});
+ return out({bookings:results.map(r=>({id:r.id,...(r.paid_at?{paidAt:r.paid_at}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version,updatedAt:r.updated_at}))});
  }catch(e){console.error('Booking read failed',e);return out({error:'Không tải được dữ liệu. Vui lòng thử lại.'},503)}
 }
 export async function POST(req:Request,db:D1Database,restoring=false){
  const u={userId:'dpa-shared'};
  try{const parsed=schema.safeParse(await req.json());if(!parsed.success)return out({error:parsed.error.issues[0].message},400);
- const b=parsed.data;const tables=JSON.stringify(b.tables);const now=new Date().toISOString();
+ const b=parsed.data;if(await isPaid(db,b.id))return out({error:'Đơn đã thanh toán được giữ nguyên để đối soát.'},409);const tables=JSON.stringify(b.tables);const now=new Date().toISOString();
  const conflict=[u.userId,b.date,b.id,b.end,b.start,tables];
  let result;let savedVersion=b.version+1;if(restoring&&b.version===0){const {results}=await db.prepare('SELECT COALESCE(MAX(version),0)+1 AS next_version FROM reservation_history WHERE booking_id=?').bind(b.id).all<{next_version:number}>();savedVersion=results[0].next_version;}
  if(b.version===0){
@@ -32,7 +32,7 @@ export async function POST(req:Request,db:D1Database,restoring=false){
 }
 export async function DELETE(req:Request,db:D1Database){
  const u={userId:'dpa-shared'};
- try{const parsed=z.object({id:z.string().uuid(),version:z.number().int().min(1)}).safeParse(await req.json());if(!parsed.success)return out({error:'Yêu cầu không hợp lệ.'},400);const data=parsed.data;
+ try{const parsed=z.object({id:z.string().uuid(),version:z.number().int().min(1)}).safeParse(await req.json());if(!parsed.success)return out({error:'Yêu cầu không hợp lệ.'},400);const data=parsed.data;if(await isPaid(db,data.id))return out({error:'Không thể xóa đơn đã thanh toán.'},409);
  const result=await db.prepare('DELETE FROM reservations WHERE id=? AND user_id=? AND version=?').bind(data.id,u.userId,data.version).run();
  if(!result.meta.changes)return out({error:'Dữ liệu vừa thay đổi. Hãy tải lại trước khi xóa.'},409);return out({ok:true});
  }catch{return out({error:'Không thể xóa. Vui lòng thử lại.'},503)}
@@ -51,7 +51,7 @@ export async function RESTORE(req:Request,db:D1Database){
  }catch{return out({error:'Chưa khôi phục được đặt bàn. Hãy thử lại.'},503);}
 }
 export async function BACKUP(_req:Request,db:D1Database){
- try{const [bookings,catalog,history,prints]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
+ try{const [bookings,catalog,history,prints,payments]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id'),db.prepare('SELECT * FROM booking_payments ORDER BY paid_at')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results,payments:payments.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
 }
 export async function GET_PRINT(req:Request,db:D1Database){
  const id=new URL(req.url).searchParams.get('id');if(!id||!z.string().uuid().safeParse(id).success)return out({error:'Thiếu mã đặt bàn hợp lệ.'},400);
@@ -68,7 +68,7 @@ export async function MOVE(req:Request,db:D1Database){
  try{
   const parsed=z.object({id:z.string().uuid(),version:z.number().int().min(1),tables:z.array(z.enum(tableIds as [string,...string[]])).min(1).max(tableIds.length).refine(ids=>new Set(ids).size===ids.length)}).safeParse(await req.json());
   if(!parsed.success)return out({error:'Chọn các bàn hợp lệ, không trùng nhau.'},400);
-  const b=parsed.data,tables=JSON.stringify(b.tables);
+  const b=parsed.data;if(await isPaid(db,b.id))return out({error:'Không thể chuyển bàn của đơn đã thanh toán.'},409);const tables=JSON.stringify(b.tables);
   const result=await db.prepare(`UPDATE reservations AS target SET table_ids=?,version=version+1,updated_at=?
    WHERE id=? AND user_id=? AND version=? AND status<>'cancelled' AND json_array_length(table_ids)=?
    AND NOT EXISTS(SELECT 1 FROM reservations r WHERE r.user_id=target.user_id AND r.date=target.date AND r.id<>target.id AND r.status<>'cancelled' AND r.start<target.end AND r.end>target.start AND EXISTS(SELECT 1 FROM json_each(r.table_ids) a JOIN json_each(?) b ON a.value=b.value))`).bind(tables,new Date().toISOString(),b.id,'dpa-shared',b.version,b.tables.length,tables).run();
@@ -76,3 +76,5 @@ export async function MOVE(req:Request,db:D1Database){
   return out({ok:true,version:b.version+1});
  }catch(e){console.error('Table transfer failed',e);return out({error:'Chưa chuyển được bàn. Vui lòng thử lại.'},503);}
 }
+
+async function isPaid(db:D1Database,id:string){const {results}=await db.prepare('SELECT booking_id FROM booking_payments WHERE booking_id=?').bind(id).all();return results.length>0;}

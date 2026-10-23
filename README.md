@@ -78,3 +78,9 @@ Khi Secret đã có, máy chủ tự dùng Gemini 3.1 Flash-Lite. Có thể đ�
 - Mỗi lần tạo, sửa, chuyển hoặc xóa đơn đều có lịch sử. Mục **Lịch sử & sao lưu** cho phép khôi phục một phiên bản sau khi kiểm tra trùng bàn và phiên bản mới nhất. Đơn đã xóa được cấp mã đơn mới khi khôi phục; các phiên bản cũ vẫn được giữ.
 - **Tải bản sao lưu** xuất JSON gồm đơn hàng, thư viện món, lịch sử và các lần gửi bếp. Tệp có thông tin khách, nên lưu ở nơi quản lý DPA sử dụng.
 
+
+## Thanh toán
+
+Tab Thanh toán mặc định ngày hôm nay, có lọc ngày/tháng và tìm theo khách, mã đơn hoặc bàn. Số cần thu = giá đã chốt mỗi bàn × số bàn − cọc. Nhập tiền khách đưa (tiền mặt có tính trả lại) hoặc số đã nhận chuyển khoản, kiểm tra rồi xác nhận đã nhận đủ. Thao tác này chỉ ghi nhận nội bộ, không kết nối ngân hàng.
+
+Thanh toán lưu một lần cùng ảnh chụp dữ liệu đơn, thời điểm và phương thức; đơn chuyển sang Hoàn tất. Đơn đã thanh toán khóa sửa/xóa/chuyển bàn/khôi phục để giữ số liệu đối soát. Đơn Hoàn tất từ trước vẫn thuộc Chưa thanh toán nếu chưa có bản ghi thu tiền. In lại phiếu 80mm trong danh sách Đã thanh toán. Thống kê theo ngày đặt bàn, tách tiền cọc và phần thu thêm; bản sao lưu JSON bao gồm thanh toán. Migration 0007 chỉ tạo bảng/trigger mới, không đánh dấu đơn cũ đã thu tiền.

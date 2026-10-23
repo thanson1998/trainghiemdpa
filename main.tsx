@@ -10,3 +10,5 @@ import './orders-dashboard.css';
 import './table-transfer.css';
 
 import './workflow.css';
+
+import './payments.css';

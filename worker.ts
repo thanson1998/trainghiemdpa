@@ -1,3 +1,4 @@
+import {GET_PAYMENTS,PAY} from './payments-api';
 import {IMPORT,geminiModel,importModel} from './text-import';
 import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
@@ -12,7 +13,7 @@ export default {
   if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Nguồn truy cập không được cấu hình.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-  if(!['/api/bookings','/api/catalog','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints'].includes(url.pathname))return Response.json({error:'Không tìm thấy chức năng.'},{status:404,headers});
+  if(!['/api/bookings','/api/catalog','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments'].includes(url.pathname))return Response.json({error:'Không tìm thấy chức năng.'},{status:404,headers});
   if(['POST','DELETE'].includes(request.method)&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
   if(['/api/ai-status','/api/ai-check'].includes(url.pathname)){
    let response:Response;
@@ -23,7 +24,7 @@ export default {
    }else response=Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});
    const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
-  const extra:Record<string,Record<string,typeof GET>>={'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
+  const extra:Record<string,Record<string,typeof GET>>={'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
   if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/import-text'){const response=request.method==='POST'?await IMPORT(request,env):Response.json({error:'Chỉ hỗ trợ POST.'},{status:405,headers:{Allow:'POST, OPTIONS'}});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   const routes:Record<string,((request:Request,db:D1Database)=>Promise<Response>)|undefined>=url.pathname==='/api/bookings/move'?{POST:MOVE}:url.pathname==='/api/catalog'?{GET:GET_CATALOG,POST:POST_CATALOG}:{GET,POST,DELETE};
