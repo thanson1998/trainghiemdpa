@@ -61,6 +61,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0003_order_codes.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0006_booking_workflow.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0007_payments.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0010_payment_reversals.sql',import.meta.url),'utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -672,4 +673,49 @@ test('cancelling an unpaid table retains menu deposit and history while releasin
  assert.equal((await api.POST(req('POST',{...original,id:crypto.randomUUID()}),db)).status,200);
  assert.equal((await api.POST(req('POST',current),db)).status,409);
  assert.equal((await paymentsApi.PAY(req('POST',{id:cancelled.id,version:cancelled.version,total:3000000,deposit:250000,tendered:2750000,method:'cash'}),db)).status,409);
+});
+test('reversing payment preserves full audit and deposit, reopens the order and permits correction and repayment',async()=>{
+ const original=booking({status:'arrived',tables:['S1-01','S1-02'],deposit:250000,menu:menu.writeMenu([{name:'Gà',quantity:2,price:200000}]),totalPeople:13});await api.POST(req('POST',original),db);
+ const current=(await(await get()).json()).bookings[0];const paid=await(await paymentsApi.PAY(req('POST',{id:original.id,version:current.version,total:3000000,deposit:250000,tendered:2800000,method:'cash'}),db)).json();
+ const request={id:original.id,version:current.version+1,paidAt:paid.payment.paidAt,reason:'Bấm nhầm, cần sửa món'};
+ const response=await paymentsApi.REVERSE_PAYMENT(req('POST',request),db);assert.equal(response.status,200);const reopened=(await response.json()).booking;
+ assert.equal(reopened.version,3);assert.equal(reopened.status,'arrived');assert.equal(reopened.menu,original.menu);assert.equal(reopened.deposit,250000);assert.equal(reopened.orderCode,current.orderCode);assert.equal(reopened.totalPeople,13);assert.equal(reopened.paidAt,undefined);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_payments').get().n,0);
+ const audit=sqlite.prepare('SELECT * FROM payment_reversals').get();assert.equal(audit.reason,request.reason);assert.deepEqual(JSON.parse(audit.payment_snapshot),paid.payment);
+ const history=(await(await api.HISTORY(req('GET'),db)).json()).history[0];assert.equal(history.action,'payment_reversed');assert.equal(history.booking.paymentReversal.reason,request.reason);assert.equal(history.booking.paymentReversal.received,2750000);
+ const backup=await(await api.BACKUP(req('GET'),db)).json();assert.equal(backup.paymentReversals.length,1);assert.equal(backup.payments.length,0);
+ assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',request),db)).status,409);
+ assert.equal((await api.POST(req('POST',{...reopened,price:1600000}),db)).status,200);
+ const paidAgain=await paymentsApi.PAY(req('POST',{id:original.id,version:4,total:3200000,deposit:250000,tendered:2950000,method:'transfer'}),db);assert.equal(paidAgain.status,200);
+ assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',request),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals').get().n,1);
+ const latest=await paidAgain.json();assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',{...request,version:5,paidAt:latest.payment.paidAt}),db)).status,200);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals').get().n,2);
+});
+test('reversal rejects stale version, wrong payment identity, invalid reason and unpaid orders',async()=>{
+ const b=booking();await api.POST(req('POST',b),db);const input={id:b.id,version:2,paidAt:new Date().toISOString(),reason:'Nhầm'};
+ assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',input),db)).status,409);
+ const paid=await(await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db)).json();input.paidAt=paid.payment.paidAt;
+ for(const changes of [{version:1},{paidAt:'2020-01-01T00:00:00.000Z'}])assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',{...input,...changes}),db)).status,409);
+ for(const reason of ['', '   ', 'a'.repeat(501)])assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',{...input,reason}),db)).status,400);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_payments').get().n,1);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals').get().n,0);
+});
+test('reversal cannot reopen a table allocated to another party, and can proceed after the conflict is moved',async()=>{
+ const b=booking();await api.POST(req('POST',b),db);const paid=await(await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db)).json();
+ const other=booking();assert.equal((await api.POST(req('POST',other),db)).status,200);
+ const input={id:b.id,version:2,paidAt:paid.payment.paidAt,reason:'Sửa nhầm'};assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',input),db)).status,409);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_payments').get().n,1);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals').get().n,0);
+ assert.equal((await api.MOVE(req('POST',{id:other.id,version:1,tables:['S1-02']}),db)).status,200);assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',input),db)).status,200);
+ assert.equal((await api.POST(req('POST',booking()),db)).status,409);
+});
+test('reversal rolls back the archive and unlock when the reservation update fails',async()=>{
+ const b=booking();await api.POST(req('POST',b),db);const paid=await(await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db)).json();
+ sqlite.exec("CREATE TRIGGER qa_reversal_failure BEFORE UPDATE ON reservations BEGIN SELECT RAISE(ABORT,'QA_FAIL'); END;");
+ assert.equal((await paymentsApi.REVERSE_PAYMENT(req('POST',{id:b.id,version:2,paidAt:paid.payment.paidAt,reason:'Nhầm'}),db)).status,503);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_payments').get().n,1);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals').get().n,0);const saved=(await(await get()).json()).bookings[0];assert.equal(saved.version,2);assert.ok(saved.paidAt);assert.equal(saved.status,'completed');
+});
+test('payment reversal route enforces allowed origins and JSON without changing any booking',async()=>{
+ const env={DB:db};const url='https://dpa.example/api/payments/reverse';
+ assert.equal((await worker.default.fetch(new Request(url,{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'}),env)).status,403);
+ assert.equal((await worker.default.fetch(new Request(url,{method:'POST',body:'{}'}),env)).status,415);
+ const ready=await worker.default.fetch(new Request(url,{method:'GET'}),env);assert.equal(ready.status,200);assert.deepEqual(await ready.json(),{available:true});
+ const result=await worker.default.fetch(new Request(url,{method:'POST',headers:{Origin:'https://thanson1998.github.io','Content-Type':'application/json'},body:'{}'}),env);assert.equal(result.status,400);assert.equal(result.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
 });

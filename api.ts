@@ -51,7 +51,7 @@ export async function RESTORE(req:Request,db:D1Database){
  }catch{return out({error:'Chưa khôi phục được đặt bàn. Hãy thử lại.'},503);}
 }
 export async function BACKUP(_req:Request,db:D1Database){
- try{const [bookings,catalog,history,prints,payments]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id'),db.prepare('SELECT * FROM booking_payments ORDER BY paid_at')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results,payments:payments.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
+ try{const [bookings,catalog,history,prints,payments,paymentReversals]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id'),db.prepare('SELECT * FROM booking_payments ORDER BY paid_at'),db.prepare('SELECT * FROM payment_reversals ORDER BY id')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results,payments:payments.results,paymentReversals:paymentReversals.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
 }
 export async function GET_PRINT(req:Request,db:D1Database){
  const id=new URL(req.url).searchParams.get('id');if(!id||!z.string().uuid().safeParse(id).success)return out({error:'Thiếu mã đặt bàn hợp lệ.'},400);
@@ -78,3 +78,4 @@ export async function MOVE(req:Request,db:D1Database){
 }
 
 async function isPaid(db:D1Database,id:string){const {results}=await db.prepare('SELECT booking_id FROM booking_payments WHERE booking_id=?').bind(id).all();return results.length>0;}
+

@@ -27,3 +27,27 @@ export async function PAY(req:Request,db:D1Database){
  return out({ok:true,payment:{booking,total,deposit,received:due,tendered:b.tendered,method:b.method,paidAt}});
  }catch{return out({error:'Chưa xác nhận được thanh toán. Tải lại danh sách để kiểm tra trước khi thử lại.'},503);}
 }
+
+export async function REVERSAL_STATUS(_req:Request,db:D1Database){
+ try{await db.prepare('SELECT id FROM payment_reversals LIMIT 0').all();return out({available:true});}
+ catch{return out({available:false,error:'Chức năng hoàn tác đang được cập nhật. Vui lòng thử lại sau.'},503);}
+}
+export async function REVERSE_PAYMENT(req:Request,db:D1Database){
+ try{
+  const input=z.object({id:z.string().uuid(),version:z.number().int().positive(),paidAt:z.string().datetime(),reason:z.string().trim().min(1).max(500)}).safeParse(await req.json());
+  if(!input.success)return out({error:'Nhập lý do hoàn tác thanh toán (tối đa 500 ký tự) và tải lại đúng đơn cần sửa.'},400);
+  const b=input.data,reversedAt=new Date().toISOString();
+  const result=await db.prepare(`INSERT INTO payment_reversals(booking_id,booking_version,payment_paid_at,payment_snapshot,reason,reversed_at)
+   SELECT r.id,r.version,p.paid_at,json_object('booking',json(p.snapshot),'total',p.total,'deposit',p.deposit,'received',p.received,'tendered',p.tendered,'method',p.method,'paidAt',p.paid_at),?,?
+   FROM reservations r JOIN booking_payments p ON p.booking_id=r.id
+   WHERE r.id=? AND r.user_id='dpa-shared' AND r.version=? AND p.paid_at=? AND r.status='completed'
+   AND NOT EXISTS(SELECT 1 FROM reservations other WHERE other.user_id=r.user_id AND other.id<>r.id AND other.date=r.date AND other.status<>'cancelled'
+    AND NOT EXISTS(SELECT 1 FROM booking_payments settled WHERE settled.booking_id=other.id)
+    AND other.start<r.end AND other.end>r.start AND EXISTS(SELECT 1 FROM json_each(other.table_ids) a JOIN json_each(r.table_ids) b ON a.value=b.value))
+  `).bind(b.reason,reversedAt,b.id,b.version,b.paidAt).run();
+  if(!result.meta.changes)return out({error:'Chưa thể hoàn tác: đơn đã thay đổi/đã được hoàn tác, hoặc bàn đã có đơn khác trùng giờ. Tải lại để kiểm tra; nếu trùng bàn, chuyển đơn đang sử dụng sang bàn khác trước.'},409);
+  const {results}=await db.prepare('SELECT * FROM reservations WHERE id=? AND user_id=?').bind(b.id,'dpa-shared').all<any>();
+  return out({ok:true,booking:paymentBooking(results[0])});
+ }catch{return out({error:'Chưa xác nhận được hoàn tác thanh toán. Tải lại danh sách để kiểm tra trước khi thử lại.'},503);}
+}
+

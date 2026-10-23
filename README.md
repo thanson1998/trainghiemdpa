@@ -111,3 +111,10 @@ Xóa set bỏ giá set cùng các món thuộc set, giữ món gọi thêm. Làm
 Tab Bàn của POS và form đặt bàn dùng sơ đồ thu nhỏ theo vị trí khu, có quầy, lối đi, màu bàn đã chọn và bàn trùng giờ. Có thể chọn nhiều bàn; bàn có đơn khác trùng thời gian bị khóa. Form kiểm tra lịch theo đúng ngày đang sửa, kể cả khi đổi ngày.
 
 Đã kiểm tra TypeScript, build, 64 bài kiểm tra hiện có và thao tác trên trình duyệt với dữ liệu mẫu (chọn bàn, khóa trùng giờ, áp dụng set, thêm món, xóa set, làm mới, hoàn tác; bố cục máy tính và điện thoại).
+
+
+## Hoàn tác thanh toán nhầm
+
+Trong Thanh toán → Đã thanh toán, bấm **Hoàn tác thanh toán**, nhập lý do và xác nhận. Đơn quay lại Chưa thanh toán để sửa món / số tiền rồi thanh toán lại. Món, giá, cọc và mã đơn được giữ nguyên. Đây là sửa ghi nhận nội bộ, không tự chuyển tiền trả khách.
+
+Lần thu cũ được lưu đầy đủ trong `payment_reversals`, kèm lý do và thời gian; lịch sử hiển thị Hoàn tác thanh toán, bản sao lưu có `paymentReversals`. Số liệu đã thanh toán chỉ tính các lần thu còn hiệu lực. Migration 0010 bổ sung bảng lưu và trigger thực hiện lưu lịch sử, bỏ ghi nhận thu và mở lại đơn trong cùng giao dịch; lỗi sẽ hoàn tác toàn bộ. Kiểm tra đúng phiên bản và lần thanh toán chống bấm lặp/ghi đè. Nếu bàn đã được cấp cho đơn khác trùng giờ, cần chuyển đơn đang chiếm bàn trước khi mở lại.
