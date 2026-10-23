@@ -299,7 +299,7 @@ test('explicit set quantity scales included dishes and price once, independent o
  for(const invalid of [0,-1,1.5,1001])assert.throws(()=>menu.setMenuQuantity(two,invalid));
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:{...saved,menu:two,tables:['S1-07','S1-08']},onClose(){}}));
  assert.ok(html.includes('2 set'));assert.ok(!html.includes('dish-print-price'));
- assert.equal((html.match(/class="dish-print-count">2</g)||[]).length,7);
+ assert.equal((html.match(/class="dish-print-count">2 [^<]+</g)||[]).length,7);
  // Existing reservations without an explicit set count retain their prior totals.
  assert.equal(menu.menuSum(template.menu,2),2400000);assert.equal(menu.readMenu(template.menu,2)[0].quantity,2);
  assert.equal(menu.menuSum(menu.setMenuQuantity(template.menu,2,2),4),2400000);
@@ -494,7 +494,7 @@ test('receipt shows compact quantity name amount rows and retains notes deposit 
  const b=booking({tables:['16','17'],price:1200000,deposit:500000,menu:menu.writeMenu([{name:'Gà',quantity:2,unit:'đĩa',price:240000}]),note:'Không cay; ra món lúc 19h'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));const text=html.replace(/<[^>]*>/g,'');
  for(const expected of ['Không cay; ra món lúc 19h','Đã cọc','CÒN LẠI'])assert.ok(text.includes(expected),expected);
- assert.match(html,/<li><span class="dish-print-count">2<\/span><p>Gà<\/p><b class="dish-print-price">/);
+ assert.match(html,/<li><span class="dish-print-count">2 đĩa<\/span><p>Gà<\/p><b class="dish-print-price">/);
  assert.ok(!html.includes('dish-print-quantity'));assert.ok(!text.includes('Tổng: 4 đĩa'));
  for(const amount of [480000,500000,1900000])assert.ok(text.includes(new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(amount).replace(/\./g,',')));
 });

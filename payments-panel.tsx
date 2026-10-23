@@ -3,12 +3,12 @@ import {createPortal} from 'react-dom';
 import {apiRequest} from './sync';
 import {PriceInput} from './price-input';
 import {money,today,guestCount,zoneOf,type Booking} from './model';
-import {readMenu,readMenuSet,itemQuantity,itemAmount,menuSetQuantity,menuSum} from './menu';
+import {readMenu,readMenuSet,itemQuantity,itemUnit,itemAmount,menuSetQuantity,menuSum} from './menu';
 export type Payment={booking:Booking;total:number;deposit:number;received:number;tendered:number;method:'cash'|'transfer';paidAt:string};
 const methods={cash:'Tiền mặt',transfer:'Chuyển khoản'};
 const fold=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
 const stamp=(s:string)=>new Date(s).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour12:false});
-function MenuLines({booking:b}:{booking:Booking}){const set=readMenuSet(b.menu);return <div className="payment-menu">{set&&<p><b>{menuSetQuantity(b.menu,b.tables.length)} × {set.name}</b><span>{money(set.pricePerTable*menuSetQuantity(b.menu,b.tables.length))}</span></p>}{readMenu(b.menu,b.tables.length).filter(i=>i.name.trim()).map((i,n)=><p key={n}><span><b>{itemQuantity(i)}</b> × {i.name}{i.price!==null&&!i.included&&<small>Đơn giá {money(i.price)}</small>}</span><span>{i.included?'Trong set':i.price===null?'Theo giá chốt':money(itemAmount(i))}</span></p>)}{!b.menu.trim()&&<p>Chưa nhập món ăn. Kiểm tra thực đơn trước khi thu tiền.</p>}</div>;}
+function MenuLines({booking:b}:{booking:Booking}){const set=readMenuSet(b.menu);return <div className="payment-menu">{set&&<p><b>{menuSetQuantity(b.menu,b.tables.length)} × {set.name}</b><span>{money(set.pricePerTable*menuSetQuantity(b.menu,b.tables.length))}</span></p>}{readMenu(b.menu,b.tables.length).filter(i=>i.name.trim()).map((i,n)=><p key={n}><span><b>{itemQuantity(i)} {itemUnit(i)}</b> · {i.name}{i.price!==null&&!i.included&&<small>Đơn giá {money(i.price)}</small>}</span><span>{i.included?'Trong set':i.price===null?'Theo giá chốt':money(itemAmount(i))}</span></p>)}{!b.menu.trim()&&<p>Chưa nhập món ăn. Kiểm tra thực đơn trước khi thu tiền.</p>}</div>;}
 function Receipt({payment:p,onClose}:{payment:Payment;onClose:()=>void}){
  const box=useRef<HTMLDivElement>(null),paper=useRef<HTMLElement>(null);const [height,setHeight]=useState(250);const b=p.booking;
  useLayoutEffect(()=>{const measure=()=>setHeight(Math.ceil((paper.current?.scrollHeight??800)*25.4/96)+10);measure();void document.fonts.ready.then(measure);},[]);
