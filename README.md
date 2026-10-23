@@ -89,6 +89,6 @@ Thanh toán lưu một lần cùng ảnh chụp dữ liệu đơn, thời điể
 
 Tab POS dùng chung thư viện, mã đơn, lịch sử, gửi bếp và thanh toán với hệ thống hiện có. Máy tính có phiếu bên trái và lưới món/bàn bên phải; điện thoại chuyển giữa chọn món/bàn và phiếu. Tìm không dấu (F2), chọn món nhiều lần để cộng số lượng, sửa đơn giá riêng, áp dụng thực đơn mẫu/set và số set, ghi chú bếp, cọc, giữ giá đã chốt và chuyển bàn. Ctrl+S lưu đơn.
 
-Tối đa 10 phiếu đang mở, nháp tự giữ trên trình duyệt này. Nháp chưa được đồng bộ cho tới khi bấm Lưu đơn; đóng nháp có thay đổi cần xác nhận. Đơn đang mở tải từ máy chủ theo ngày của phiếu, kiểm tra phiên bản khi cập nhật. Lỗi mạng giữ nháp và ID để tránh tạo đơn trùng; có thể tải bản máy chủ sau khi kiểm tra.
+Có thể mở nhiều phiếu, nháp tự giữ trên trình duyệt này. Nút Mở phiếu đưa ngay nội dung đơn ra khung mở rộng, giữ nguyên nháp đang sửa và không tạo bản sao của đơn. Nháp chưa được đồng bộ cho tới khi bấm Lưu đơn; đóng nháp có thay đổi cần xác nhận. Đơn đang mở tải từ máy chủ theo ngày của phiếu, kiểm tra phiên bản khi cập nhật. Lỗi mạng giữ nháp và ID để tránh tạo đơn trùng; có thể tải bản máy chủ sau khi kiểm tra.
 
 Gửi bếp và Thanh toán lưu đơn trước khi mở thao tác; bấm Đã gửi bếp trên phiếu in để ghi nhận. Thanh toán xác nhận thủ công đã nhận tiền, dùng cùng API chống thu trùng, có tiền trả lại và phiếu 80mm. Bàn đã thanh toán không chặn lượt khách tiếp theo dù còn trong khung giờ đặt cũ. Không có thao tác thanh toán thử nào được chạy trên dữ liệu thật trong lúc phát triển.

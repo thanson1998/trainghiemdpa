@@ -35,9 +35,14 @@ export function posIssue(b:Booking){
 export const posCategory=(name:string)=>{const n=posFold(name);return /bia|nuoc|ca phe|cafe|tra |sinh to|sua chua|ruou/.test(n)?'Đồ uống':/bim bim|huong duong|kho ga|an vat|khoai tay chien/.test(n)?'Ăn vặt':'Món ăn';};
 export type PosTicket={booking:Booking;saved:string};
 export const posDirty=(t:PosTicket)=>t.saved!==posFingerprint(t.booking);
+export function openPosTicket(state:{tickets:PosTicket[];selected:string},booking:Booking){
+ const existing=state.tickets.find(t=>t.booking.id===booking.id);
+ const next={booking:{...booking,tables:[...booking.tables]},saved:posFingerprint(booking)};
+ return {tickets:existing?state.tickets.map(t=>t.booking.id===booking.id&&!posDirty(t)?next:t):[...state.tickets,next],selected:booking.id};
+}
 export function readPosTickets(raw:string|null):{tickets:PosTicket[];selected:string}|null{
  try{const j=JSON.parse(raw||'null');if(j?.format!=='DPA_POS_V1'||!Array.isArray(j.tickets))return null;
- const tickets=j.tickets.filter((t:any)=>t?.booking&&typeof t.booking.id==='string'&&typeof t.booking.menu==='string'&&Array.isArray(t.booking.tables)&&typeof t.saved==='string'&&typeof t.booking.date==='string'&&typeof t.booking.version==='number').slice(0,10);
+ const tickets=j.tickets.filter((t:any)=>t?.booking&&typeof t.booking.id==='string'&&typeof t.booking.menu==='string'&&Array.isArray(t.booking.tables)&&typeof t.saved==='string'&&typeof t.booking.date==='string'&&typeof t.booking.version==='number');
  return tickets.length?{tickets,selected:tickets.some((t:PosTicket)=>t.booking.id===j.selected)?j.selected:tickets[0].booking.id}:null;
  }catch{return null;}
 }

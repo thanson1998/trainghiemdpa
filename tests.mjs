@@ -65,6 +65,15 @@ test('POS keeps recoverable draft tabs and identifies missing prices and invalid
  const t={booking:b,saved:posLogic.posFingerprint(b)};assert.equal(posLogic.posDirty(t),false);assert.equal(posLogic.posDirty({...t,booking:{...b,name:'Thay đổi'}}),true);
  const recovered=posLogic.readPosTickets(JSON.stringify({format:'DPA_POS_V1',tickets:[t],selected:b.id}));assert.equal(recovered.selected,b.id);assert.equal(recovered.tickets[0].booking.menu,b.menu);assert.equal(posLogic.readPosTickets('not JSON'),null);
 });
+test('POS opens orders beyond ten tabs, preserves dirty drafts and refreshes clean tickets without duplicates',()=>{
+ const tickets=Array.from({length:10},()=>{const b=booking();return {booking:b,saved:posLogic.posFingerprint(b)};});
+ const requested=booking({version:2,name:'Đơn cần mở',tables:['8','9']});let state=posLogic.openPosTicket({tickets,selected:tickets[0].booking.id},requested);assert.equal(state.selected,requested.id);assert.equal(state.tickets.length,11);assert.equal(state.tickets.at(-1).booking.name,'Đơn cần mở');
+ state=posLogic.openPosTicket(state,requested);assert.equal(state.tickets.length,11);
+ const edited={...requested,name:'Nháp chưa lưu',menu:menu.writeMenu([{name:'Món đang nhập',price:50000}])};state={...state,tickets:state.tickets.map(t=>t.booking.id===requested.id?{...t,booking:edited}:t)};
+ state=posLogic.openPosTicket(state,{...requested,version:3,name:'Bản máy chủ'});assert.equal(state.tickets.at(-1).booking.name,'Nháp chưa lưu');assert.equal(state.tickets.at(-1).booking.version,2);
+ const clean={...state,tickets:state.tickets.map(t=>t.booking.id===requested.id?{booking:requested,saved:posLogic.posFingerprint(requested)}:t)};const refreshed=posLogic.openPosTicket(clean,{...requested,version:3,name:'Bản mới'});assert.equal(refreshed.tickets.at(-1).booking.version,3);assert.equal(refreshed.tickets.at(-1).booking.name,'Bản mới');assert.equal(posLogic.posDirty(refreshed.tickets.at(-1)),false);
+ const recovered=posLogic.readPosTickets(JSON.stringify({format:'DPA_POS_V1',...refreshed}));assert.equal(recovered.tickets.length,11);assert.equal(recovered.selected,requested.id);
+});
 
 test('payment records exact agreed total minus deposit, change and a completed audit entry once',async()=>{
  const original=booking({tables:['S1-01','S1-02'],price:1250000,deposit:500000,totalPeople:13});await api.POST(req('POST',original),db);
