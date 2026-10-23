@@ -4,3 +4,5 @@
 .catalog-row>.catalog-editor{flex:0 0 100%;width:100%;max-width:none;margin:4px 0 0;scroll-margin:20px}.catalog-row-editing{border-bottom-color:#b9cbaa}.catalog-editor .form-error{margin-bottom:16px}
 
 .menu-print-price .menu-print-balance>span{font-size:11pt;line-height:1.45}
+
+.catalog-group-filter{display:flex;align-items:center;gap:12px;margin:16px 0;font-weight:600;font-size:15px}.catalog-group-filter select{padding:10px 12px;border:1px solid #bacdbf;border-radius:8px;font:inherit;background:#fff;min-height:44px}.catalog-editor label>small{font-weight:400;color:#56715c;line-height:1.5}

@@ -1,3 +1,4 @@
+import {inferDishGroup} from './dish-groups';
 import {readMenu} from './menu';
 import type {Catalog} from './catalog-model';
 const key=(name:string)=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
@@ -8,7 +9,7 @@ export function mergeLearnedDishes(catalog:Catalog,menu:string,names:string[]){
   const matches=dishes.filter(d=>key(d.name)===key(item.name));
   if(matches.length>1){warnings.push('Có nhiều món cùng tên '+item.name+' trong thư viện; cần sửa giá thủ công.');continue;}
   if(matches.length===1){const old=matches[0];if(item.price!==null&&old.price!==item.price){old.price=item.price;changed=true;}}
-  else if(dishes.length<500){dishes.push({id:crypto.randomUUID(),name:item.name.trim(),price:item.price,unit:item.unit?.trim()||'đĩa'});changed=true;}
+  else if(dishes.length<500){dishes.push({id:crypto.randomUUID(),name:item.name.trim(),price:item.price,unit:item.unit?.trim()||'đĩa',category:inferDishGroup(item.name)});changed=true;}
   else warnings.push('Thư viện đã đủ 500 món, chưa thêm được '+item.name+'.');
  }
  return {catalog:{...catalog,dishes},changed,warning:warnings.join(' ')};

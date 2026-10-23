@@ -1,5 +1,11 @@
 # DPA · Quản trị đặt bàn
 
+## Nhóm món và thanh toán từ sơ đồ
+
+Mỗi món mẫu có nhóm riêng trong phần Sửa: chọn nhóm có sẵn hoặc nhập nhóm mới. Thư viện và POS lọc theo cùng nhóm; tìm món cũng nhận tên nhóm. Migration 0008 tự phân loại món cũ từ tên tiếng Việt, giữ nguyên giá, đơn vị, thực đơn mẫu và nhóm đã sửa thủ công. Món mới học từ văn bản tự nhận nhóm; nhóm thủ công được giữ khi thiết bị cũ chỉ cập nhật giá.
+
+Nút Thanh toán nhỏ màu đỏ dưới bàn có đơn mở hộp kiểm tra tiền cọc và số còn thu, không tự xác nhận thu tiền. Nếu một bàn có nhiều đơn, chọn đúng đơn trước; nếu POS đang giữ thay đổi chưa lưu trên trình duyệt này, mở POS để kiểm tra. Đơn đã thanh toán không còn hiện nút này. Thanh toán dùng chung lịch sử, kiểm tra phiên bản và phiếu 80mm.
+
 Quản lý 50 bàn theo sơ đồ DPA, tông xanh trầm – kem – vàng. Bàn hiển thị tên khách và số mâm; rê chuột hoặc chạm để xem, thêm và sửa tên, số người, giá/bàn, món ăn. Có ngày, ca trưa/tối, đặt nhiều bàn, kiểm tra trùng giờ, xuất CSV và đồng bộ mỗi 10 giây.
 
 ## Bật đồng bộ trực tuyến

@@ -11,11 +11,12 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
-const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl));
+const groupsUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-groups.ts',import.meta.url),'utf8')));const groups=await import(groupsUrl);
+const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta.url),'utf8').replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl));
 const learningUrl=dataUrl(compile(learningSource));const learning=await import(learningUrl);
 const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./catalog-learning'",JSON.stringify(learningUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
-const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
@@ -42,6 +43,26 @@ afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
 const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
+
+test('dish group migration classifies Vietnamese names while preserving manual groups, prices, units and templates',async()=>{
+ const names=['NƯỚC ÉP - LỰU','Trà quất sả','Rượu nếp','Bia Hà Nội','Cà phê sữa đá','Gà hấp bia','Bò sốt vang','Mận ngâm','Sinh tố xoài','Hướng dương','Cơm rang'];
+ const dishes=names.map((name,i)=>({id:crypto.randomUUID(),name,unit:i%2?'chai':'đĩa',price:30000+i}));dishes.push({id:crypto.randomUUID(),name:'Món riêng',unit:'bát',price:70000,category:'Nhóm tự đặt'});
+ const template={id:crypto.randomUUID(),name:'Set giữ nguyên',menu:menu.writeMenu([{name:'Gà',quantity:2,price:200000}])};
+ sqlite.prepare('INSERT INTO menu_catalog(id,data,version,updated_at) VALUES(?,?,?,?)').run('dpa-shared',JSON.stringify({dishes,templates:[template]}),5,'2026-10-23T00:00:00Z');
+ const migration=fs.readFileSync(new URL('./0008_dish_groups.sql',import.meta.url),'utf8');sqlite.exec(migration);
+ const raw=sqlite.prepare('SELECT * FROM menu_catalog').get(),data=JSON.parse(raw.data);assert.equal(raw.version,6);assert.deepEqual(data.templates,[template]);
+ for(let i=0;i<dishes.length;i++){const {category,...rest}=data.dishes[i];const {category:oldCategory,...original}=dishes[i];assert.deepEqual(rest,original);assert.equal(category,oldCategory||groups.inferDishGroup(original.name));}
+ assert.deepEqual(data.dishes.slice(0,5).map(d=>d.category),['Nước ép','Trà','Rượu','Bia','Cà phê']);assert.equal(data.dishes[5].category,'Món ăn');assert.equal(data.dishes[6].category,'Món ăn');
+ sqlite.exec(migration);assert.equal(sqlite.prepare('SELECT version FROM menu_catalog').get().version,6);
+});
+test('dish groups can be edited, synchronized and kept when old clients only update prices',async()=>{
+ const dish={id:crypto.randomUUID(),name:'Trà quất sả',unit:'cốc',price:30000};let r=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[dish],templates:[]}),db);let c=await r.json();assert.equal(c.dishes[0].category,'Trà');
+ r=await catalogApi.POST_CATALOG(req('POST',{...c,dishes:[{...c.dishes[0],category:'Đồ uống đặc biệt'}]}),db);c=await r.json();assert.equal(c.dishes[0].category,'Đồ uống đặc biệt');
+ const {category,...legacy}=c.dishes[0];r=await catalogApi.POST_CATALOG(req('POST',{...c,dishes:[{...legacy,price:35000}]}),db);c=await r.json();assert.equal(c.dishes[0].category,'Đồ uống đặc biệt');assert.equal(c.dishes[0].price,35000);
+ r=await catalogApi.POST_CATALOG(req('POST',{...c,dishes:[{...c.dishes[0],category:''}]}),db);c=await r.json();assert.equal(c.dishes[0].category,'Trà');
+ const read=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(read.dishes[0].category,'Trà');assert.equal(read.dishes[0].price,35000);
+ const merged=learning.mergeLearnedDishes(read,menu.writeMenu([{name:'Nước ép cóc',price:30000,unit:'cốc'}]),['Nước ép cóc']);assert.equal(merged.catalog.dishes.at(-1).category,'Nước ép');
+});
 
 test('POS combines repeated dishes, preserves edited prices and expands legacy sets exactly once',()=>{
  const original=booking({tables:['S1-01','S1-02'],priceMode:'auto',menu:menu.writeMenu([{name:'Gà',price:300000,quantity:1,unit:'đĩa'}])});
@@ -345,7 +366,7 @@ test('hotpot set migration preserves catalog and seeds seven included items with
  const migration=fs.readFileSync(new URL('./0004_hotpot_set.sql',import.meta.url),'utf8');
  sqlite.exec(migration);sqlite.exec(migration);
  const catalog=await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json();
- assert.deepEqual(catalog.dishes,existing.dishes);assert.deepEqual(catalog.templates[0],existing.templates[0]);assert.equal(catalog.templates.length,2);assert.equal(catalog.version,2);
+ assert.deepEqual(catalog.dishes,existing.dishes.map(d=>({...d,category:groups.inferDishGroup(d.name)})));assert.deepEqual(catalog.templates[0],existing.templates[0]);assert.equal(catalog.templates.length,2);assert.equal(catalog.version,2);
  const set=catalog.templates[1];assert.equal(menu.validMenu(set.menu),true);assert.equal(menu.readMenu(set.menu).length,7);assert.equal(menu.readMenuSet(set.menu).pricePerTable,1200000);assert.equal(menu.readMenuSet(set.menu).people,6);
  assert.ok(menu.readMenu(set.menu).every(item=>item.price===null&&item.included));
  assert.equal(menu.menuSum(set.menu,2),2400000);assert.equal(menu.pricePerSelectedTable(set.menu,2),1200000);assert.equal(menu.readMenu(set.menu,2)[0].quantity,2);
