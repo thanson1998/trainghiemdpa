@@ -106,3 +106,43 @@
  .pos-catalog-body{overflow:visible;flex:initial;min-height:0;padding:10px 12px}
  .pos-categories{position:static;padding:0;border:0}
 }
+
+/* Dense desktop POS: readable text with more products and ticket rows per screen. */
+@media(min-width:801px){
+ .app-shell.pos-active .main-content{padding:8px 12px}
+ .app-shell.pos-active .topbar{height:40px;padding:0 20px}
+ .app-shell.pos-active .sync-settings{font-size:11px;padding:6px 10px;margin-bottom:6px}
+ .pos-panel{font-size:12px}.pos-topline{margin-bottom:5px}.pos-topline h1{font-size:18px}.pos-topline>div{gap:7px}.pos-topline>div>span{font-size:11px}
+ .pos-topline>.secondary-btn{min-height:28px;padding:5px 9px;font-size:11px}
+ .pos-ticket-tabs{gap:5px;margin-bottom:5px}.pos-ticket-tabs>div{border-radius:6px}.pos-ticket-tabs button{font-size:11px;min-height:28px;padding:4px 8px}
+ .pos-ticket-tabs .pos-new-ticket{border-radius:6px;gap:4px}.pos-workbench{gap:10px}
+ .pos-cart,.pos-catalog{border-radius:8px}.pos-cart-head{padding:7px 9px;border-radius:8px 8px 0 0;gap:6px}.pos-cart-head h2{font-size:16px;margin:2px 0}.pos-cart-head span{font-size:10px}
+ .pos-cart-view-actions button{font-size:10px;min-height:28px;padding:5px 6px;gap:4px}.pos-cart-view-actions svg{width:14px;height:14px}
+ .pos-cart-body,.cart-expanded .pos-cart-body{padding:8px}.pos-customer{gap:6px;grid-template-columns:minmax(0,1fr) 58px}.pos-customer label{font-size:11px;gap:3px}
+ .pos-panel input,.pos-panel select,.pos-panel textarea{font-size:12px;min-height:30px;padding:5px 7px;border-radius:5px}
+ .pos-panel label{font-size:11px;gap:4px}.pos-customer input{font-size:12px;min-height:30px;padding:5px 7px}
+ .pos-details{padding:5px 7px;margin:7px 0;border-radius:5px}.pos-details summary{font-size:10px;min-height:18px}.pos-fields{gap:7px;margin-top:7px}
+ .pos-set{padding:7px;gap:6px;margin:7px 0;font-size:11px;border-radius:6px}.pos-set>span{font-size:11px}.pos-set label{width:64px}
+ .pos-cart-label{font-size:10px;margin:12px 0 4px}.pos-cart-columns{font-size:10px;padding:5px 0}
+ .pos-cart .pos-cart-item{min-height:34px;padding:4px 0}.pos-cart .pos-item-title>b{font-size:12px}.pos-cart .pos-item-title .icon-btn{width:22px;min-height:26px;height:26px;padding:3px}
+ .pos-cart .pos-quantity button{min-height:27px;width:23px;min-width:23px}.pos-cart .pos-quantity input{min-height:27px;font-size:11px;width:30px;padding:2px 0}
+ .pos-controls-head,.pos-cart .pos-item-controls{grid-template-columns:78px 22px minmax(58px,1fr) minmax(58px,1fr);gap:3px}
+ .pos-cart-columns,.pos-cart .pos-cart-item{grid-template-columns:minmax(80px,1fr) minmax(225px,1.5fr);gap:5px}
+ .pos-cart .pos-item-controls>input{min-height:27px;padding:4px;font-size:11px}.pos-cart .pos-item-controls>strong{font-size:11px}.pos-cart .pos-included,.pos-cart .pos-item-unit{font-size:10px}
+ .pos-cart-empty{padding:18px 8px}.pos-cart-empty>svg{width:24px;height:24px}.pos-cart-empty h3{font-size:14px;margin:8px 0}.pos-cart-empty p{font-size:11px;margin:5px 0}
+ .pos-order-note{margin-top:10px}.pos-add-inline{margin-top:8px;font-size:11px;padding:6px 9px;min-height:28px}
+ .pos-cart .menu-actions{margin:8px 0;gap:5px}.pos-cart .menu-actions .secondary-btn{font-size:10px;padding:5px 7px;gap:4px;min-height:27px}
+ .pos-cart-footer{padding:7px 9px;border-radius:0 0 8px 8px}.pos-amount>span{font-size:12px}.pos-amount>strong{font-size:16px}.pos-amount.due{padding-top:6px;margin-top:6px}.pos-amount.due>strong{font-size:18px}
+ .pos-save-state{font-size:10px}.pos-save-state small{font-size:9px}.pos-actions{gap:5px}.pos-actions button{font-size:11px;min-height:32px;padding:6px 5px;gap:4px}.pos-actions svg{width:14px;height:14px}
+ .pos-catalog-header{padding:8px 9px 0}.pos-catalog-header .pos-pane-tabs{gap:4px;margin-bottom:6px}.pos-pane-tabs button{font-size:11px;padding:6px 8px;min-height:30px;gap:4px;border-radius:5px}.pos-pane-tabs button svg{width:14px;height:14px}
+ .pos-catalog-header .pos-search{margin-bottom:8px;border-radius:6px;padding:0 7px}.pos-search>input{font-size:12px;min-height:32px;padding:6px}.pos-search>svg{width:16px;height:16px}
+ .pos-catalog-body{padding:8px 9px}.pos-categories{top:-8px;gap:4px;padding:5px 0;margin-bottom:8px}.pos-categories button{font-size:11px;min-height:28px;padding:4px 9px;border-radius:6px}.pos-categories small{font-size:10px}
+ .pos-categories .pos-new-dish{font-size:11px;min-height:28px;padding:4px 8px;border-radius:5px;gap:4px}
+ .pos-product-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px}
+ .pos-product,.pos-template{min-height:108px;padding:9px;gap:5px;border-radius:7px}.pos-product>b{font-size:12px;line-height:1.35}.pos-product>small{font-size:10px;line-height:1.4}.pos-product strong{font-size:12px}.pos-product-symbol{width:25px;height:25px;border-radius:6px}.pos-product-symbol svg{width:15px;height:15px}.pos-product-plus{width:22px;height:22px;border-radius:5px}.pos-product-plus svg{width:13px;height:13px}.pos-open-action{font-size:10px}
+ .pos-template-qty{margin-bottom:9px}.pos-template-qty label{max-width:130px}.pos-table-tools{font-size:11px;gap:6px;margin-bottom:7px}.pos-table-tools select{font-size:11px;min-height:29px;padding:4px 7px}.pos-catalog-body>.field-help{font-size:10px;line-height:1.5;margin:6px 0}
+ .pos-catalog-body .mini-table-picker{margin:8px 0}.pos-catalog-body .mini-map-scroll{padding:6px;border-radius:7px}.pos-catalog-body .mini-zone h3{font-size:10px;margin-bottom:6px}.pos-catalog-body .mini-zone-tables button{min-height:28px;font-size:10px}.pos-catalog-body .mini-zone-OUT button{min-height:23px}
+ .pos-catalog-body .mini-map-legend{font-size:10px;margin-bottom:7px;gap:8px}.pos-catalog-body .mini-map-legend>b{font-size:10px}
+}
+@media(min-width:1100px){.app-shell.pos-active .sidebar{width:190px;padding:22px 12px 14px}.app-shell.pos-active .workspace{margin-left:190px}.app-shell.pos-active .brand{padding:0 8px 24px}.app-shell.pos-active .brand b{font-size:29px}.app-shell.pos-active .brand-mark{width:36px;height:39px}.app-shell.pos-active .brand small{font-size:8px;letter-spacing:2px}.app-shell.pos-active .nav-label{font-size:9px;padding-bottom:12px}.app-shell.pos-active .nav-item{font-size:11px;padding:10px 9px;gap:8px;margin-bottom:4px}.app-shell.pos-active .nav-item svg{width:17px;height:17px}.app-shell.pos-active .private{font-size:10px;padding:10px 8px}.app-shell.pos-active .profile{margin-top:12px}}
+@media(min-width:801px) and (max-width:1050px){.pos-cart .pos-cart-item{display:block}.pos-cart-columns{display:block}}
