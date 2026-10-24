@@ -11,7 +11,7 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
-const exportSource=fs.readFileSync(new URL('./booking-export.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl));const bookingExport=await import(dataUrl(compile(exportSource)));
+const exportSource=fs.readFileSync(new URL('./booking-export.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl));const bookingExport=await import(dataUrl(compile(exportSource)));
 const requestedMenus=JSON.parse(fs.readFileSync(new URL('./menu-templates-20261023.json',import.meta.url),'utf8'));
 test('requested menus retain full bundles, different same-price variants and unknown carp price',()=>{
  assert.equal(requestedMenus.length,23);
@@ -38,23 +38,23 @@ test('requested menu import preserves existing catalog, updates the old hotpot o
 const groupsUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-groups.ts',import.meta.url),'utf8')));const groups=await import(groupsUrl);
 const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta.url),'utf8').replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl));
 const learningUrl=dataUrl(compile(learningSource));const learning=await import(learningUrl);
-const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./catalog-learning'",JSON.stringify(learningUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./catalog-learning'",JSON.stringify(learningUrl)).replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
 const imageModelUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-image-model.ts',import.meta.url),'utf8')));const imageModel=await import(imageModelUrl);
 const imagesUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-images-api.ts',import.meta.url),'utf8').replace("'./dish-image-model'",JSON.stringify(imageModelUrl))));const imagesApi=await import(imagesUrl);
 const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
-const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
-const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
+const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
 const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
-const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
-const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
-const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
-const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
-const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw new Error("not used during SSR");}'))).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
+const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
+const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
+const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
+const cardsSource=fs.readFileSync(new URL('./booking-cards.tsx',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl));const cardsUrl=dataUrl(compile(cardsSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href)));
+const printSource=fs.readFileSync(new URL('./print-menu.tsx',import.meta.url),'utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw new Error("not used during SSR");}'))).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)).replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href)).replace("'html2canvas'",JSON.stringify(pathToFileURL(require.resolve('html2canvas')).href));
 const printModule=await import(dataUrl(compile(printSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
-const checkoutBillSource=fs.readFileSync(new URL('./checkout-bill.tsx',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'react-dom'",JSON.stringify(pathToFileURL(require.resolve('react-dom')).href));
+const checkoutBillSource=fs.readFileSync(new URL('./checkout-bill.tsx',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'react-dom'",JSON.stringify(pathToFileURL(require.resolve('react-dom')).href));
 const checkoutBillModule=await import(dataUrl(compile(checkoutBillSource).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
 let sqlite,db;
 beforeEach(()=>{
@@ -66,6 +66,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0007_payments.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0010_payment_reversals.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0011_dish_images.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0012_takeaway.sql',import.meta.url),'utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -461,7 +462,7 @@ test('order-code migration numbers existing bookings once without changing booki
 });
 
 test('orders overview excludes cancelled value and counts menu quantities once per booking',async()=>{
- const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./booking-cards'",JSON.stringify(cardsUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
+ const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./booking-cards'",JSON.stringify(cardsUrl)).replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
  const {OrdersDashboard}=await import(dataUrl(compile(source).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
  const rows=[booking({price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
@@ -827,4 +828,47 @@ test('POS card cancellation rejects stale or paid orders and handles server conf
  await assert.rejects(cancelModule.cancelPosOrder(current,()=>[],async(path,options)=>options.method==='POST'?Response.json({error:'Xung đột phiên bản'},{status:409}):cancelRequest(path,options)),/Xung đột/);
  assert.equal((await paymentsApi.PAY(req('POST',{id:current.id,version:current.version,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db)).status,200);
  await assert.rejects(cancelModule.cancelPosOrder(current,()=>[],cancelRequest),/đã thanh toán/);
+});
+
+const orderModel=await import(modelUrl);
+test('takeaway POS prices dishes and sets once without a table; switching an existing order preserves its total',()=>{
+ const initial=bookingLogic.updateBookingDraft(posLogic.newPosBooking('2026-10-25'),'serviceType','takeaway');
+ const b=posLogic.posAppend(initial,[{name:'Gà hấp',quantity:2,unit:'đĩa',price:250000},{name:'Nước',quantity:3,unit:'chai',price:10000}]);
+ assert.deepEqual(b.tables,[]);assert.equal(b.price,530000);assert.equal(orderModel.bookingTotal(b),530000);for(const action of ['save','print','pay'])assert.equal(posLogic.posIssue(b,action),'');assert.match(posLogic.posIssue(b,'move'),/mang về/);
+ const dineIn=bookingLogic.updateBookingDraft(b,'serviceType','dine-in');assert.match(posLogic.posIssue(dineIn),/Chọn ít nhất một bàn/);
+ const legacy=booking({priceMode:'auto',tables:['S1-01','S1-02'],price:1200000,menu:menu.writeMenu([{name:'Gà trong set',quantity:1,price:null,included:true}],{name:'Set lẩu',pricePerTable:1200000,people:6})});
+ const takeaway=bookingLogic.updateBookingDraft(legacy,'serviceType','takeaway');assert.equal(orderModel.bookingTotal(takeaway),2400000);assert.equal(menu.readMenuSet(takeaway.menu).quantity,2);assert.equal(menu.readMenu(takeaway.menu,orderModel.orderUnits(takeaway))[0].quantity,2);
+ const agreed=bookingLogic.updateBookingDraft({...legacy,priceMode:'agreed',price:1100000},'serviceType','takeaway');assert.equal(agreed.price,2200000);assert.equal(orderModel.bookingTotal(agreed),2200000);
+});
+test('takeaway orders save without table conflicts while table service still requires real tables',async()=>{
+ const menuText=menu.writeMenu([{name:'Gà hấp',quantity:1,price:300000}]);
+ const first=booking({serviceType:'takeaway',tables:[],price:300000,deposit:100000,menu:menuText});
+ assert.equal((await api.POST(req('POST',first),db)).status,200);assert.equal((await api.POST(req('POST',{...first,id:crypto.randomUUID()}),db)).status,200);assert.equal((await api.POST(req('POST',booking()),db)).status,200);
+ const saved=(await(await get()).json()).bookings.find(b=>b.id===first.id);assert.equal(saved.serviceType,'takeaway');assert.deepEqual(saved.tables,[]);assert.equal(orderModel.balanceDue(saved),200000);
+ assert.equal((await api.POST(req('POST',{...first,id:crypto.randomUUID(),tables:['S1-01']}),db)).status,400);
+ assert.equal((await api.POST(req('POST',booking({tables:[]})),db)).status,400);
+ assert.equal((await api.POST(req('POST',{...first,id:crypto.randomUUID(),deposit:300001}),db)).status,400);
+ assert.equal((await api.MOVE(req('POST',{id:first.id,version:1,tables:['S1-02']}),db)).status,409);
+});
+test('takeaway bills and kitchen prints show MANG VỀ, full totals and no physical table or food photos',async()=>{
+ const b=booking({serviceType:'takeaway',tables:[],totalPeople:2,price:1200000,deposit:200000,menu:menu.writeMenu([{name:'Gà',quantity:1,price:null,included:true}],{name:'Set mang về',quantity:1,people:2,pricePerTable:1200000})});
+ const render=(Component,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(Component,props));
+ for(const html of [render(checkoutBillModule.CheckoutBill,{booking:b}),render(printModule.MenuPrintPreview,{booking:b,onClose(){}})]){assert.match(html,/MANG VỀ/);assert.match(html,/1,200,000/);assert.doesNotMatch(html,/0 bàn|<img|dish-thumbnail/);}
+ assert.match(render(printModule.MenuPrintPreview,{booking:b,onClose(){}}),/1,000,000/);
+ const csv=bookingExport.bookingCsv([b]);assert.match(csv,/MANG VỀ/);assert.match(csv,/"1200000","200000","1000000"/);
+});
+test('takeaway payments record full total and deposit, reject stale totals and support reversal',async()=>{
+ const b=booking({serviceType:'takeaway',tables:[],price:500000,deposit:100000});assert.equal((await api.POST(req('POST',b),db)).status,200);
+ assert.equal((await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:0,deposit:100000,tendered:0,method:'cash'}),db)).status,409);
+ const paid=await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:500000,deposit:100000,tendered:500000,method:'cash'}),db);assert.equal(paid.status,200);const {payment}=await paid.json();assert.equal(payment.received,400000);assert.equal(payment.booking.serviceType,'takeaway');assert.deepEqual(payment.booking.tables,[]);
+ assert.equal((await api.POST(req('POST',booking()),db)).status,200);
+ const reversal=await paymentsApi.REVERSE_PAYMENT(req('POST',{id:b.id,version:2,paidAt:payment.paidAt,reason:'Kiểm tra đơn mang về'}),db);assert.equal(reversal.status,200);const restored=(await reversal.json()).booking;assert.equal(restored.serviceType,'takeaway');assert.equal(restored.deposit,100000);assert.equal(orderModel.bookingTotal(restored),500000);
+});
+test('takeaway service survives kitchen confirmation, cancellation, deletion and history restore',async()=>{
+ const b=booking({serviceType:'takeaway',tables:[],price:500000,deposit:100000});assert.equal((await api.POST(req('POST',b),db)).status,200);const saved=(await(await get()).json()).bookings[0];
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:saved}),db)).status,200);
+ const last=(await(await api.GET_PRINT(new Request('https://dpa.example/api/bookings/prints?id='+b.id),db)).json()).last;assert.equal(last.serviceType,'takeaway');
+ assert.equal((await api.POST(req('POST',{...saved,status:'cancelled'}),db)).status,200);assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:2}),db)).status,200);
+ const entry=sqlite.prepare("SELECT * FROM reservation_history WHERE booking_id=? AND action='deleted' ORDER BY event_id DESC LIMIT 1").get(b.id);assert.equal(JSON.parse(entry.snapshot).serviceType,'takeaway');
+ assert.equal((await api.RESTORE(req('POST',{id:entry.event_id,expectedVersion:0}),db)).status,200);const restored=(await(await get()).json()).bookings[0];assert.equal(restored.serviceType,'takeaway');assert.deepEqual(restored.tables,[]);assert.equal(restored.price,500000);
 });

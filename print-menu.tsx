@@ -1,10 +1,10 @@
+import {isTakeaway,orderLocation,orderUnits,money,zones,guestCount,balanceDue,type Booking} from './model';
 import {apiRequest} from './sync';
 import {kitchenDelta} from './kitchen-delta';
 import {formatMoneyText,readMenu,menuSum,itemQuantity,itemUnit,itemAmount,readMenuSet,menuSetQuantity} from './menu';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {Printer,X,Download,LoaderCircle} from 'lucide-react';
 import html2canvas from 'html2canvas';
-import {money,zones,guestCount,balanceDue,type Booking} from './model';
 
 export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>void}){
  const [lastSent,setLastSent]=useState<(Booking&{confirmedAt?:string})|null>(null),[deltaMode,setDeltaMode]=useState(false),[printStatus,setPrintStatus]=useState(''),[confirming,setConfirming]=useState(false),[baselineReady,setBaselineReady]=useState(false);
@@ -29,7 +29,7 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
    }});
    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(result=>result?resolve(result):reject(new Error('Không tạo được ảnh.')),'image/png'));
    const url=URL.createObjectURL(blob),link=document.createElement('a');
-   const tables=booking.tables.join('-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,100)||'chua-chon';
+   const tables=isTakeaway(booking)?'mang-ve':booking.tables.join('-').replace(/[^a-zA-Z0-9-]/g,'').slice(0,100)||'chua-chon';
    link.href=url;link.download=(deltaMode?'DPA-bo-sung-':'DPA-menu-')+booking.date+'-ban-'+tables+'.png';link.style.display='none';
    document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
    setImageNotice('Đã tải ảnh PNG của toàn bộ phiếu in.');
@@ -53,7 +53,7 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
   window.addEventListener('keydown',key);
   return()=>{document.body.style.overflow=oldOverflow;window.removeEventListener('keydown',key);previous?.focus()};
  },[onClose]);
- const count=booking.tables.length;
+ const count=orderUnits(booking);
  const dishes=readMenu(booking.menu,count).filter(item=>item.name.trim());
  const date=new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(booking.date+'T12:00:00'));
  return <div className="menu-print-overlay" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="print-menu-title">
@@ -64,11 +64,11 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
   {imageNotice&&<p className="menu-print-export-status" role="status">{imageNotice}</p>}
   <style media="print">{`@page { size: 80mm ${paperHeight}mm; margin: 0; }`}</style>
   <article className="menu-print-sheet" ref={sheet}>
-   <header className="menu-print-heading"><div className="menu-print-brand">DPA<span>TRẢI NGHIỆM · THÁI NGUYÊN</span></div><p>TRÂN TRỌNG ĐÓN TIẾP</p><h1 id="print-menu-title">{deltaMode?'PHIẾU BỔ SUNG / THAY ĐỔI':'THỰC ĐƠN ĐẶT TIỆC'}</h1><h2>{booking.name}</h2></header>
-   <dl className="menu-print-facts"><div><dt>Ngày đặt tiệc</dt><dd>{date}</dd></div><div><dt>Thời gian</dt><dd>{booking.start} – {booking.end}</dd></div><div><dt>Số người</dt><dd>{guestCount(booking)} người{booking.totalPeople==null&&<small>{booking.people} người / bàn</small>}</dd></div></dl>
-   <section className="menu-print-location"><h3>VỊ TRÍ BÀN</h3>{zones.filter(z=>z.tables.some(id=>booking.tables.includes(id))).map(z=><div key={z.id}><strong>{z.id==='FRONT'?'Trước quầy thanh toán':z.title}</strong><span>{booking.tables.filter(id=>z.tables.includes(id)).map(id=>'Bàn '+id).join(' · ')}</span></div>)}</section>
+   <header className="menu-print-heading"><div className="menu-print-brand">DPA<span>TRẢI NGHIỆM · THÁI NGUYÊN</span></div><p>TRÂN TRỌNG ĐÓN TIẾP</p><h1 id="print-menu-title">{deltaMode?'PHIẾU BỔ SUNG / THAY ĐỔI':isTakeaway(booking)?'PHIẾU MANG VỀ':'THỰC ĐƠN ĐẶT TIỆC'}</h1><h2>{booking.name}</h2></header>
+   <dl className="menu-print-facts"><div><dt>{isTakeaway(booking)?'Ngày lấy món':'Ngày đặt tiệc'}</dt><dd>{date}</dd></div><div><dt>Thời gian</dt><dd>{booking.start} – {booking.end}</dd></div><div><dt>Số người</dt><dd>{guestCount(booking)} người{booking.totalPeople==null&&!isTakeaway(booking)&&<small>{booking.people} người / bàn</small>}</dd></div></dl>
+   <section className="menu-print-location"><h3>{isTakeaway(booking)?'HÌNH THỨC PHỤC VỤ':'VỊ TRÍ BÀN'}</h3>{isTakeaway(booking)&&<div><span>MANG VỀ · KHÔNG DÙNG BÀN</span></div>}{zones.filter(z=>z.tables.some(id=>booking.tables.includes(id))).map(z=><div key={z.id}><strong>{z.id==='FRONT'?'Trước quầy thanh toán':z.title}</strong><span>{booking.tables.filter(id=>z.tables.includes(id)).map(id=>'Bàn '+id).join(' · ')}</span></div>)}</section>
    {deltaMode?<section className="menu-print-dishes"><h3>THAY ĐỔI SO VỚI PHIẾU ĐÃ GỬI</h3><p>In lúc {new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour12:false})}</p>{difference?.added.length? <><h4 className="kitchen-change-label">THÊM / LÀM THÊM</h4>{difference.added.map((item,i)=><p className="kitchen-delta-change" key={'add'+i}><b>+{item.quantity} {item.unit}</b> · {item.name}</p>)}</>:<p>Không thêm số lượng món.</p>}{!!difference?.removed.length&&<><h4 className="kitchen-change-label">GIẢM / HỦY MÓN</h4>{difference.removed.map((item,i)=><p className="kitchen-delta-change" key={'remove'+i}><b>Giảm {item.quantity} {item.unit}</b> · {item.name}</p>)}</>}{difference?.notes.map((note,i)=><p key={i}>{note}</p>)}</section>:<section className="menu-print-dishes"><h3>THỰC ĐƠN</h3>{readMenuSet(booking.menu)&&<p className="menu-print-set-name">{formatMoneyText(readMenuSet(booking.menu)!.name)} · {menuSetQuantity(booking.menu,count)} set</p>}{dishes.length?<ol>{dishes.map((dish,i)=><li key={i}><span className="dish-print-count">{itemQuantity(dish)} {itemUnit(dish)}</span><p>{dish.name}</p>{dish.included?<b className="dish-print-included">Trong set</b>:<b className="dish-print-price">{dish.price===null?'—':money(itemAmount(dish))}</b>}</li>)}</ol>:<p className="menu-print-empty">Chưa cập nhật món ăn.</p>}{dishes.some(item=>item.price!==null)&&<div className="menu-print-subtotal"><span>Tổng giá món{dishes.some(item=>!item.included&&item.price===null)&&<small>Một số món chưa nhập giá</small>}</span><b>{money(menuSum(booking.menu,count))}</b></div>}</section>}
-   {booking.note.trim()&&<section className="menu-print-notes"><h3>GHI CHÚ PHỤC VỤ</h3><p>{booking.note}</p></section>}{!deltaMode&&<section className="menu-print-price"><div><span>Giá mỗi bàn</span><b>{money(booking.price)}</b></div><div><span>Số bàn</span><b>{count} bàn</b></div><div className="menu-print-total"><span>TỔNG TIỀN</span><strong>{money(booking.price*count)}</strong></div><div><span>Đã cọc</span><b>{money(booking.deposit??0)}</b></div><div className="menu-print-balance"><span>{booking.paidAt?'ĐÃ THANH TOÁN · CÒN LẠI':'CÒN LẠI'}</span><strong>{money(balanceDue(booking))}</strong></div></section>}
+   {booking.note.trim()&&<section className="menu-print-notes"><h3>GHI CHÚ PHỤC VỤ</h3><p>{booking.note}</p></section>}{!deltaMode&&<section className="menu-print-price"><div><span>{isTakeaway(booking)?'Giá đơn mang về':'Giá mỗi bàn'}</span><b>{money(booking.price)}</b></div>{!isTakeaway(booking)&&<div><span>Số bàn</span><b>{count} bàn</b></div>}<div className="menu-print-total"><span>TỔNG TIỀN</span><strong>{money(booking.price*count)}</strong></div><div><span>Đã cọc</span><b>{money(booking.deposit??0)}</b></div><div className="menu-print-balance"><span>{booking.paidAt?'ĐÃ THANH TOÁN · CÒN LẠI':'CÒN LẠI'}</span><strong>{money(balanceDue(booking))}</strong></div></section>}
    <footer className="menu-print-footer">Trải Nghiệm DPA · Chu đáo từ lúc đặt bàn.</footer>
   </article>
  </div>
