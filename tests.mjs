@@ -776,12 +776,13 @@ test('image workers obey global lease and atomic daily budget; ordinary image re
  await imagesApi.processDishImages(env);await imagesApi.processDishImages(env);assert.equal(calls,1);assert.equal(sqlite.prepare('SELECT attempts FROM dish_image_usage').get().attempts,1);
  const r=await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example/api/dish-images/'+dishes[0].id),db);assert.equal(r.status,404);assert.equal(calls,1);
 });
-test('bad AI image results retain usable catalog and use bounded delayed retries',async()=>{
+test('bad AI images back off but remain eligible after three failed attempts',async()=>{
  await seedImageDishes(['Gà hấp']);let calls=0;const env={DB:db,AI:{async run(){calls++;return {image:Buffer.from('<script>bad</script>').toString('base64')};}}};
  await imagesApi.processDishImages(env);const row=sqlite.prepare('SELECT * FROM dish_images').get();assert.equal(row.status,'error');assert.equal(row.image,null);assert.equal(row.attempts,1);assert.ok(row.next_attempt>Date.now());
  await imagesApi.processDishImages(env);assert.equal(calls,1);
  for(let i=0;i<4;i++){sqlite.prepare('UPDATE dish_image_lock SET expires=0').run();sqlite.prepare('UPDATE dish_images SET next_attempt=0').run();await imagesApi.processDishImages(env);}
- assert.equal(calls,3);assert.equal(sqlite.prepare('SELECT attempts FROM dish_images').get().attempts,3);assert.equal((await(await catalogApi.GET_CATALOG(req('GET'),db)).json()).dishes[0].image.status,'error');
+ assert.equal(calls,5);assert.equal(sqlite.prepare('SELECT attempts FROM dish_images').get().attempts,5);assert.equal((await(await catalogApi.GET_CATALOG(req('GET'),db)).json()).dishes[0].image.status,'error');
+ env.AI.run=async()=>({image:fakeJpeg.toString('base64')});sqlite.prepare('UPDATE dish_images SET next_attempt=0').run();await imagesApi.processDishImages(env);assert.equal(sqlite.prepare('SELECT status FROM dish_images').get().status,'ready');
 });
 test('regeneration retains prior artwork, rejects absent dishes, throttles repeats and strips unsafe URLs',async()=>{
  const [dish]=await seedImageDishes(['Gà hấp']);let calls=0;const env={DB:db,AI:{async run(){calls++;return {image:fakeJpeg.toString('base64')};}}};await imagesApi.processDishImages(env);
@@ -905,4 +906,31 @@ test('catalog polling keeps unchanged objects but accepts image progress at the 
  assert.equal(refresh.refreshedCatalog(current,JSON.parse(JSON.stringify(current))),current);
  assert.equal(refresh.refreshedCatalog(current,{...current,version:1}),current);
  const withImage={...current,dishes:[{...current.dishes[0],image:{status:'ready',url:'/api/dish-images/x?v=1'}}]};assert.equal(refresh.refreshedCatalog(current,withImage),withImage);
+});
+
+test('daily AI quota pauses all dishes until UTC reset without exposing provider details',async()=>{
+ await seedImageDishes(['Chicken','Fish']);let calls=0;
+ const secret='4006: used up your daily free allocation of neurons; private-token';
+ const env={DB:db,AI:{async run(){calls++;throw Error(secret);}}};
+ await imagesApi.processDishImages(env);await imagesApi.processDishImages(env);assert.equal(calls,1);
+ const status=await(await imagesApi.DISH_IMAGE_STATUS(env)).json();assert.equal(status.retryPolicy,'continuous-v1');assert.equal(status.errors.daily_quota,1);assert.ok(status.resumeAfter>Date.now());assert.doesNotMatch(JSON.stringify(status),/private-token/);
+ assert.equal(new Date(status.resumeAfter).getUTCHours(),0);assert.equal(new Date(status.resumeAfter).getUTCMinutes(),1);
+ sqlite.prepare('UPDATE dish_image_lock SET expires=0').run();sqlite.prepare('UPDATE dish_images SET next_attempt=0').run();env.AI.run=async()=>({image:fakeJpeg.toString('base64')});await imagesApi.processDishImages(env);assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM dish_images WHERE status='ready'").get().n,2);
+});
+test('retry delays grow to a cap; account failures pause longer and invalid images stay separate',()=>{
+ const start=Date.UTC(2026,9,24,11,0);
+ assert.equal(imagesApi.imageRetryPolicy(Error('timeout'),1,start).retryAt,start+60000);
+ assert.equal(imagesApi.imageRetryPolicy(Error('timeout'),30,start).retryAt,start+21600000);
+ assert.equal(imagesApi.imageRetryPolicy(Error('Invalid JPEG'),1,start).reason,'invalid_image');
+ assert.equal(imagesApi.imageRetryPolicy(Error('403 forbidden'),1,start).retryAt,start+21600000);
+});
+
+test('continuous retry migration requeues old failures while preserving artwork and active leases',async()=>{
+ await seedImageDishes(['Chicken','Fish']);await imagesApi.processDishImages({DB:db,AI:{async run(){return {image:fakeJpeg.toString('base64')};}}});
+ const id=sqlite.prepare('SELECT dish_id FROM dish_images LIMIT 1').get().dish_id;
+ sqlite.prepare("UPDATE dish_images SET status='error',attempts=3,next_attempt=9999999999999,error='old error' WHERE dish_id=?").run(id);
+ sqlite.prepare("UPDATE dish_image_lock SET lease='active',expires=9999999999999").run();
+ const migration=fs.readFileSync(new URL('./0013_dish_image_retry.sql',import.meta.url),'utf8');sqlite.exec(migration);
+ const row=sqlite.prepare('SELECT * FROM dish_images WHERE dish_id=?').get(id);assert.equal(row.status,'queued');assert.equal(row.attempts,0);assert.deepEqual(Buffer.from(row.image),fakeJpeg);assert.equal(sqlite.prepare('SELECT lease FROM dish_image_lock').get().lease,'active');assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM dish_images WHERE status='ready'").get().n,1);
+ sqlite.prepare('UPDATE dish_image_lock SET lease=NULL').run();sqlite.exec(migration);assert.equal(sqlite.prepare('SELECT expires FROM dish_image_lock').get().expires,0);
 });

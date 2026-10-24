@@ -1,11 +1,13 @@
 # Ảnh minh họa món ăn DPA
 
-POS và Thư viện thực đơn có ảnh nhỏ. Bộ 16 ảnh minh họa nhóm món được tạo riêng, nhúng sẵn trong giao diện để vẫn hiển thị khi dịch vụ tạo ảnh chưa sẵn sàng. Ảnh nhóm chỉ minh họa; ảnh riêng được tạo theo tên món và tự thay thế khi hoàn tất. Hóa đơn, bill tạm tính và phiếu bếp chỉ có chữ, không in ảnh.
+Cron Cloudflare chạy mỗi phút, tự nhận diện món mới hoặc đổi tên và xử lý tối đa 3 ảnh mỗi lượt. Cron hoạt động khi đóng website. Ảnh hoàn tất được lưu dùng chung; tải trang và xem ảnh không gọi AI. Hóa đơn, bill và phiếu bếp không in ảnh.
 
-Migration `0011_dish_images.sql` lưu ảnh JPEG riêng khỏi thực đơn và đơn hàng trong D1. Cron chạy mỗi phút, tự phát hiện món mới từ cả POS, Thư viện và nhập văn bản; mỗi lượt xử lý tối đa 3 món bằng Workers AI FLUX.1 Schnell qua binding AI hiện có. Món mới được ưu tiên trước hàng chờ cũ; toàn bộ thư viện hiện có cũng được tạo dần. Không cần thêm khóa API tạo ảnh. Ảnh tạo xong được lưu và dùng chung trên các thiết bị. Đổi giá không tạo lại; đổi tên yêu cầu ảnh mới. Mục Sửa món có nút Yêu cầu tạo ảnh / Tạo lại ảnh, giữ ảnh cũ trong khi chờ.
+Hàng đợi tự thử lại liên tục, không dừng vĩnh viễn sau 3 lỗi. Lỗi tạm thời được giãn cách từ 1 phút tới tối đa 6 giờ. Ảnh trả về không hợp lệ chỉ hoãn món đó. Lỗi dịch vụ hoặc tài khoản tạm hoãn toàn hàng đợi. Hết hạn mức AI ngày thì chờ đến 00:01 UTC (07:01 Việt Nam) rồi thử lại. Không tự nâng gói hoặc đổi hạn mức sử dụng.
 
-Chỉ cron gọi dịch vụ AI. Mở trang, tải ảnh và làm mới giao diện không tạo thêm ảnh. Khóa dùng chung chống cron chạy trùng; giới hạn mặc định 300 lượt tạo/ngày (theo giờ Việt Nam, bao gồm lượt thất bại), tối đa 3 lần thử tự động/món. Khi dịch vụ lỗi, chờ trước khi thử lại và giữ ảnh nhóm để tiếp tục bán hàng. Có thể đặt `DISH_IMAGES_DAILY_LIMIT` từ 0–1000 hoặc `DISH_IMAGES_ENABLED=false` trong Worker để điều chỉnh/tắt. Tạo ảnh sử dụng hạn mức và có thể phát sinh phí Workers AI của tài khoản Cloudflare; giới hạn số lượt không phải giới hạn chi phí bằng tiền. Ảnh riêng cần thời gian xử lý hàng chờ và tùy hạn mức tài khoản. Không tự tạo ảnh cho dòng tiền cọc, vé, phí phục vụ, khăn ướt.
+Giới hạn sẵn có vẫn là 300 lần gọi/ngày theo giờ Việt Nam, tối đa 3 ảnh mỗi lượt; DISH_IMAGES_DAILY_LIMIT cho phép cấu hình 0–1000, DISH_IMAGES_ENABLED=false tắt chức năng. Hạn mức nhà cung cấp có thể thấp hơn. Khóa chung chống xử lý trùng; ưu tiên món chưa thử trước món lỗi. Chỉ tạo lại khi đổi tên hoặc người dùng yêu cầu; đổi giá giữ nguyên ảnh.
 
-Triển khai bằng luồng Cloudflare hiện có: build, áp dụng migration rồi deploy. Cron vẫn hoạt động khi không mở website. Các client cũ không ghi đè hoặc xóa ảnh đã tạo; trạng thái ảnh không tăng phiên bản thư viện, không làm xung đột phiếu đang sửa.
+Migration 0013 đưa các món lỗi trước đây về hàng đợi và chỉ giải phóng thời gian chờ của khóa đang nhàn rỗi. Giữ nguyên ảnh và dữ liệu đơn hàng.
 
-Kiểm tra: 84 bài kiểm thử gồm tạo ảnh, chống trùng, giới hạn lượt, thử lại khi lỗi, tạo lại, đổi tên trong lúc tạo ảnh, tương thích client cũ, CORS và xác nhận bản in không có ảnh. TypeScript và build đạt. Phiên làm việc này không có công cụ trình duyệt để kiểm tra trực quan toàn trang.
+GET /api/dish-images trả về counts, errors theo nhóm lý do cố định, resumeAfter (milliseconds) và retryPolicy continuous-v1. Không công khai lỗi gốc từ nhà cung cấp. Thư viện tự cập nhật tiến độ qua đồng bộ hiện có. Ảnh nhóm tiếp tục hiển thị trong khi đợi ảnh riêng.
+
+Kiểm chứng: các bài kiểm tra bao gồm phục hồi sau hơn 3 lỗi, tạm ngừng toàn hàng đợi khi hết hạn mức rồi tiếp tục, giãn cách có giới hạn, khóa chống trùng, giới hạn ngày, thay tên trong lúc tạo ảnh và dữ liệu D1 BLOB thực tế. Health workflow chỉ đọc trạng thái và ảnh mẫu, không truy cập đơn hàng.

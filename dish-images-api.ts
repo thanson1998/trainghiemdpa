@@ -4,8 +4,21 @@ export interface DishImageEnv {DB:D1Database;AI?:{run(model:string,input:Record<
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const message='Chưa tạo được ảnh riêng. Ảnh minh họa nhóm vẫn hiển thị; có thể thử lại trong Thư viện thực đơn.';
 type ImageRow={dish_id:string;name_key:string;status:'queued'|'generating'|'ready'|'error';updated_at:number;has_image:number;error:string};
+// Keep provider text private: expose only a fixed reason and retry time.
+export function imageRetryPolicy(error:unknown,attempts:number,now=Date.now()){
+ const detail=error instanceof Error?error.message:String(error);
+ const daily=/4006|3036|daily.*(?:allocation|limit|quota)|used up.*neurons|neurons.*(?:exceed|exhaust)/i.test(detail);
+ const reason=daily?'daily_quota':/Invalid (?:image|JPEG)/i.test(detail)?'invalid_image':/401|403|unauthori[sz]ed|forbidden|billing|paid plan/i.test(detail)?'account_access':'service_unavailable';
+ const retryAt=daily?Math.floor(now/86400000)*86400000+86400000+60000:now+(reason==='account_access'?21600000:Math.min(21600000,60000*2**Math.min(Math.max(attempts-1,0),9)));
+ return {reason,retryAt};
+}
 export async function DISH_IMAGE_STATUS(env:DishImageEnv){
- try{const {results}=await env.DB.prepare('SELECT status,COUNT(*) AS count FROM dish_images GROUP BY status').all<{status:string;count:number}>();return json({feature:'dish-images-v2',enabled:!!env.AI&&env.DISH_IMAGES_ENABLED!=='false',counts:Object.fromEntries(results.map(r=>[r.status,r.count]))});}catch{return json({error:'Máy chủ chưa cập nhật phần lưu ảnh.'},503);}
+ try{
+  const {results}=await env.DB.prepare('SELECT status,COUNT(*) AS count FROM dish_images GROUP BY status').all<{status:string;count:number}>();
+  const lock=await env.DB.prepare('SELECT expires FROM dish_image_lock WHERE id=1').first<{expires:number}>();
+  const {results:errors}=await env.DB.prepare("SELECT CASE WHEN error LIKE '[daily_quota]%' THEN 'daily_quota' WHEN error LIKE '[invalid_image]%' THEN 'invalid_image' WHEN error LIKE '[account_access]%' THEN 'account_access' WHEN error LIKE '[service_unavailable]%' THEN 'service_unavailable' ELSE 'unknown' END AS reason,COUNT(*) AS count FROM dish_images WHERE status='error' GROUP BY reason").all<{reason:string;count:number}>();
+  return json({feature:'dish-images-v2',retryPolicy:'continuous-v1',enabled:!!env.AI&&env.DISH_IMAGES_ENABLED!=='false',counts:Object.fromEntries(results.map(r=>[r.status,r.count])),errors:Object.fromEntries(errors.map(r=>[r.reason,r.count])),resumeAfter:lock&&lock.expires>Date.now()?lock.expires:null});
+ }catch{return json({error:'Máy chủ chưa cập nhật phần lưu ảnh.'},503);}
 }
 async function readDishes(db:D1Database):Promise<CatalogDish[]>{const row=await db.prepare('SELECT data FROM menu_catalog WHERE id=?').bind('dpa-shared').first<{data:string}>();return row?JSON.parse(row.data).dishes:[];}
 export async function attachDishImages(db:D1Database,dishes:CatalogDish[]){
@@ -52,7 +65,7 @@ export async function REQUEST_DISH_IMAGE(request:Request,env:DishImageEnv){
 // A single leased worker and an atomic daily counter bound work across all devices.
 export async function processDishImages(env:DishImageEnv){
  if(!env.AI||env.DISH_IMAGES_ENABLED==='false')return;
- const now=Date.now(),token=crypto.randomUUID();let locked=false,cooldown=false;
+ const now=Date.now(),token=crypto.randomUUID();let locked=false,cooldownUntil=0;
  try{
   const lock=await env.DB.prepare('UPDATE dish_image_lock SET lease=?,expires=? WHERE id=1 AND expires<?').bind(token,now+600000,now).run();
   if(!lock.meta.changes)return;locked=true;
@@ -65,7 +78,7 @@ export async function processDishImages(env:DishImageEnv){
   // Stay below the free-plan query budget, including generation and state updates.
   if(queue.length)await env.DB.batch(queue);
   await env.DB.prepare("UPDATE dish_images SET status='queued',lease=NULL WHERE status='generating' AND next_attempt<?").bind(now).run();
-  const {results:pending}=await env.DB.prepare("SELECT dish_id,name_key FROM dish_images WHERE status IN ('queued','error') AND attempts<3 AND next_attempt<=? ORDER BY requested_at DESC, rowid DESC").bind(now).all<{dish_id:string;name_key:string}>();
+  const {results:pending}=await env.DB.prepare("SELECT dish_id,name_key,attempts FROM dish_images WHERE status IN ('queued','error') AND next_attempt<=? ORDER BY attempts ASC,requested_at DESC,rowid DESC LIMIT 3").bind(now).all<{dish_id:string;name_key:string;attempts:number}>();
   let count=0;
   for(const job of pending){
    if(count>=3)break;
@@ -86,11 +99,13 @@ export async function processDishImages(env:DishImageEnv){
     const current=(await readDishes(env.DB)).find(d=>d.id===dish.id);
     if(!current||imageNameKey(current.name)!==job.name_key){await env.DB.prepare('DELETE FROM dish_images WHERE dish_id=? AND lease=?').bind(dish.id,token).run();continue;}
     await env.DB.prepare("UPDATE dish_images SET status='ready',image=?,updated_at=?,error='',lease=NULL,next_attempt=0 WHERE dish_id=? AND name_key=? AND lease=?").bind(bytes.buffer,Date.now(),dish.id,job.name_key,token).run();
-   }catch{
-    await env.DB.prepare("UPDATE dish_images SET status='error',error=?,lease=NULL,next_attempt=? WHERE dish_id=? AND lease=?").bind(message,Date.now()+3600000,dish.id,token).run();
-    cooldown=true;break;
+   }catch(error){
+    const retry=imageRetryPolicy(error,job.attempts+1);
+    await env.DB.prepare("UPDATE dish_images SET status='error',error=?,lease=NULL,next_attempt=? WHERE dish_id=? AND lease=?").bind(`[${retry.reason}] ${message}`,retry.retryAt,dish.id,token).run();
+    // An account-wide failure pauses the queue; an invalid dish image does not.
+    if(retry.reason!=='invalid_image'){cooldownUntil=retry.retryAt;break;}
    }
   }
  }catch{console.warn('Dish image background work unavailable.');}
- finally{if(locked)await env.DB.prepare('UPDATE dish_image_lock SET expires=?,lease=NULL WHERE id=1 AND lease=?').bind(cooldown?Date.now()+900000:0,token).run().catch(()=>{});}
+ finally{if(locked)await env.DB.prepare('UPDATE dish_image_lock SET expires=?,lease=NULL WHERE id=1 AND lease=?').bind(cooldownUntil,token).run().catch(()=>{});}
 }
