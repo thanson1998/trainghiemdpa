@@ -68,3 +68,14 @@ export function parseUnitPrice(value:string,max=100000000):number|null|undefined
 
 export const pricePerSelectedTable=(value:string,count:number)=>count>0?Math.round(menuSum(value,count)/count):0;
 
+
+// Mark only unpriced dishes as included; retain separately priced extras.
+export function includeUnpricedInSet(value:string,name='Thực đơn theo set',tableCount=1):string{
+ const set=readMenuSet(value),items=readMenu(value,tableCount);
+ if(!items.some(i=>i.name.trim()&&!i.included&&i.price===null))return value;
+ return writeMenu(items.map(i=>i.name.trim()&&i.price===null?{...i,included:true}:i),set?{...set,quantity:menuSetQuantity(value,tableCount)}:{name,pricePerTable:0,quantity:1});
+}
+export function prepareTemplateMenu(value:string,name:string):string{
+ const items=readMenu(value).filter(i=>i.name.trim());
+ return !readMenuSet(value)&&items.length&&items.every(i=>i.price===null)?includeUnpricedInSet(value,name):value;
+}

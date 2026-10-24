@@ -728,3 +728,18 @@ test('CSV export uses zero outstanding balance for settled orders and retains de
 test('POS rejects cancelled order actions before saving or checkout while retaining cancellation saves',()=>{
  const b=booking({status:'cancelled',menu:menu.writeMenu([{name:'Gà',price:300000}]),version:1});assert.equal(posLogic.posIssue(b,'save'),'');for(const action of ['print','pay','move'])assert.match(posLogic.posIssue(b,action),/Đơn đã hủy/);assert.equal(posLogic.posIssue({...b,status:'arrived'},'pay'),'');
 });
+
+test('unpriced menu templates print as included sets without dish prices',()=>{
+ const original=menu.writeMenu(Array.from({length:14},(_,i)=>({name:'Dish '+(i+1),price:null,quantity:1,unit:'đĩa'})));
+ const value=menu.prepareTemplateMenu(original,'MÂM');assert.ok(menu.validMenu(value));assert.equal(menu.readMenuSet(value).name,'MÂM');
+ assert.ok(menu.readMenu(value).every(i=>i.included&&i.price===null));
+ const doubled=menu.setMenuQuantity(value,2);assert.ok(menu.readMenu(doubled,3).every(i=>i.quantity===2));
+ assert.equal(posLogic.posIssue(booking({menu:value,price:0,priceMode:'auto'}),'print'),'');
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:booking({menu:value,price:0}),onClose(){}}));
+ assert.equal((html.match(/Trong set/g)||[]).length,14);assert.ok(!html.includes('dish-print-price'));
+ const mixed=menu.writeMenu([{name:'Included',price:null,quantity:2},{name:'Extra',price:50000,quantity:3}]);
+ assert.equal(menu.prepareTemplateMenu(mixed,'Mixed'),mixed);
+ const marked=menu.includeUnpricedInSet(mixed);assert.ok(menu.validMenu(marked));assert.equal(menu.menuSum(marked),150000);assert.equal(menu.readMenu(marked)[1].included,undefined);
+ assert.equal(menu.includeUnpricedInSet(marked),marked);
+ const agreed=booking({menu:mixed,price:1200000,priceMode:'agreed'});assert.equal(bookingLogic.updateBookingDraft(agreed,'menu',marked).price,1200000);
+});
