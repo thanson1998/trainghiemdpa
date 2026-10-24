@@ -1,0 +1,57 @@
+/* Action roles: blue records/prints, amber kitchen attention, green collection, red removal. */
+@media screen{
+ :root{--action-blue:#1d4ed8;--action-blue-soft:#eff6ff;--action-green:#166534;--action-amber:#b45309;--action-red:#b91c1c;--action-neutral:#475569}
+ .secondary-btn{color:var(--action-neutral);border-color:#b9c6d0;background:#fff}
+ .secondary-btn:hover:not(:disabled){background:#f1f5f9;border-color:#879aab}
+ .primary-btn{background:var(--action-green);color:#fff;border-color:var(--action-green)}
+ .primary-btn:hover:not(:disabled){background:#14532d;border-color:#14532d}
+ .action-save,.checkout-print-button,.pos-print-takeaway,.pos-shift-toolbar>.secondary-btn,.pos-bank-settings>.secondary-btn{background:var(--action-blue-soft);border:1px solid #93b4ef;color:var(--action-blue)}
+ .action-save:hover:not(:disabled),.checkout-print-button:hover:not(:disabled),.pos-print-takeaway:hover:not(:disabled),.pos-shift-toolbar>.secondary-btn:hover:not(:disabled),.pos-bank-settings>.secondary-btn:hover:not(:disabled){background:#dbeafe;border-color:var(--action-blue)}
+ .action-open,.pos-shift-toolbar>.primary-btn,.menu-print-toolbar>.primary-btn{background:var(--action-blue);border-color:var(--action-blue);color:#fff}
+ .action-open:hover:not(:disabled),.pos-shift-toolbar>.primary-btn:hover:not(:disabled),.menu-print-toolbar>.primary-btn:hover:not(:disabled){background:#1e40af;border-color:#1e40af}
+ .pos-actions .action-kitchen{background:#f8fafc;color:#31577a;border:1px solid #a5bdd1}
+ .pos-actions .action-kitchen:hover:not(:disabled){background:#eaf2f8;border-color:#648ba9}
+ .pos-actions .action-kitchen.needs-sending,.action-warning{background:var(--action-amber);color:#fff;border:1px solid var(--action-amber)}
+ .pos-actions .action-kitchen.needs-sending:hover:not(:disabled),.action-warning:hover:not(:disabled){background:#92400e;border-color:#92400e;color:#fff}
+ .pos-actions .action-collect,.payment-checkout-button{background:var(--action-green);border:1px solid var(--action-green);color:#fff;font-weight:700}
+ .pos-actions .action-collect:hover:not(:disabled),.payment-checkout-button:hover:not(:disabled){background:#14532d;border-color:#14532d}
+ .danger-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 14px;border:1px solid var(--action-red);border-radius:8px;background:var(--action-red);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+ .danger-btn:hover:not(:disabled),.pos-order-card-actions>.pos-cancel-ticket:hover:not(:disabled){background:#991b1b;border-color:#991b1b}
+ .pos-order-card-actions>.pos-cancel-ticket{background:var(--action-red);border-color:var(--action-red)}
+ .action-remove,.payment-cancel-button{color:var(--action-red);background:#fff5f5;border:1px solid #e8adb1}
+ .action-remove:hover:not(:disabled),.payment-cancel-button:hover:not(:disabled){background:#fee2e2;border-color:var(--action-red);color:#991b1b}
+ .confirm-danger{border-top:5px solid var(--action-red)}.confirm-danger>h2{color:#991b1b}.confirm-warning{border-top:5px solid var(--action-amber)}.confirm-warning>h2{color:#92400e}
+ .action-utility{background:#f1f5f9;border-color:#c5d1dc;color:#334155}.pos-top-tools .action-utility{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+ .pos-panel button:focus-visible,.pos-checkout button:focus-visible,.payments-panel button:focus-visible,.pos-shift-dialog button:focus-visible{outline:3px solid #2563eb;outline-offset:3px;box-shadow:0 0 0 2px #fff}
+ .pos-panel button:disabled,.pos-checkout button:disabled,.pos-shift-dialog button:disabled{cursor:not-allowed}
+ .pos-catalog-header .pos-pane-tabs button.active,.pos-categories button.active{font-weight:750;box-shadow:inset 0 -3px 0 #17472f}
+ .pos-order-statuses .pos-status{font-weight:650}.pos-save-state .saved{color:#166534}.pos-save-state .dirty{color:#92400e}.pos-connection.connected{color:#24583c}.pos-connection.offline{color:#85400b}
+ .pos-product-tile .pos-product-main{padding-bottom:45px}.pos-product-tools{bottom:5px;left:6px;right:6px;gap:3px;align-items:center}
+ .pos-product-tools>button{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 6px;min-height:34px;font-size:11px;font-weight:600;line-height:1.3;color:#475569;background:#f8fafc;border:1px solid #e0e6ec;white-space:nowrap}
+ .pos-product-tools>button.pinned{color:#795108;background:#fff5d5;border-color:#ead29b}.pos-product-tools>button.stock-empty{color:#92400e;background:#fff3df;border-color:#e6c999}
+ .pos-stock-action .action-available{background:#e9f6ec;border-color:#9fcaa9;color:#166534}.pos-stock-action .action-available:hover:not(:disabled){background:#d7efdd}
+ .pos-product-tile.sold-out .pos-product-main{opacity:1;background:#f5f6f7}.pos-product-tile.sold-out .pos-product-main>b{color:#475569}.pos-product-tile.sold-out .dish-thumbnail{filter:grayscale(.7)}.pos-product-tile.sold-out .pos-selected-quantity.unavailable{color:#92400e;font-weight:700}.pos-product-tile.sold-out .pos-product-plus{visibility:hidden}
+ .pos-cart .pos-item-title>.icon-btn{background:#fff5f5;color:#b91c1c;border:1px solid #f1ccd0;min-width:30px;min-height:32px;border-radius:6px}.pos-cart .pos-item-title>.icon-btn:hover:not(:disabled){background:#fee2e2}
+ .pos-cart .pos-controls-head,.pos-cart .pos-item-controls{grid-template-columns:92px 24px minmax(64px,1fr) minmax(68px,1fr)}
+ .pos-cart .pos-quantity button{width:28px;min-width:28px;min-height:36px}.pos-cart .pos-quantity input{width:34px;min-height:36px}
+ .pos-served-toggle{font-weight:600;color:#3b5263;background:#f8fafc;border-color:#becbd5}.pos-served-toggle.complete{background:#e4f4e9;color:#166534;border-color:#98c6a5}
+ .pos-cash-shortcuts button:first-child{background:#e8f5ec;color:#166534;border-color:#9cc7a8}.pos-cash-shortcuts button{font-weight:600}
+ .payment-reverse-button{color:#85400b;border-color:#d6b173;background:#fff5e2}
+ .payment-reversal-dialog{border-top:5px solid var(--action-amber)}.payment-reversal-dialog h2{color:#92400e}.payment-reversal-dialog .primary-btn{background:var(--action-amber);border-color:var(--action-amber)}.payment-reversal-dialog .primary-btn:hover:not(:disabled){background:#92400e;border-color:#92400e}
+ .catalog-toolbar>.primary-btn,.catalog-dish-dialog .primary-btn,.catalog-template-dialog .primary-btn,.pos-add-dish .primary-btn,.table-transfer-dialog .primary-btn{background:var(--action-blue);border-color:var(--action-blue);color:#fff}
+ .catalog-toolbar>.primary-btn:hover:not(:disabled),.catalog-dish-dialog .primary-btn:hover:not(:disabled),.catalog-template-dialog .primary-btn:hover:not(:disabled),.pos-add-dish .primary-btn:hover:not(:disabled),.table-transfer-dialog .primary-btn:hover:not(:disabled){background:#1e40af;border-color:#1e40af}
+ .pos-confirm-actions button,.pos-shift-toolbar button{min-height:42px;font-size:14px}
+ .pos-shift-toolbar>.action-neutral{color:var(--action-neutral);background:#fff;border-color:#b9c6d0}
+ .pos-cart-footer .pos-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%}
+ .pos-cart-footer .pos-actions button{min-width:0;white-space:normal;justify-content:center;line-height:1.35}
+ @media(max-width:800px){
+  .pos-product-tile .pos-product-main{padding-bottom:54px}.pos-product-tools>button{min-height:44px;padding:6px 5px;font-size:10px;gap:3px}.pos-product-tools>button svg{width:14px;height:14px}
+  .pos-stock-action button,.pos-served-toggle,.pos-note-chips button,.pos-cash-shortcuts button,.pos-confirm-actions button,.pos-shift-toolbar button,.payment-checkout-button,.payment-cancel-button,.payment-reverse-button{min-height:44px}
+  .pos-cart .pos-item-title>.icon-btn{min-width:44px;min-height:44px}.pos-cart .pos-item-title{align-items:center}
+  .pos-cart .pos-controls-head,.pos-cart .pos-item-controls{grid-template-columns:120px 24px minmax(62px,1fr) minmax(68px,1fr);gap:4px}
+  .pos-cart .pos-quantity button{width:38px;min-width:38px;min-height:44px}.pos-cart .pos-quantity input{width:40px;min-height:44px}
+  .pos-cart-footer .pos-actions button{min-height:44px;font-size:12px}.pos-order-card-actions>.pos-cancel-ticket{min-height:44px!important}
+  .pos-top-tools .secondary-btn{min-height:44px}.pos-note-chips{gap:6px}.pos-item-extras{gap:6px}
+ }
+ @media(max-width:370px){.pos-cart .pos-controls-head,.pos-cart .pos-item-controls{grid-template-columns:106px 20px minmax(54px,1fr) minmax(60px,1fr)}.pos-cart .pos-quantity button{width:32px;min-width:32px}.pos-cart .pos-quantity input{width:40px}.pos-product-tools>button{padding:5px 4px;font-size:10px}.pos-product-tools>button svg{display:none}.pos-cart-footer .pos-actions button{font-size:11px;padding:6px 4px}.pos-cart-footer .pos-actions svg{display:none}.pos-cart-footer .pos-amount:not(.due){display:flex;width:100%;justify-content:space-between;gap:8px}.pos-cart .pos-save-state{flex-wrap:wrap;gap:3px}}
+}

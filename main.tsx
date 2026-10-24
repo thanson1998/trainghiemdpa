@@ -17,3 +17,4 @@ import './pos.css';
 
 
 import './pos-fast.css';
+import './action-colors.css';
