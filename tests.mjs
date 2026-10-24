@@ -803,3 +803,28 @@ test('image routes retain origin and JSON protection, and receipts and kitchen p
  const render=(Component,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(Component,props));
  for(const html of [render(checkoutBillModule.CheckoutBill,{booking:booking()}),render(printModule.MenuPrintPreview,{booking:booking(),onClose(){}})])assert.doesNotMatch(html,/<img|dish-thumbnail|dish-art-sprite/);
 });
+
+const cancelModule=await import(dataUrl(compile(fs.readFileSync(new URL('./pos-cancel.ts',import.meta.url),'utf8').replace("'./pos-logic'",JSON.stringify(posLogicUrl)))));
+const cancelRequest=async(path,options={})=>options.method==='POST'?api.POST(new Request('https://dpa.example'+path,options),db):api.GET(new Request('https://dpa.example'+path),db);
+const savedCancelOrder=async(extra={})=>{const b=booking(extra);assert.equal((await api.POST(req('POST',b),db)).status,200);return (await(await get()).json()).bookings.find(row=>row.id===b.id);};
+test('POS card cancellation retains order details and deposit, releases the table and is repeatable',async()=>{
+ const selected=await savedCancelOrder({deposit:500000,menu:menu.writeMenu([{name:'Gà',quantity:2,price:300000}])});
+ const cancelled=await cancelModule.cancelPosOrder(selected,()=>[{booking:selected,saved:posLogic.posFingerprint(selected)}],cancelRequest);
+ assert.equal(cancelled.status,'cancelled');assert.equal(cancelled.version,selected.version+1);for(const key of ['menu','deposit','name','orderCode','price'])assert.deepEqual(cancelled[key],selected[key]);assert.deepEqual(cancelled.tables,selected.tables);
+ const repeated=await cancelModule.cancelPosOrder(selected,()=>[],cancelRequest);assert.equal(repeated.version,cancelled.version);
+ assert.equal((await api.POST(req('POST',booking()),db)).status,200);
+});
+test('POS card cancellation rejects dirty local drafts both before and after refreshing the server',async()=>{
+ const selected=await savedCancelOrder();let writes=0;const draft={booking:{...selected,name:'Tên chưa lưu'},saved:posLogic.posFingerprint(selected)};
+ await assert.rejects(cancelModule.cancelPosOrder(selected,()=>[draft],async()=>{writes++;throw Error('must not request')}),/chưa lưu/);assert.equal(writes,0);
+ let tickets=[];await assert.rejects(cancelModule.cancelPosOrder(selected,()=>tickets,async(path,options)=>{const r=await cancelRequest(path,options);tickets=[draft];return r;}),/chưa lưu/);
+ assert.equal((await(await get()).json()).bookings[0].status,'reserved');
+});
+test('POS card cancellation rejects stale or paid orders and handles server conflicts without overwriting',async()=>{
+ const selected=await savedCancelOrder();assert.equal((await api.POST(req('POST',{...selected,note:'Sửa từ thiết bị khác'}),db)).status,200);
+ await assert.rejects(cancelModule.cancelPosOrder(selected,()=>[],cancelRequest),/thiết bị khác/);
+ const current=(await(await get()).json()).bookings[0];assert.equal(current.note,'Sửa từ thiết bị khác');
+ await assert.rejects(cancelModule.cancelPosOrder(current,()=>[],async(path,options)=>options.method==='POST'?Response.json({error:'Xung đột phiên bản'},{status:409}):cancelRequest(path,options)),/Xung đột/);
+ assert.equal((await paymentsApi.PAY(req('POST',{id:current.id,version:current.version,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db)).status,200);
+ await assert.rejects(cancelModule.cancelPosOrder(current,()=>[],cancelRequest),/đã thanh toán/);
+});

@@ -1,0 +1,4 @@
+.pos-order-card>.pos-order-card-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;margin-top:auto}
+.pos-order-card-actions>.pos-cancel-ticket{box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:50%;min-height:44px;align-self:flex-start;padding:7px 8px;border:1px solid #b91c1c;border-radius:7px;background:#dc2626;color:#fff;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.pos-order-card-actions>.pos-cancel-ticket:hover:not(:disabled){background:#b91c1c}
+.pos-order-card-actions>.pos-cancel-ticket:disabled{opacity:.55;cursor:wait}
