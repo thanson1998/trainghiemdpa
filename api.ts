@@ -1,6 +1,6 @@
 import {tableIds,bookingTotal} from './model';
 import {learnCatalogFromMenu} from './catalog-learning';
-import {validMenu} from './menu';
+import {validMenu,readMenu,itemQuantity} from './menu';
 import {z} from 'zod';
 const schema=z.object({serviceType:z.enum(['dine-in','takeaway']).optional(),totalPeople:z.number().int().min(1).max(50000).nullable().optional(),priceMode:z.enum(['auto','agreed']).default('agreed'),learnDishNames:z.array(z.string().min(1).max(200)).max(80).default([]),id:z.string().uuid(),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s),start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),name:z.string().trim().min(1).max(100),phone:z.string().trim().max(30),tables:z.array(z.enum(tableIds as [string,...string[]])).min(0).max(tableIds.length).refine(a=>new Set(a).size===a.length),people:z.number().int().min(1).max(1000),platters:z.number().int().min(1).max(100),price:z.number().int().min(0).max(100000000),deposit:z.number().int().min(0).max(4800000000).default(0),menu:z.string().max(40000).refine(validMenu,{message:'Kiểm tra tên và giá từng món: giá phải là số nguyên từ 0 đến 100,000,000 đồng.'}),note:z.string().max(2000),status:z.enum(['reserved','arrived','completed','cancelled']),version:z.number().int().min(0)}).refine(b=>b.serviceType==='takeaway'?b.tables.length===0:b.tables.length>0,{message:'Chọn bàn khi ăn tại quán, hoặc chọn Mang về để không cần bàn.'}).refine(b=>b.end>b.start,{message:'Giờ kết thúc phải sau giờ bắt đầu.'}).refine(b=>b.deposit<=bookingTotal(b),{message:'Tiền cọc không được lớn hơn tổng tiền đặt bàn.'});
 function out(data:unknown,status=200){return Response.json(data,{status,headers:{'Cache-Control':'no-store'}})}
@@ -18,7 +18,13 @@ export async function GET(req:Request,db:D1Database){
 export async function POST(req:Request,db:D1Database,restoring=false){
  const u={userId:'dpa-shared'};
  try{const parsed=schema.safeParse(await req.json());if(!parsed.success)return out({error:parsed.error.issues[0].message},400);
- const b={...parsed.data,serviceType:parsed.data.serviceType??'dine-in' as const};if(await isPaid(db,b.id))return out({error:'Đơn đã thanh toán được giữ nguyên để đối soát.'},409);const tables=JSON.stringify(b.tables);const now=new Date().toISOString();
+ const b={...parsed.data,serviceType:parsed.data.serviceType??'dine-in' as const};if(await isPaid(db,b.id))return out({error:'Đơn đã thanh toán được giữ nguyên để đối soát.'},409);if(b.status!=='cancelled'){
+ let catalogRow:{data:string}|null=null;
+ try{catalogRow=await db.prepare('SELECT data FROM menu_catalog WHERE id=?').bind('dpa-shared').first<{data:string}>();}catch(e){if(!/no such table: menu_catalog/i.test(String(e)))throw e;}
+ const soldOut=(catalogRow?JSON.parse(catalogRow.data).dishes:[]).filter((d:any)=>d.soldOut);
+ if(soldOut.length){const previous=await db.prepare('SELECT menu,table_ids,service_type FROM reservations WHERE id=? AND user_id=?').bind(b.id,'dpa-shared').first<{menu:string;table_ids:string;service_type:string}>();const key=(s:string)=>s.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi');const quantity=(items:ReturnType<typeof readMenu>,name:string)=>items.filter(i=>key(i.name)===key(name)).reduce((n,i)=>n+itemQuantity(i),0);const oldItems=previous?readMenu(previous.menu,previous.service_type==='takeaway'?1:JSON.parse(previous.table_ids).length):[],newItems=readMenu(b.menu,b.serviceType==='takeaway'?1:b.tables.length);const unavailable=soldOut.find((d:any)=>quantity(newItems,d.name)>quantity(oldItems,d.name));if(unavailable)return out({error:unavailable.name+' đang tạm hết. Không thể gọi thêm món này; các món đã lưu vẫn được giữ.'},409);}
+ }
+ const tables=JSON.stringify(b.tables);const now=new Date().toISOString();
  const conflict=[u.userId,b.date,b.id,b.end,b.start,tables];
  let result;let savedVersion=b.version+1;if(restoring&&b.version===0){const {results}=await db.prepare('SELECT COALESCE(MAX(version),0)+1 AS next_version FROM reservation_history WHERE booking_id=?').bind(b.id).all<{next_version:number}>();savedVersion=results[0].next_version;}
  if(b.version===0){
@@ -51,10 +57,15 @@ export async function RESTORE(req:Request,db:D1Database){
  }catch{return out({error:'Chưa khôi phục được đặt bàn. Hãy thử lại.'},503);}
 }
 export async function BACKUP(_req:Request,db:D1Database){
- try{const [bookings,catalog,history,prints,payments,paymentReversals]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id'),db.prepare('SELECT * FROM booking_payments ORDER BY paid_at'),db.prepare('SELECT * FROM payment_reversals ORDER BY id')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results,payments:payments.results,paymentReversals:paymentReversals.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
+ try{const [bookings,catalog,history,prints,payments,paymentReversals,bank,shiftReports]=await db.batch([db.prepare('SELECT * FROM reservations WHERE user_id=?').bind('dpa-shared'),db.prepare('SELECT * FROM menu_catalog WHERE id=?').bind('dpa-shared'),db.prepare('SELECT * FROM reservation_history ORDER BY event_id'),db.prepare('SELECT * FROM booking_prints ORDER BY id'),db.prepare('SELECT * FROM booking_payments ORDER BY paid_at'),db.prepare('SELECT * FROM payment_reversals ORDER BY id'),db.prepare('SELECT * FROM pos_bank'),db.prepare('SELECT * FROM pos_shift_reports ORDER BY created_at')]);return out({format:'DPA_BACKUP_V1',createdAt:new Date().toISOString(),bookings:bookings.results,catalog:catalog.results,history:history.results,prints:prints.results,payments:payments.results,paymentReversals:paymentReversals.results,bank:bank.results,shiftReports:shiftReports.results});}catch{return out({error:'Chưa tạo được bản sao lưu.'},503);}
 }
 export async function GET_PRINT(req:Request,db:D1Database){
- const id=new URL(req.url).searchParams.get('id');if(!id||!z.string().uuid().safeParse(id).success)return out({error:'Thiếu mã đặt bàn hợp lệ.'},400);
+ const params=new URL(req.url).searchParams,date=params.get('date');
+ if(date){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)return out({error:'Ngày không hợp lệ.'},400);
+  try{const {results}=await db.prepare('SELECT p.booking_id,p.snapshot,p.created_at FROM booking_prints p JOIN reservations r ON r.id=p.booking_id WHERE r.user_id=? AND r.date=? AND p.id=(SELECT MAX(p2.id) FROM booking_prints p2 WHERE p2.booking_id=p.booking_id)').bind('dpa-shared',date).all<any>();return out({lastById:Object.fromEntries(results.map(r=>[r.booking_id,{...JSON.parse(r.snapshot),confirmedAt:r.created_at}]))});}catch{return out({error:'Chưa kiểm tra được phiếu bếp.'},503);}
+ }
+ const id=params.get('id');if(!id||!z.string().uuid().safeParse(id).success)return out({error:'Thiếu mã đặt bàn hợp lệ.'},400);
  try{const {results}=await db.prepare('SELECT * FROM booking_prints WHERE booking_id=? ORDER BY id DESC LIMIT 1').bind(id).all<any>();return out({last:results[0]?{...JSON.parse(results[0].snapshot),confirmedAt:results[0].created_at}:null});}catch{return out({error:'Chưa tải được lần gửi bếp trước.'},503);}
 }
 export async function CONFIRM_PRINT(req:Request,db:D1Database){

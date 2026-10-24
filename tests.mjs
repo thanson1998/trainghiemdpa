@@ -47,7 +47,8 @@ const catalogApi=await import(dataUrl(compile(catalogSource)));
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
 const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const toolsApiUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-tools-api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const toolsApi=await import(toolsApiUrl);
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./pos-tools-api'",JSON.stringify(toolsApiUrl)).replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
 const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
@@ -67,6 +68,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0010_payment_reversals.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0011_dish_images.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0012_takeaway.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0014_pos_tools.sql',import.meta.url),'utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -933,4 +935,56 @@ test('continuous retry migration requeues old failures while preserving artwork 
  const migration=fs.readFileSync(new URL('./0013_dish_image_retry.sql',import.meta.url),'utf8');sqlite.exec(migration);
  const row=sqlite.prepare('SELECT * FROM dish_images WHERE dish_id=?').get(id);assert.equal(row.status,'queued');assert.equal(row.attempts,0);assert.deepEqual(Buffer.from(row.image),fakeJpeg);assert.equal(sqlite.prepare('SELECT lease FROM dish_image_lock').get().lease,'active');assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM dish_images WHERE status='ready'").get().n,1);
  sqlite.prepare('UPDATE dish_image_lock SET lease=NULL').run();sqlite.exec(migration);assert.equal(sqlite.prepare('SELECT expires FROM dish_image_lock').get().expires,0);
+});
+
+const insights=await import(dataUrl(compile(fs.readFileSync(new URL('./pos-insights.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./kitchen-delta'",JSON.stringify(kitchenUrl)))));
+test('item notes stay attached to quantities; distinct preparations do not merge and served counts survive additions',()=>{
+ const items=[{name:'Gà',price:200000,quantity:1,note:'Không cay',served:1},{name:'Gà',price:200000,quantity:2,note:'Làm trước'}];
+ const combined=menu.mergeMenuItems([...items,{name:'Gà',price:999999,quantity:1,note:'Không cay'}]);assert.equal(combined.length,2);assert.equal(combined[0].quantity,2);assert.equal(combined[0].served,1);assert.equal(combined[0].price,200000);
+ const encoded=menu.writeMenu(combined);assert.ok(menu.validMenu(encoded));assert.deepEqual(menu.readMenu(encoded),combined);assert.equal(insights.selectedQuantity(combined,'ga'),4);
+ assert.equal(menu.validMenu(menu.writeMenu([{name:'Gà',price:10,note:'x'.repeat(301)}])),false);assert.equal(menu.validMenu(menu.writeMenu([{name:'Gà',price:10,served:2}])),false);
+ const b=booking({menu:menu.writeMenu([{name:'Gà',price:10,quantity:2,served:2}])});assert.equal(menu.readMenu(posLogic.posEditItem(b,0,{quantity:1}).menu)[0].served,1);
+});
+test('kitchen hints follow real confirmations, detect note changes and ignore serving marks',()=>{
+ const last=booking({version:1,menu:menu.writeMenu([{name:'Gà',price:10,note:'Ít muối'}])});
+ assert.equal(insights.kitchenState(last,undefined).pending,false);assert.equal(insights.kitchenState(last,null).count,1);assert.equal(insights.kitchenState(last,last).pending,false);
+ const served={...last,menu:menu.writeMenu([{name:'Gà',price:10,note:'Ít muối',served:1}])};assert.equal(insights.kitchenState(served,last).pending,false);assert.equal(insights.servedProgress(served).done,1);
+ const changed={...last,menu:menu.writeMenu([{name:'Gà',price:10,note:'Không cay'}])};assert.equal(insights.kitchenState(changed,last).count,1);assert.equal(kitchen.kitchenDelta(last,changed).added[0].note,'Không cay');
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(printModule.MenuPrintPreview,{booking:changed,onClose(){}}));assert.ok(html.includes('Không cay'));
+});
+test('shared favorite and stock flags survive old clients; sold-out dishes cannot be newly ordered',async()=>{
+ const [dish]=await seedImageDishes(['Gà']);let catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();catalog.dishes[0]={...catalog.dishes[0],pinned:true};await catalogApi.POST_CATALOG(req('POST',catalog),db);
+ const b=booking({menu:menu.writeMenu([{name:'Gà',price:100000,quantity:1}])});assert.equal((await api.POST(req('POST',b),db)).status,200);
+ catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();catalog.dishes[0].soldOut=true;await catalogApi.POST_CATALOG(req('POST',catalog),db);
+ catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();delete catalog.dishes[0].pinned;delete catalog.dishes[0].soldOut;assert.equal((await catalogApi.POST_CATALOG(req('POST',catalog),db)).status,200);
+ catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(catalog.dishes.find(d=>d.id===dish.id).pinned,true);assert.equal(catalog.dishes[0].soldOut,true);
+ assert.equal((await api.POST(req('POST',booking({tables:['S1-02'],menu:b.menu})),db)).status,409);
+ assert.equal((await api.POST(req('POST',{...b,version:1,note:'Đơn cũ vẫn sửa được'}),db)).status,200);
+ assert.equal((await api.POST(req('POST',{...b,version:2,menu:menu.writeMenu([{name:'Gà',price:100000,quantity:2}])}),db)).status,409);
+});
+test('daily kitchen summary returns only the latest confirmed snapshot per order',async()=>{
+ const b=booking({menu:menu.writeMenu([{name:'Gà',price:100000}])});await api.POST(req('POST',b),db);await api.CONFIRM_PRINT(req('POST',{booking:{...b,version:1}}),db);
+ const next={...b,version:1,note:'Không cay'};await api.POST(req('POST',next),db);await api.CONFIRM_PRINT(req('POST',{booking:{...next,version:2}}),db);
+ const r=await api.GET_PRINT(new Request('https://dpa.example/api/bookings/prints?date='+b.date),db),j=await r.json();assert.equal(j.lastById[b.id].version,2);assert.equal(j.lastById[b.id].note,'Không cay');
+ assert.equal((await api.GET_PRINT(new Request('https://dpa.example/api/bookings/prints?date=2026-02-30'),db)).status,400);
+});
+test('cash shortcuts and QR use only the remaining balance and validated bank details',()=>{
+ assert.deepEqual(insights.cashSuggestions(120000),[120000,150000,200000,500000,1000000]);
+ const qr=insights.transferQr({bankId:'970436',account:'123456789',name:'DPA',version:1},120000,'DPA-25102026-01');assert.equal(new URL(qr).searchParams.get('amount'),'120000');assert.equal(new URL(qr).searchParams.get('addInfo'),'DPA-25102026-01');assert.equal(insights.transferQr({bankId:'invalid',account:'123456789',name:'DPA',version:1},120000,'DPA'),'');assert.equal(insights.transferQr({bankId:'970436',account:'123456789',name:'DPA',version:1},0,'DPA'),'');
+});
+test('bank settings validate input, share across clients and reject stale edits',async()=>{
+ assert.equal((await(await toolsApi.GET_BANK(req('GET'),db)).json()).version,0);
+ const bank={bankId:'970436',account:'123456789',name:'DPA',version:0};assert.equal((await toolsApi.SAVE_BANK(req('POST',bank),db)).status,200);assert.equal((await(await toolsApi.GET_BANK(req('GET'),db)).json()).account,bank.account);assert.equal((await toolsApi.SAVE_BANK(req('POST',bank),db)).status,409);assert.equal((await toolsApi.SAVE_BANK(req('POST',{...bank,bankId:'bad',version:1}),db)).status,400);
+});
+test('shift totals use payment time, separate deposits and preserve a reviewable cash count',async()=>{
+ const from=new Date(Date.now()-3600000).toISOString(),to=new Date(Date.now()+3600000).toISOString();
+ const b=booking({date:'2026-01-01',price:1500000,deposit:300000});await api.POST(req('POST',b),db);await paymentsApi.PAY(req('POST',{id:b.id,version:1,total:1500000,deposit:300000,tendered:1500000,method:'cash'}),db);
+ const t=booking({date:'2026-01-01',tables:[],serviceType:'takeaway',price:400000,deposit:100000});await api.POST(req('POST',t),db);await paymentsApi.PAY(req('POST',{id:t.id,version:1,total:400000,deposit:100000,tendered:300000,method:'transfer'}),db);
+ const query=new Request('https://dpa.example/api/pos/shift?'+new URLSearchParams({from,to})),data=await(await toolsApi.GET_SHIFT(query,db)).json();assert.equal(data.summary.cash,1200000);assert.equal(data.summary.transfer,300000);assert.equal(data.summary.depositApplied,400000);assert.equal(data.summary.paidCount,2);
+ const input={id:crypto.randomUUID(),from,to,opening:200000,expenses:100000,counted:1290000,fingerprint:data.fingerprint};assert.equal((await toolsApi.SAVE_SHIFT(req('POST',{...input,fingerprint:'stale'}),db)).status,409);
+ const saved=await(await toolsApi.SAVE_SHIFT(req('POST',input),db)).json();assert.equal(saved.report.expected,1300000);assert.equal(saved.report.difference,-10000);assert.equal((await toolsApi.SAVE_SHIFT(req('POST',input),db)).status,409);assert.equal((await(await toolsApi.GET_SHIFT(query,db)).json()).history.length,1);
+});
+test('new POS settings and shift routes retain CORS and JSON checks',async()=>{
+ const env={DB:db,ASSETS:{fetch(){return new Response('asset')}}};
+ for(const path of ['/api/pos/bank','/api/pos/shift']){assert.equal((await worker.default.fetch(new Request('https://dpa.example'+path,{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'}),env)).status,403);assert.equal((await worker.default.fetch(new Request('https://dpa.example'+path,{method:'POST',body:'{}'}),env)).status,415);}
 });

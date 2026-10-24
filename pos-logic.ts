@@ -16,7 +16,7 @@ export function posAppend(b:Booking,added:MenuItem[]):Booking{
  return updateBookingDraft(b,'menu',menu);
 }
 export function posEditItem(b:Booking,index:number,patch:Partial<MenuItem>):Booking{
- const items=readMenu(b.menu,orderUnits(b)).map((i,n)=>n===index?{...i,...patch}:i);
+ const items=readMenu(b.menu,orderUnits(b)).map((i,n)=>n===index?{...i,...patch,...(patch.quantity!==undefined&&i.served!==undefined?{served:Math.min(i.served,patch.quantity)}:{})}:i);
  return updateBookingDraft(b,'menu',writeMenu(items,explicitSet(b)));
 }
 export const posFingerprint=(b:Booking)=>JSON.stringify(b);

@@ -14,3 +14,6 @@ import './workflow.css';
 import './payments.css';
 
 import './pos.css';
+
+
+import './pos-fast.css';
