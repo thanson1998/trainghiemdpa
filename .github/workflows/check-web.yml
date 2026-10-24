@@ -3,13 +3,15 @@ on:
   push:
     paths:
       - '.github/workflows/check-web.yml'
+      - 'dish-images-api.ts'
+      - 'build.mjs'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   health:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
       - name: Check image progress and page transfer sizes
         shell: bash
@@ -17,11 +19,30 @@ jobs:
           node --input-type=module <<'JS'
           const base='https://trainghiemdpa.thanson198.workers.dev';
           const report={};
+          // Check the new deployment rather than a previous release still being replaced.
+          for(let attempt=0;attempt<20;attempt++){
+            const r=await fetch(base+'/api/dish-images',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            const state=await r.json();
+            const page=await fetch('https://thanson1998.github.io/trainghiemdpa/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+            const html=await page.text();
+            if(state.feature==='dish-images-v2'&&html.includes('fast-images-v2'))break;
+            if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
+            await new Promise(resolve=>setTimeout(resolve,6000));
+          }
           async function read(label,url,json=false){
             const start=performance.now();
             const r=await fetch(url,{signal:AbortSignal.timeout(45000)});
             const bytes=await r.arrayBuffer();
             report[label]={status:r.status,ms:Math.round(performance.now()-start),bytes:bytes.byteLength,mime:r.headers.get('content-type'),cache:r.headers.get('cache-control')};
+            if((label==='sampleImage'||label==='warmImage')&&(r.status!==200||bytes.byteLength<4||new Uint8Array(bytes)[0]!==255||new Uint8Array(bytes)[1]!==216))throw new Error('Image health check failed.');
+            if(label==='pages'){
+              const html=new TextDecoder().decode(bytes);
+              report.pages.optimized=html.includes('fast-images-v2');
+              const script=html.match(/src="(\.\/assets\/[^\"]+\.js)"/);
+              const style=html.match(/href="(\.\/assets\/[^\"]+\.css)"/);
+              if(script)await read('initialScript',new URL(script[1],'https://thanson1998.github.io/trainghiemdpa/'));
+              if(style)await read('styles',new URL(style[1],'https://thanson1998.github.io/trainghiemdpa/'));
+            }
             if(!r.ok)return null;
             return json?JSON.parse(new TextDecoder().decode(bytes)):null;
           }
@@ -32,7 +53,7 @@ jobs:
             if(catalog){
               report.catalogCounts={dishes:catalog.dishes?.length,templates:catalog.templates?.length,withArtwork:catalog.dishes?.filter(d=>d.image?.url).length};
               const sample=catalog.dishes?.find(d=>/^\/api\/dish-images\/[-\da-f]{36}\?v=\d+$/i.test(d.image?.url||''));
-              if(sample)await read('sampleImage',base+sample.image.url);
+              if(sample){await read('sampleImage',base+sample.image.url);await new Promise(resolve=>setTimeout(resolve,500));await read('warmImage',base+sample.image.url);}
             }
             await read('pages','https://thanson1998.github.io/trainghiemdpa/');
             console.log(JSON.stringify(report,null,2));

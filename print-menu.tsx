@@ -4,7 +4,6 @@ import {kitchenDelta} from './kitchen-delta';
 import {formatMoneyText,readMenu,menuSum,itemQuantity,itemUnit,itemAmount,readMenuSet,menuSetQuantity} from './menu';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {Printer,X,Download,LoaderCircle} from 'lucide-react';
-import html2canvas from 'html2canvas';
 
 export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>void}){
  const [lastSent,setLastSent]=useState<(Booking&{confirmedAt?:string})|null>(null),[deltaMode,setDeltaMode]=useState(false),[printStatus,setPrintStatus]=useState(''),[confirming,setConfirming]=useState(false),[baselineReady,setBaselineReady]=useState(false);
@@ -22,6 +21,7 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
    await document.fonts.ready;
    const height=Math.max(1,sheet.current.scrollHeight);
    const scale=Math.min(3,Math.sqrt(12000000/(303*height)),16000/height);
+   const {default:html2canvas}=await import('html2canvas');
    const canvas=await html2canvas(sheet.current,{scale,backgroundColor:'#fff',logging:false,scrollX:0,scrollY:0,onclone:(doc,clonedSheet)=>{
     doc.body.appendChild(clonedSheet);
     Object.assign(clonedSheet.style,{position:'absolute',left:'0',top:'0',width:'80mm',maxWidth:'none',height:'auto',margin:'0',boxShadow:'none'});

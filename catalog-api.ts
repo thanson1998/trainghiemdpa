@@ -10,7 +10,7 @@ export async function GET_CATALOG(_req:Request,db:D1Database){
 export async function POST_CATALOG(req:Request,db:D1Database){
  try{const parsed=schema.safeParse(await req.json());if(!parsed.success)return out({error:'Kiểm tra tên, đơn vị, giá món và thực đơn mẫu trước khi lưu.'},400);const {version,...catalog}=parsed.data;const {results:previous}=await db.prepare('SELECT data FROM menu_catalog WHERE id=? AND version=?').bind('dpa-shared',version).all<any>();const old=previous[0]?JSON.parse(previous[0].data):{dishes:[]};catalog.dishes=catalog.dishes.map(d=>({...d,category:dishGroup({...d,category:d.category===undefined?old.dishes.find((p:any)=>p.id===d.id)?.category:d.category})}));const data=JSON.stringify(catalog),now=new Date().toISOString();
  const result=version===0?await db.prepare('INSERT INTO menu_catalog (id,data,version,updated_at) VALUES (?,?,1,?) ON CONFLICT(id) DO NOTHING').bind('dpa-shared',data,now).run():await db.prepare('UPDATE menu_catalog SET data=?,version=version+1,updated_at=? WHERE id=? AND version=?').bind(data,now,'dpa-shared',version).run();
- if(!result.meta.changes)return out({error:'Thư viện vừa thay đổi trên thiết bị khác. Tải lại thư viện rồi lưu lại.'},409);return out({...catalog,version:version+1});
+ if(!result.meta.changes)return out({error:'Thư viện vừa thay đổi trên thiết bị khác. Tải lại thư viện rồi lưu lại.'},409);return out({...catalog,dishes:await attachDishImages(db,catalog.dishes),version:version+1});
  }catch{return out({error:'Chưa lưu được thư viện. Vui lòng thử lại.'},503)}
 }
 

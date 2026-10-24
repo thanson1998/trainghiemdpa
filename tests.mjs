@@ -872,3 +872,37 @@ test('takeaway service survives kitchen confirmation, cancellation, deletion and
  const entry=sqlite.prepare("SELECT * FROM reservation_history WHERE booking_id=? AND action='deleted' ORDER BY event_id DESC LIMIT 1").get(b.id);assert.equal(JSON.parse(entry.snapshot).serviceType,'takeaway');
  assert.equal((await api.RESTORE(req('POST',{id:entry.event_id,expectedVersion:0}),db)).status,200);const restored=(await(await get()).json()).bookings[0];assert.equal(restored.serviceType,'takeaway');assert.deepEqual(restored.tables,[]);assert.equal(restored.price,500000);
 });
+
+test('D1 number-array image BLOBs return actual JPEG bytes and invalidate previously empty browser caches',async()=>{
+ const [dish]=await seedImageDishes(['Gà hấp']);await imagesApi.processDishImages({DB:db,AI:{async run(){return {image:fakeJpeg.toString('base64')};}}});
+ const catalog=(await(await catalogApi.GET_CATALOG(req('GET'),db)).json());const url=catalog.dishes[0].image.url;const row=sqlite.prepare('SELECT updated_at FROM dish_images WHERE dish_id=?').get(dish.id);assert.match(url,new RegExp('v='+(row.updated_at+1)+'$'));
+ const d1ArrayDb={prepare(sql){
+  const statement=db.prepare(sql);
+  return {bind(...args){const bound=statement.bind(...args);return {async first(){const row=await bound.first();return row?.image?{...row,image:Array.from(row.image)}:row;}};}};
+ }};
+ const response=await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example'+url),d1ArrayDb);assert.equal(response.status,200);assert.equal(response.headers.get('Content-Length'),String(fakeJpeg.length));assert.deepEqual(Buffer.from(await response.arrayBuffer()),fakeJpeg);assert.match(response.headers.get('ETag'),/dish-v2/);
+});
+test('image edge cache serves repeated requests without a database read and keeps origin checks',async()=>{
+ const [dish]=await seedImageDishes(['Gà hấp']);await imagesApi.processDishImages({DB:db,AI:{async run(){return {image:fakeJpeg.toString('base64')};}}});
+ const old=Object.getOwnPropertyDescriptor(globalThis,'caches'),stored=new Map(),pending=[];let matches=0;
+ Object.defineProperty(globalThis,'caches',{configurable:true,value:{default:{async match(r){matches++;return stored.get(r.url)?.clone();},async put(r,response){stored.set(r.url,response);}}}});
+ try{
+  const request=new Request('https://dpa.example/api/dish-images/'+dish.id+'?v=2',{headers:{Origin:'https://thanson1998.github.io'}});
+  const first=await worker.default.fetch(request,{DB:db},{waitUntil(p){pending.push(p);}});await Promise.all(pending);assert.equal(first.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');assert.deepEqual(Buffer.from(await first.arrayBuffer()),fakeJpeg);
+  const second=await worker.default.fetch(request,{DB:{prepare(){throw Error('Cache should avoid DB reads');}}});assert.deepEqual(Buffer.from(await second.arrayBuffer()),fakeJpeg);
+  assert.equal((await worker.default.fetch(new Request(request.url,{headers:{Origin:'https://evil.example'}}),{DB:db})).status,403);assert.equal(matches,2);
+ }finally{if(old)Object.defineProperty(globalThis,'caches',old);else delete globalThis.caches;}
+});
+test('image backfill keeps D1 queries bounded when many dishes are added at once',async()=>{
+ await seedImageDishes(Array.from({length:60},(_,i)=>'Món '+i));let queries=0;
+ const counted={prepare(sql){queries++;return db.prepare(sql)},batch:db.batch};
+ await imagesApi.processDishImages({DB:counted,AI:{async run(){return {image:fakeJpeg.toString('base64')};}}});
+ assert.ok(queries<50,queries);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM dish_images').get().n,15);assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM dish_images WHERE status='ready'").get().n,3);
+});
+test('catalog polling keeps unchanged objects but accepts image progress at the same catalog version',async()=>{
+ const refresh=await import(dataUrl(compile(fs.readFileSync(new URL('./catalog-refresh.ts',import.meta.url),'utf8'))));
+ const current={version:2,templates:[],dishes:[{id:crypto.randomUUID(),name:'Gà',price:100000,unit:'đĩa'}]};
+ assert.equal(refresh.refreshedCatalog(current,JSON.parse(JSON.stringify(current))),current);
+ assert.equal(refresh.refreshedCatalog(current,{...current,version:1}),current);
+ const withImage={...current,dishes:[{...current.dishes[0],image:{status:'ready',url:'/api/dish-images/x?v=1'}}]};assert.equal(refresh.refreshedCatalog(current,withImage),withImage);
+});

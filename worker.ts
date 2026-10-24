@@ -6,7 +6,7 @@ import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} fro
 interface Env {DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
  async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));},
- async fetch(request:Request,env:Env):Promise<Response>{
+ async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
@@ -16,6 +16,15 @@ export default {
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Nguồn truy cập không được cấu hình.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
   if(url.pathname==='/api/dish-images'||url.pathname.startsWith('/api/dish-images/')){
+   if(request.method==='GET'&&url.pathname.startsWith('/api/dish-images/')&&typeof caches!=='undefined'){
+    const edgeCache=(caches as unknown as {default?:Cache}).default;
+    if(edgeCache){
+     const cached=await edgeCache.match(request).catch(()=>undefined);
+     const response=cached||await GET_DISH_IMAGE(request,env.DB);
+     if(!cached&&response.status===200&&ctx)ctx.waitUntil(edgeCache.put(request,response.clone()).catch(()=>{}));
+     const result=new Response(response.body,response);headers.forEach((v,k)=>{if(k!=='cache-control')result.headers.set(k,v)});return result;
+    }
+   }
    if(request.method==='POST'&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
    const response=url.pathname==='/api/dish-images'&&request.method==='GET'?await DISH_IMAGE_STATUS(env):url.pathname==='/api/dish-images'&&request.method==='POST'?await REQUEST_DISH_IMAGE(request,env):url.pathname.startsWith('/api/dish-images/')&&request.method==='GET'?await GET_DISH_IMAGE(request,env.DB):Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});
    const result=new Response(response.body,response);headers.forEach((v,k)=>{if(k!=='cache-control')result.headers.set(k,v)});return result;

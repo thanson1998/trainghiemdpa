@@ -18,7 +18,7 @@ Quản lý 50 bàn theo sơ đồ DPA, tông xanh trầm – kem – vàng. Bàn
 
 ### Chạy giao diện trên GitHub Pages
 
-Trong [Settings → Pages](https://github.com/thanson1998/trainghiemdpa/settings/pages), chọn **Source: Deploy from a branch**, **Branch: main**, thư mục **/(root)**, rồi nhấn Save. Tệp `index.html` đã là bản build hoàn chỉnh; không cần cấu hình GitHub Actions.
+Trong [Settings → Pages](https://github.com/thanson1998/trainghiemdpa/settings/pages), chọn **Source: Deploy from a branch**, **Branch: main**, thư mục **/(root)**, rồi nhấn Save. Đưa lên đủ `index.html`, thư mục `assets`, `config.js` và `favicon.svg` từ cùng một lần build. JavaScript, CSS và ảnh dùng tên có mã băm để trình duyệt lưu đệm riêng, tránh tải lại toàn bộ mỗi lần mở trang.
 
 Mở `https://thanson1998.github.io/trainghiemdpa/`, mở **Kết nối dữ liệu**, nhập đường dẫn Worker ở bước trên và lưu. Sao chép link dùng trên thiết bị khác để dùng đúng cơ sở dữ liệu. Hoặc điền URL Worker vào `config.js` để mọi thiết bị tự dùng cấu hình chung sau lần build kế tiếp.
 
@@ -44,7 +44,7 @@ Không đưa `.dev.vars`, `.env`, token, dữ liệu khách hoặc tệp xuất 
 
 ## Cấu trúc mã nguồn
 
-Các tệp được đặt ở thư mục gốc để có thể tải lên GitHub một lần. `source.html` là trang đầu vào phát triển; `index.html` là bản build chạy ngay trên GitHub Pages. Chạy `npm run build` để tạo lại `index.html` và thư mục `dist` cho Cloudflare. `worker.ts` và `api.ts` xử lý API; `0001_reservations.sql` khởi tạo D1.
+Các tệp được đặt ở thư mục gốc để có thể tải lên GitHub một lần. `source.html` là trang đầu vào phát triển. Chạy `npm run build` để tạo lại `index.html` và `assets` cho GitHub Pages, cùng thư mục `dist` cho Cloudflare. Luôn triển khai HTML và tài nguyên của cùng bản build. `worker.ts` và `api.ts` xử lý API; `0001_reservations.sql` khởi tạo D1.
 
 Khu **Trước quầy** có ba bàn **20 – 19 – 18**, nằm ở cột bên trái, ngay trên quầy thanh toán. Tổng cộng 48 bàn trong 8 khu vực.
 
