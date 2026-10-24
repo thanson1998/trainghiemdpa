@@ -6,6 +6,9 @@ on:
       - 'dish-images-api.ts'
       - 'pos-panel.tsx'
       - 'action-colors.css'
+      - 'pos-readability.css'
+      - 'page-layout.css'
+      - 'dashboard.tsx'
       - 'pos-tools-api.ts'
       - 'build.mjs'
   workflow_dispatch:
@@ -28,7 +31,7 @@ jobs:
             const state=await r.json();
             const page=await fetch('https://thanson1998.github.io/trainghiemdpa/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             const html=await page.text();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('pos-actions-v2'))break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('pages-flow-v4'))break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
@@ -41,7 +44,7 @@ jobs:
             if(label==='pages'){
               const html=new TextDecoder().decode(bytes);
               report.pages.optimized=html.includes('fast-images-v2');
-              report.pages.fastPos=html.includes('pos-actions-v2');
+              report.pages.fastPos=html.includes('pages-flow-v4');
               const script=html.match(/src="(\.\/assets\/[^\"]+\.js)"/);
               const style=html.match(/href="(\.\/assets\/[^\"]+\.css)"/);
               if(script)await read('initialScript',new URL(script[1],'https://thanson1998.github.io/trainghiemdpa/'));

@@ -18,3 +18,5 @@ import './pos.css';
 
 import './pos-fast.css';
 import './action-colors.css';
+import './pos-readability.css';
+import './page-layout.css';
