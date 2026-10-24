@@ -33,7 +33,9 @@ jobs:
             const state=await r.json();
             const page=await fetch('https://thanson1998.github.io/trainghiemdpa/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             const html=await page.text();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-research-v1'))break;
+            const adsReady=await fetch(base+'/api/ads-research',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            const adsState=await adsReady.json();
+            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-research-v1')&&adsReady.ok&&Array.isArray(adsState.venues))break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
