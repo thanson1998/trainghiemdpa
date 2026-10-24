@@ -13,7 +13,7 @@
 
 .menu-print-toolbar{max-width:850px;flex-wrap:wrap}.menu-print-toolbar>div{flex:1;min-width:180px}.menu-print-export-status{max-width:850px;margin:0 auto 16px;font-size:14px;color:#315545}@media print{.menu-print-export-status{display:none!important}}
 
-.menu-print-dishes li>.dish-print-count{flex:0 1 auto;max-width:28%;overflow-wrap:anywhere;line-height:1.45}
+.menu-print-dishes li>.dish-print-count{flex:0 0 14mm;width:14mm;min-width:0;max-width:14mm;overflow-wrap:anywhere;line-height:1.45}
 
 
 .menu-print-dishes .dish-print-included{font-size:10pt;font-weight:700;white-space:nowrap}
