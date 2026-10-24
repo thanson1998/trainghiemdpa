@@ -1,0 +1,15 @@
+export type AdVenue={id:string;name:string;category:string;area:string;pageUrl:string;pageId:string;sourceUrl:string;focus:string;notes:string};
+export type AdObservation={id:string;venueId:string;date:string;count:number;sourceUrl:string;notes:string};
+export type AdSample={id:string;venueId:string;title:string;url:string;imageUrl:string;format:'Ảnh'|'Video'|'Khác';offer:string;notes:string;checkedDate:string;startDate:string;status:'active'|'inactive'|'unknown';favorite:boolean};
+export type AdsData={venues:AdVenue[];observations:AdObservation[];samples:AdSample[]};
+export type AdsState=AdsData&{version:number;updatedAt:string};
+export function libraryUrl(name:string,pageId=''){const u=new URL('https://www.facebook.com/ads/library/');u.searchParams.set('active_status','active');u.searchParams.set('ad_type','all');u.searchParams.set('country','VN');if(/^\d+$/.test(pageId)){u.searchParams.set('view_all_page_id',pageId);u.searchParams.set('search_type','page');}else{u.searchParams.set('q',name);u.searchParams.set('search_type','keyword_unordered');}return u.href;}
+export function latestObservation(data:AdsData,venueId:string){return data.observations.filter(o=>o.venueId===venueId).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id))[0];}
+export function seedAds():AdsData{return {venues:[
+ ['buffet-time','Buffet Time Thái Nguyên','Buffet hải sản','Thái Nguyên','https://www.facebook.com/BuffetTimeThaiNguyen/','https://toplist.vn/top-list/dia-chi-an-buffet-ngon-chat-luong-nhat-tai-thai-nguyen-30645.htm','Theo dõi cách giới thiệu buffet, món nổi bật và ưu đãi nhóm.'],
+ ['the-time','The Time BBQ','Lẩu nướng','Bắc Sơn · Thái Nguyên','https://www.facebook.com/thetimebbq/','https://www.facebook.com/thetimebbq/','Theo dõi video món ăn, set hải sản và cách mời đặt bàn.'],
+ ['1990-bbq','1990 BBQ & Hotpot Thái Nguyên','Lẩu nướng','Thái Nguyên','https://www.facebook.com/1990BBQHotpot/','https://www.facebook.com/1990BBQHotpot/','Theo dõi giá theo người, combo và nội dung nhóm bạn.'],
+ ['thai-aroi','Thai Aroi Thái Nguyên','Ẩm thực Thái','Quang Trung · Thái Nguyên','https://www.facebook.com/nhahangthaiaroi/','https://www.facebook.com/nhahangthaiaroi/','Theo dõi ưu đãi theo dịp, món đặc trưng và cách giới thiệu không gian.'],
+ ['rong-vang','Rồng Vàng BBQ Thái Nguyên','Lẩu nướng','Thái Nguyên','https://www.facebook.com/rongvangbbq.thainguyen/','https://www.facebook.com/rongvangbbq.thainguyen/posts/1076801182003115/','Theo dõi thông điệp giá buffet và ưu đãi đặt bàn.'],
+ ['doan-vien','Nhà hàng Đoàn Viên','Tiệc · gia đình','Minh Cầu · Thái Nguyên','https://www.facebook.com/nhahangdoanvien/','https://www.facebook.com/minhcaumart.vn/posts/1057168476451845/','Theo dõi tiệc nhóm, không gian và lời mời dành cho gia đình.']
+ ].map(([id,name,category,area,pageUrl,sourceUrl,focus])=>({id,name,category,area,pageUrl,sourceUrl,focus,pageId:'',notes:'Quán nghiên cứu đề xuất ngày 25/10/2026 từ thông tin công khai. Chưa xác minh quảng cáo đang chạy; không phải xếp hạng chi tiêu ads.'})),observations:[],samples:[]};}

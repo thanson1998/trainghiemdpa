@@ -9,6 +9,8 @@ on:
       - 'pos-readability.css'
       - 'page-layout.css'
       - 'dashboard.tsx'
+      - 'ads-panel.tsx'
+      - 'ads-api.ts'
       - 'pos-tools-api.ts'
       - 'build.mjs'
   workflow_dispatch:
@@ -31,10 +33,14 @@ jobs:
             const state=await r.json();
             const page=await fetch('https://thanson1998.github.io/trainghiemdpa/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             const html=await page.text();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('pages-flow-v4'))break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-research-v1'))break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
+          const adsResponse=await fetch(base+'/api/ads-research');
+          const ads=await adsResponse.json();
+          if(!adsResponse.ok||!Array.isArray(ads.venues))throw new Error('Ads research endpoint unavailable');
+          report.ads={status:adsResponse.status,venues:ads.venues.length,samples:ads.samples.length};
           async function read(label,url,json=false){
             const start=performance.now();
             const r=await fetch(url,{signal:AbortSignal.timeout(45000)});
@@ -44,7 +50,7 @@ jobs:
             if(label==='pages'){
               const html=new TextDecoder().decode(bytes);
               report.pages.optimized=html.includes('fast-images-v2');
-              report.pages.fastPos=html.includes('pages-flow-v4');
+              report.pages.fastPos=html.includes('ads-research-v1');
               const script=html.match(/src="(\.\/assets\/[^\"]+\.js)"/);
               const style=html.match(/href="(\.\/assets\/[^\"]+\.css)"/);
               if(script)await read('initialScript',new URL(script[1],'https://thanson1998.github.io/trainghiemdpa/'));

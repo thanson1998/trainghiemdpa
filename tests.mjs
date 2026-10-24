@@ -48,7 +48,8 @@ const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
 const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
 const toolsApiUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-tools-api.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const toolsApi=await import(toolsApiUrl);
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./pos-tools-api'",JSON.stringify(toolsApiUrl)).replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const adsModelUrl=dataUrl(compile(fs.readFileSync('ads-model.ts','utf8')));const adsApiUrl=dataUrl(compile(fs.readFileSync('ads-api.ts','utf8').replace("'./ads-model'",JSON.stringify(adsModelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const adsApi=await import(adsApiUrl);const adsModel=await import(adsModelUrl);
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./ads-api'",JSON.stringify(adsApiUrl)).replace("'./pos-tools-api'",JSON.stringify(toolsApiUrl)).replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
 const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
@@ -69,6 +70,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0011_dish_images.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0012_takeaway.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0014_pos_tools.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync('0015_ads_research.sql','utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -987,4 +989,21 @@ test('shift totals use payment time, separate deposits and preserve a reviewable
 test('new POS settings and shift routes retain CORS and JSON checks',async()=>{
  const env={DB:db,ASSETS:{fetch(){return new Response('asset')}}};
  for(const path of ['/api/pos/bank','/api/pos/shift']){assert.equal((await worker.default.fetch(new Request('https://dpa.example'+path,{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'}),env)).status,403);assert.equal((await worker.default.fetch(new Request('https://dpa.example'+path,{method:'POST',body:'{}'}),env)).status,415);}
+});
+
+test('ads research starts honestly unverified and saves with multi-device conflict protection',async()=>{
+ const first=await (await adsApi.GET_ADS(req('GET'),db)).json();assert.equal(first.version,0);assert.equal(first.venues.length,6);assert.deepEqual(first.observations,[]);assert.deepEqual(first.samples,[]);
+ const write=await adsApi.SAVE_ADS(req('POST',{...first,venues:[...first.venues,{...first.venues[0],id:'new-quan',name:'Quán kiểm tra'}]}),db);assert.equal(write.status,200);const saved=await write.json();assert.equal(saved.version,1);assert.equal(saved.venues.length,7);
+ const stale=await adsApi.SAVE_ADS(req('POST',{...first,venues:[]}),db);assert.equal(stale.status,409);assert.equal((await (await adsApi.GET_ADS(req('GET'),db)).json()).venues.length,7);
+ const backup=await (await api.BACKUP(req('GET'),db)).json();assert.equal(backup.adsResearch.length,1);
+});
+test('ads research rejects unsafe links, invalid dates, duplicate ad IDs and dangling venue references',async()=>{
+ const state={...adsModel.seedAds(),version:0};const venueId=state.venues[0].id;
+ const ad={id:'ad1',venueId,title:'Mẫu',url:'https://www.facebook.com/ads/library/?id=123456',imageUrl:'',format:'Ảnh',offer:'',notes:'',checkedDate:'2026-10-24',startDate:'',status:'unknown',favorite:false};
+ for(const samples of [[{...ad,url:'https://facebook.com.evil.test/ads/library/?id=1'}],[{...ad,imageUrl:'javascript:alert(1)'}],[{...ad,url:'broken'}],[{...ad,checkedDate:'2026-02-30'}],[{...ad,startDate:'2026-10-25'}],[{...ad,venueId:'missing'}],[ad,{...ad,id:'ad2',url:'https://facebook.com/ads/library/?id=123456'}]])assert.equal((await adsApi.SAVE_ADS(req('POST',{...state,samples}),db)).status,400);
+ const observed={id:'o1',venueId,date:'2026-10-24',count:0,sourceUrl:adsModel.libraryUrl('Quán'),notes:'Không thấy quảng cáo trong phạm vi kiểm tra'};
+ assert.equal((await adsApi.SAVE_ADS(req('POST',{...state,observations:[observed,{...observed,id:'o2'}]}),db)).status,400);
+ assert.equal((await adsApi.SAVE_ADS(req('POST',{...state,samples:[ad],observations:[observed]}),db)).status,200);
+ const saved=await (await adsApi.GET_ADS(req('GET'),db)).json();assert.equal(adsModel.latestObservation(saved,venueId).count,0);assert.equal(saved.samples[0].status,'unknown');
+ assert.equal(new URL(adsModel.libraryUrl('lẩu & nướng Thái Nguyên')).searchParams.get('q'),'lẩu & nướng Thái Nguyên');assert.equal(new URL(adsModel.libraryUrl('quán','12345')).searchParams.get('view_all_page_id'),'12345');
 });
