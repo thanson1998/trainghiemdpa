@@ -30,7 +30,7 @@ function Time24Input({value,onChange,label}:{value:string;onChange:(value:string
 export default function Dashboard(){
  const [tablePayments,setTablePayments]=useState<Booking[]|null>(null),[tableReceipt,setTableReceipt]=useState<Payment|null>(null);const closeTablePayment=useCallback(()=>setTablePayments(null),[]),closeTableReceipt=useCallback(()=>setTableReceipt(null),[]);
  const [date,setDate]=useState('');const [slot,setSlot]=useState<Slot>('all');const [bookings,setBookings]=useState<Booking[]>([]);
- const [view,setView]=useState<'map'|'list'|'catalog'|'orders'|'history'|'payments'|'pos'>('orders');const [zone,setZone]=useState('all');const [query,setQuery]=useState('');
+ const [view,setView]=useState<'map'|'list'|'catalog'|'orders'|'history'|'payments'|'pos'>('pos');const [zone,setZone]=useState('all');const [query,setQuery]=useState('');
  const library=useCatalog();
  const [listScope,setListScope]=useState<'month'|'day'>('day');
  const monthly=(view==='list'||view==='orders')&&listScope==='month';const month=date.slice(0,7);
