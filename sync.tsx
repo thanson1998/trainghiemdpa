@@ -8,6 +8,7 @@ let override='';
 try{const incoming=new URL(location.href).searchParams.get('api');if(incoming){override=validOrigin(incoming);localStorage.setItem(settingKey,override)}else override=localStorage.getItem(settingKey)||''}catch{ /* Settings remain available if browser storage is disabled. */ }
 const configured=resolveApiBase([override,window.DPA_CONFIG?.apiBase]);
 const apiBase=configured||(isPages?'':location.origin);
+export function dishImageUrl(path:string){return apiBase&&/^\/api\/dish-images\/[-\da-f]{36}\?v=\d+$/i.test(path)?apiBase+path:'';}
 export async function apiRequest(path:string,options:RequestInit={}){
  if(!apiBase)throw new Error('Chưa kết nối đồng bộ. Mở “Kết nối dữ liệu” và nhập đường dẫn máy chủ DPA đã triển khai.');
  let response:Response;

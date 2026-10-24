@@ -40,12 +40,14 @@ const learningSource=fs.readFileSync(new URL('./catalog-learning.ts',import.meta
 const learningUrl=dataUrl(compile(learningSource));const learning=await import(learningUrl);
 const source=fs.readFileSync(new URL('./api.ts',import.meta.url),'utf8').replace("'./catalog-learning'",JSON.stringify(learningUrl)).replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const api=await import(dataUrl(compile(source)));
-const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
+const imageModelUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-image-model.ts',import.meta.url),'utf8')));const imageModel=await import(imageModelUrl);
+const imagesUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-images-api.ts',import.meta.url),'utf8').replace("'./dish-image-model'",JSON.stringify(imageModelUrl))));const imagesApi=await import(imagesUrl);
+const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
 const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
 const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replace("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
@@ -63,8 +65,9 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0006_booking_workflow.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0007_payments.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync(new URL('./0010_payment_reversals.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('./0011_dish_images.sql',import.meta.url),'utf8'));
 
- db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
+ db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
 afterEach(()=>sqlite.close());
 const booking=(extra={})=>({id:crypto.randomUUID(),date:'2026-10-25',start:'11:00',end:'14:00',name:'Chị Hương',phone:'0900000000',tables:['S1-01'],people:10,platters:1,price:1500000,menu:'Gà hấp\nLẩu cá tầm',note:'',status:'reserved',version:0,...extra});
@@ -742,4 +745,61 @@ test('unpriced menu templates print as included sets without dish prices',()=>{
  const marked=menu.includeUnpricedInSet(mixed);assert.ok(menu.validMenu(marked));assert.equal(menu.menuSum(marked),150000);assert.equal(menu.readMenu(marked)[1].included,undefined);
  assert.equal(menu.includeUnpricedInSet(marked),marked);
  const agreed=booking({menu:mixed,price:1200000,priceMode:'agreed'});assert.equal(bookingLogic.updateBookingDraft(agreed,'menu',marked).price,1200000);
+});
+
+const fakeJpeg=Buffer.from([255,216,0,1,255,217]);
+const seedImageDishes=async(names)=>{const dishes=names.map(name=>({id:crypto.randomUUID(),name,unit:'đĩa',price:100000}));const r=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes,templates:[]}),db);assert.equal(r.status,200);return dishes;};
+test('AI image classification keeps Vietnamese dish names, preparation, drinks and service lines distinct',()=>{
+ assert.equal(imageModel.dishArtCell('Gà hấp lá chanh'),0);assert.equal(imageModel.dishArtCell('Cà phê sữa đá'),13);assert.equal(imageModel.dishArtCell('Gà hấp bia'),0);assert.equal(imageModel.dishArtCell('Bò sốt rượu vang'),2);assert.equal(imageModel.dishArtCell('Canh cua cà muối'),8);assert.equal(imageModel.dishArtCell('Lẩu cua da'),6);
+ assert.equal(imageModel.isIllustratedDish('Cọc bàn'),false);assert.equal(imageModel.isIllustratedDish('Phí dịch vụ'),false);assert.equal(imageModel.isIllustratedDish('Gà hấp'),true);
+ const beef=imageModel.dishImagePrompt('Bò xào gừng');assert.match(beef,/beef/);assert.match(beef,/ginger/);assert.doesNotMatch(beef,/avocado/);assert.match(imageModel.dishImagePrompt('Sinh tố bơ'),/avocado/);
+ assert.equal(imageModel.imageNameKey(' GÀ  HẤP '),imageModel.imageNameKey('GÀ HẤP'.normalize('NFD')));
+});
+test('background generation fills shared catalog once without changing catalog version or prices',async()=>{
+ const dishes=await seedImageDishes(['Gà hấp lá chanh','Trứng rán','Cọc bàn']);let calls=0;
+ const env={DB:db,AI:{async run(model,input){calls++;assert.equal(model,'@cf/black-forest-labs/flux-1-schnell');assert.equal(input.steps,4);return {image:fakeJpeg.toString('base64')};}}};
+ await imagesApi.processDishImages(env);assert.equal(calls,2);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM dish_images').get().n,2);
+ const catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(catalog.version,1);assert.equal(catalog.dishes[0].price,100000);assert.equal(catalog.dishes[0].image.status,'ready');assert.match(catalog.dishes[0].image.url,/^\/api\/dish-images\//);
+ await imagesApi.processDishImages(env);assert.equal(calls,2);
+ const response=await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example'+catalog.dishes[0].image.url),db);assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/jpeg');assert.deepEqual(Buffer.from(await response.arrayBuffer()),fakeJpeg);
+ const cached=await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example'+catalog.dishes[0].image.url,{headers:{'If-None-Match':response.headers.get('ETag')}}),db);assert.equal(cached.status,304);
+ // Price edits from older clients cannot remove artwork; a rename invalidates it.
+ const edited={...catalog,dishes:catalog.dishes.map(d=>({...d,price:120000}))};await catalogApi.POST_CATALOG(req('POST',edited),db);await imagesApi.processDishImages(env);assert.equal(calls,2);
+ const rename=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();rename.dishes[0].name='Cá hấp';await catalogApi.POST_CATALOG(req('POST',rename),db);
+ assert.equal((await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example/api/dish-images/'+dishes[0].id),db)).status,404);
+ await imagesApi.processDishImages(env);assert.equal(calls,3);assert.equal(sqlite.prepare('SELECT name_key FROM dish_images WHERE dish_id=?').get(dishes[0].id).name_key,imageModel.imageNameKey('Cá hấp'));
+});
+test('image workers obey global lease and atomic daily budget; ordinary image reads never generate',async()=>{
+ const dishes=await seedImageDishes(['Gà hấp','Cá hấp','Trứng rán']);let calls=0;const env={DB:db,DISH_IMAGES_DAILY_LIMIT:'1',AI:{async run(){calls++;return {image:fakeJpeg.toString('base64')};}}};
+ sqlite.prepare('UPDATE dish_image_lock SET expires=?').run(Date.now()+60000);await imagesApi.processDishImages(env);assert.equal(calls,0);sqlite.prepare('UPDATE dish_image_lock SET expires=0').run();
+ await imagesApi.processDishImages(env);await imagesApi.processDishImages(env);assert.equal(calls,1);assert.equal(sqlite.prepare('SELECT attempts FROM dish_image_usage').get().attempts,1);
+ const r=await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example/api/dish-images/'+dishes[0].id),db);assert.equal(r.status,404);assert.equal(calls,1);
+});
+test('bad AI image results retain usable catalog and use bounded delayed retries',async()=>{
+ await seedImageDishes(['Gà hấp']);let calls=0;const env={DB:db,AI:{async run(){calls++;return {image:Buffer.from('<script>bad</script>').toString('base64')};}}};
+ await imagesApi.processDishImages(env);const row=sqlite.prepare('SELECT * FROM dish_images').get();assert.equal(row.status,'error');assert.equal(row.image,null);assert.equal(row.attempts,1);assert.ok(row.next_attempt>Date.now());
+ await imagesApi.processDishImages(env);assert.equal(calls,1);
+ for(let i=0;i<4;i++){sqlite.prepare('UPDATE dish_image_lock SET expires=0').run();sqlite.prepare('UPDATE dish_images SET next_attempt=0').run();await imagesApi.processDishImages(env);}
+ assert.equal(calls,3);assert.equal(sqlite.prepare('SELECT attempts FROM dish_images').get().attempts,3);assert.equal((await(await catalogApi.GET_CATALOG(req('GET'),db)).json()).dishes[0].image.status,'error');
+});
+test('regeneration retains prior artwork, rejects absent dishes, throttles repeats and strips unsafe URLs',async()=>{
+ const [dish]=await seedImageDishes(['Gà hấp']);let calls=0;const env={DB:db,AI:{async run(){calls++;return {image:fakeJpeg.toString('base64')};}}};await imagesApi.processDishImages(env);
+ assert.equal((await imagesApi.REQUEST_DISH_IMAGE(req('POST',{id:dish.id}),env)).status,202);assert.equal(calls,1);
+ const queued=(await(await catalogApi.GET_CATALOG(req('GET'),db)).json()).dishes[0];assert.equal(queued.image.status,'queued');assert.ok(queued.image.url);
+ assert.equal((await imagesApi.REQUEST_DISH_IMAGE(req('POST',{id:dish.id}),env)).status,429);assert.equal((await imagesApi.REQUEST_DISH_IMAGE(req('POST',{id:crypto.randomUUID()}),env)).status,404);
+ await imagesApi.processDishImages(env);assert.equal(calls,2);
+ const catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();catalog.dishes[0].image={status:'ready',url:'https://evil.example/image.jpg'};
+ await catalogApi.POST_CATALOG(req('POST',catalog),db);assert.doesNotMatch(sqlite.prepare('SELECT data FROM menu_catalog').get().data,/evil\.example/);
+});
+test('image generation rejects artwork for a dish renamed while the AI request is in flight',async()=>{
+ const [dish]=await seedImageDishes(['Gà hấp']);const env={DB:db,AI:{async run(){const catalog=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();catalog.dishes[0].name='Cá hấp';await catalogApi.POST_CATALOG(req('POST',catalog),db);return {image:fakeJpeg.toString('base64')};}}};
+ await imagesApi.processDishImages(env);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM dish_images WHERE image IS NOT NULL').get().n,0);assert.equal((await imagesApi.GET_DISH_IMAGE(new Request('https://dpa.example/api/dish-images/'+dish.id),db)).status,404);
+});
+test('image routes retain origin and JSON protection, and receipts and kitchen prints contain no images',async()=>{
+ let calls=0;const env={DB:db,AI:{async run(){calls++;throw Error('must not be called')}},ASSETS:{fetch(){return new Response('asset')}}};
+ assert.equal((await worker.default.fetch(new Request('https://dpa.example/api/dish-images',{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'}),env)).status,403);
+ assert.equal((await worker.default.fetch(new Request('https://dpa.example/api/dish-images',{method:'POST',body:'{}'}),env)).status,415);
+ assert.equal((await worker.default.fetch(new Request('https://dpa.example/api/dish-images/nope'),env)).status,404);assert.equal(calls,0);
+ const render=(Component,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(Component,props));
+ for(const html of [render(checkoutBillModule.CheckoutBill,{booking:booking()}),render(printModule.MenuPrintPreview,{booking:booking(),onClose(){}})])assert.doesNotMatch(html,/<img|dish-thumbnail|dish-art-sprite/);
 });

@@ -2,6 +2,7 @@
   "name": "trainghiemdpa",
   "main": "worker.ts",
   "compatibility_date": "2026-10-21",
+  "triggers": {"crons": ["* * * * *"]},
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -22,3 +23,4 @@
     "binding": "AI"
   }
 }
+
