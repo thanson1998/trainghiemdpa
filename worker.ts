@@ -1,3 +1,4 @@
+import {GET_ADS_CONNECTION,CONNECT_ADS,GET_LIVE_ADS,SEARCH_LIVE_ADS} from './ads-live-api';
 import {GET_ADS,SAVE_ADS} from './ads-api';
 import {GET_BANK,SAVE_BANK,GET_SHIFT,SAVE_SHIFT} from './pos-tools-api';
 import {GET_PAYMENTS,PAY,REVERSE_PAYMENT,REVERSAL_STATUS} from './payments-api';
@@ -5,7 +6,7 @@ import {GET_DISH_IMAGE,REQUEST_DISH_IMAGE,processDishImages,DISH_IMAGE_STATUS} f
 import {IMPORT,geminiModel,importModel} from './text-import';
 import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
-interface Env {DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
+interface Env {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
  async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
@@ -30,6 +31,10 @@ export default {
    if(request.method==='POST'&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
    const response=url.pathname==='/api/dish-images'&&request.method==='GET'?await DISH_IMAGE_STATUS(env):url.pathname==='/api/dish-images'&&request.method==='POST'?await REQUEST_DISH_IMAGE(request,env):url.pathname.startsWith('/api/dish-images/')&&request.method==='GET'?await GET_DISH_IMAGE(request,env.DB):Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});
    const result=new Response(response.body,response);headers.forEach((v,k)=>{if(k!=='cache-control')result.headers.set(k,v)});return result;
+  }
+  if(['/api/ads-connection','/api/ads-live'].includes(url.pathname)){
+   if(request.method==='POST'&&!request.headers.get('Content-Type')?.includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
+   const response=url.pathname==='/api/ads-connection'?(request.method==='GET'?await GET_ADS_CONNECTION(request,env):request.method==='POST'?await CONNECT_ADS(request,env):Response.json({error:'Phương thức không hỗ trợ.'},{status:405})):(request.method==='GET'?await GET_LIVE_ADS(request,env):request.method==='POST'?await SEARCH_LIVE_ADS(request,env):Response.json({error:'Phương thức không hỗ trợ.'},{status:405}));const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
   if(!['/api/ads-research','/api/pos/bank','/api/pos/shift','/api/bookings','/api/catalog','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments','/api/payments/reverse'].includes(url.pathname))return Response.json({error:'Không tìm thấy chức năng.'},{status:404,headers});
   if(['POST','DELETE'].includes(request.method)&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
