@@ -94,3 +94,44 @@
  .pos-workbench .pos-cart .pos-item-controls>input{width:92px;min-width:0;box-sizing:border-box;text-align:right}
  .pos-workbench .pos-cart .pos-item-controls>strong{width:100px;min-width:0;text-align:right;justify-content:flex-end;box-sizing:border-box}
 }
+
+/* Size booking fields and controls for their content, with wrapping on smaller panes. */
+@media screen and (min-width:801px){
+ .pos-workbench .pos-catalog-header{padding:7px 9px}
+ .pos-workbench .pos-catalog-header .pos-pane-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+ .pos-workbench .pos-catalog-header .pos-pane-tabs button{flex:0 0 auto;width:auto;min-height:28px;padding:4px 9px}
+ .pos-workbench .pos-catalog-header .pos-search{gap:5px}
+ .pos-workbench:not(.cart-expanded) .pos-ticket-info{padding:6px 9px;max-height:min(360px,55vh)}
+ .pos-workbench:not(.cart-expanded) .pos-identity-row{display:flex;flex-wrap:wrap;align-items:end;justify-content:flex-start;gap:5px 8px;margin:0 0 4px}
+ .pos-workbench:not(.cart-expanded) .pos-identity-row .order-service-choice{flex:0 0 auto;width:max-content;margin:0;gap:3px}
+ .pos-workbench .order-service-choice button{flex:0 0 auto;min-height:27px;padding:4px 9px;font-size:11px}
+ .pos-workbench:not(.cart-expanded) .pos-customer{display:grid;grid-template-columns:minmax(140px,220px) 62px;gap:6px;width:auto;max-width:100%}
+ .pos-workbench .pos-customer label{font-size:11px;line-height:14px}
+ .pos-workbench .pos-customer input{height:27px;min-height:27px;font-size:12px;padding:3px 6px}
+ .pos-workbench .pos-details{padding:3px 5px;margin:3px 0}
+ .pos-workbench .pos-details[open]{max-height:none;overflow:visible}
+ .pos-workbench .pos-details .pos-fields{display:flex;flex-wrap:wrap;align-items:end;justify-content:flex-start;gap:5px 7px;margin:5px 0}
+ .pos-workbench .pos-fields>label{display:grid;flex:0 0 122px;width:122px;max-width:100%;gap:2px;font-size:11px;line-height:14px;min-width:0}
+ .pos-workbench .pos-fields>label:has(input[type=tel]){flex-basis:142px;width:142px}
+ .pos-workbench .pos-fields>label:has(input[placeholder="18:00"]),.pos-workbench .pos-fields>label:has(input[placeholder="21:00"]){flex-basis:88px;width:88px}
+ .pos-workbench .pos-fields>label:has(select){flex-basis:145px;width:145px}
+ .pos-workbench .pos-fields input,.pos-workbench .pos-fields select{width:100%;min-width:0;height:28px;min-height:28px;padding:3px 5px;font-size:12px;box-sizing:border-box}
+ .pos-workbench .pos-menu-options{margin:4px 0 0;padding:0;font-size:11px}
+ .pos-workbench:not(.cart-expanded) .pos-set{width:max-content;max-width:100%;flex-wrap:wrap;gap:5px;padding:3px 6px;margin:4px 0 0;min-height:28px}
+ .pos-workbench:not(.cart-expanded) .pos-set b{flex:0 1 auto;flex-basis:auto}
+ .pos-workbench .pos-categories{justify-content:flex-start;gap:4px;padding-bottom:5px}
+ .pos-workbench .pos-categories button{flex:0 0 auto;min-height:27px;padding:4px 7px;font-size:11px}
+ .pos-workbench .pos-catalog-body{padding:7px 9px}
+ .pos-workbench .pos-product-grid{gap:7px;align-content:start;grid-auto-rows:max-content}
+ .pos-workbench .pos-product{min-height:0}
+ .pos-workbench .pos-frequent-help,.pos-workbench .pos-catalog-body>.field-help{margin:4px 0 7px;font-size:11px;line-height:1.4}
+ .pos-workbench .pos-table-tools{justify-content:flex-start;gap:9px}.pos-workbench .pos-table-tools select{width:auto;min-height:28px;padding:4px 7px;font-size:12px}
+ .pos-workbench .pos-cart .pos-order-note{grid-template-columns:1fr;gap:2px}.pos-workbench .pos-cart .pos-order-note textarea{height:28px;min-height:28px}
+}
+
+@media screen and (min-width:801px){
+ .pos-workbench .pos-catalog-header .pos-search{max-width:360px}
+ .pos-workbench .pos-details .text-btn{min-height:22px;line-height:18px;padding:2px 4px;margin:2px 3px 2px 0;font-size:11px}
+ .pos-workbench .pos-menu-options summary{min-height:18px;line-height:18px;padding:0}
+ .pos-workbench .pos-details .pos-fields{margin:3px 0;gap:4px 7px}
+}
