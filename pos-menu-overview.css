@@ -85,3 +85,12 @@
  .pos-workbench:not(.cart-expanded){grid-template-columns:minmax(0,1fr) minmax(300px,50%)}
  .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(80px,.42fr) minmax(270px,1.58fr)}
 }
+
+/* Compact money fields instead of stretching the unit price and amount. */
+@media screen and (min-width:801px){
+ .pos-workbench:not(.cart-expanded){grid-template-columns:minmax(420px,calc(50% - 110px)) minmax(0,1fr)}
+ .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(70px,1fr) max-content;column-gap:5px}
+ .pos-workbench .pos-cart .pos-item-controls{grid-template-columns:76px 24px 92px 100px;gap:4px;justify-content:end}
+ .pos-workbench .pos-cart .pos-item-controls>input{width:92px;min-width:0;box-sizing:border-box;text-align:right}
+ .pos-workbench .pos-cart .pos-item-controls>strong{width:100px;min-width:0;text-align:right;justify-content:flex-end;box-sizing:border-box}
+}
