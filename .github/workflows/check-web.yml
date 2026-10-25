@@ -47,7 +47,16 @@ jobs:
           report.ads={status:adsResponse.status,venues:ads.venues.length,samples:ads.samples.length};
           const connectionResponse=await fetch(base+'/api/ads-connection?setup=public');
           const connection=await connectionResponse.json();
-          console.log(JSON.stringify({adsConnection:connection}));
+          if(!connection.configured){
+            const configured=await fetch(base+'/api/ads-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sealed:'LadfowxFiOzOspBu35FOfNCIVCUxhlU8YK1Uxioebc94lF90X7R+PE3Npuh3OAVacWZeIumV1E/QMKC4j89FR2hMFVSUsgA4vN1K32ksnFH+72thJvxQND3Vcm+uAeIgArCsuPi6/4zWb02qfuDakV4nTE9lxPM0m34uxPcz3AFnUw17wWiw1Y7raHaSmlSYWM7hxfuvdvxCZW4/K/OCQSsvGrOri/6A6cXvInN98QQQ6FSJv0JFaAydZD/bSJ0MHImRBdm4FfBqlQEiOsAf5X0hDJKgX/GFBB8JazdvrnUhgOaGjzvH7oV9Q3aMANodaqZB34JenZ181m/Iipny9g==' }),signal:AbortSignal.timeout(45000)});
+            const outcome=await configured.json();
+            console.log(JSON.stringify({connectionSetup:{status:configured.status,...outcome}}));
+            if(!configured.ok)throw new Error('SearchApi connection verification failed.');
+          }
+          const realSearch=await fetch(base+'/api/ads-live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'nhà hàng Thái Nguyên'}),signal:AbortSignal.timeout(65000)});
+          const realResult=await realSearch.json();
+          console.log(JSON.stringify({liveAdsCheck:{status:realSearch.status,query:realResult.query,total:realResult.total,ads:realResult.ads?.length,pageNames:realResult.ads?.slice(0,8).map(ad=>ad.pageName),error:realResult.error,providerStatus:realResult.providerStatus}}));
+          if(!realSearch.ok)throw new Error('Live ads search failed.');
           async function read(label,url,json=false){
             const start=performance.now();
             const r=await fetch(url,{signal:AbortSignal.timeout(45000)});
