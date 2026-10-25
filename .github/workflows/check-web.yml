@@ -43,7 +43,7 @@ jobs:
             const adsState=await adsReady.json();
             const connectionResponse=await fetch(base+'/api/market-connection?setup=public');
             const connection=await connectionResponse.json();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('market-post-v1')&&html.includes('food-art-v1')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5'&&state.artwork)break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('market-post-v1')&&html.includes('food-art-v2')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5'&&state.artwork?.total>=123)break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
@@ -81,7 +81,7 @@ jobs:
               await read('marketModule',new URL('./assets/'+module[0],'https://thanson1998.github.io/trainghiemdpa/'));
             }
             if(label==='marketModule'&&(!r.ok||!new TextDecoder().decode(bytes).includes('dpa-market-post-')))throw new Error('Suggested post module not available.');
-            if(label==='chatgptArtwork'&&(!r.ok||new Uint8Array(bytes)[0]!==82||new Uint8Array(bytes)[8]!==87))throw new Error('ChatGPT food artwork unavailable.');
+            if(label.startsWith('chatgptArtwork')&&(!r.ok||new Uint8Array(bytes)[0]!==82||new Uint8Array(bytes)[8]!==87))throw new Error('ChatGPT food artwork unavailable.');
             if(!r.ok)return null;
             return json?JSON.parse(new TextDecoder().decode(bytes)):null;
           }
@@ -90,12 +90,13 @@ jobs:
             if(status)report.imageProgress={enabled:status.enabled,counts:status.counts,errors:status.errors,resumeAfter:status.resumeAfter,retryPolicy:status.retryPolicy,artwork:status.artwork};
             const catalog=await read('catalog',base+'/api/catalog',true);
             if(catalog){
-              console.log(JSON.stringify({missingArtwork:catalog.dishes?.filter(d=>!d.image?.url).map(d=>({name:d.name,category:d.category}))}));
               report.catalogCounts={dishes:catalog.dishes?.length,templates:catalog.templates?.length,withArtwork:catalog.dishes?.filter(d=>d.image?.url).length};
               const sample=catalog.dishes?.find(d=>/^\/api\/dish-images\/[-\da-f]{36}\?v=\d+$/i.test(d.image?.url||''));
               if(sample){await read('sampleImage',base+sample.image.url);await new Promise(resolve=>setTimeout(resolve,500));await read('warmImage',base+sample.image.url);}
             }
             await read('chatgptArtwork','https://thanson1998.github.io/trainghiemdpa/assets/dish-art-extra-20261025-CymtCjVZ.webp');
+            await read('chatgptArtwork2','https://thanson1998.github.io/trainghiemdpa/assets/dish-art-batch-2-20261025-BxNasIxo.webp');
+            await read('chatgptArtwork3','https://thanson1998.github.io/trainghiemdpa/assets/dish-art-batch-3-20261025-DDhZEfos.webp');
             await read('pages','https://thanson1998.github.io/trainghiemdpa/');
             console.log(JSON.stringify(report,null,2));
           }catch{console.log(JSON.stringify({...report,error:'Health check could not complete; no order data was requested.'},null,2));process.exitCode=1;}
