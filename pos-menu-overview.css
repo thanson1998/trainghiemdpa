@@ -61,3 +61,21 @@
 }
 
 @media screen and (min-width:801px){.pos-workbench:not(.cart-expanded) .pos-catalog-body{margin-top:var(--pos-inline-info-height,170px);padding-top:8px;min-height:0;flex:1;overflow:auto}}
+
+/* Keep dishes in reading order down one compact column. */
+@media screen and (min-width:801px){
+ .pos-workbench .pos-cart-items{grid-template-columns:minmax(0,1fr);row-gap:2px}
+ .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(120px,1fr) minmax(270px,.85fr);padding:2px 5px;gap:2px 8px;border-radius:4px}
+ .pos-workbench .pos-cart .pos-item-name>b{font-size:12px;line-height:1.25;font-weight:600;white-space:normal;overflow-wrap:anywhere}
+ .pos-workbench .pos-cart .pos-item-title .icon-btn{height:22px;min-height:22px}
+ .pos-workbench .pos-cart .pos-item-controls>input,.pos-workbench .pos-cart .pos-quantity input,.pos-workbench .pos-cart .pos-quantity button{height:22px;min-height:22px;padding-top:1px;padding-bottom:1px}
+}
+
+@media screen and (min-width:801px){
+ .pos-workbench .pos-cart-items{row-gap:1px}
+ .pos-workbench .pos-cart .pos-cart-item{padding:0 5px}
+ .pos-workbench .pos-cart .pos-item-title .icon-btn{height:18px;min-height:18px}
+ .pos-workbench .pos-cart .pos-item-controls>strong{min-height:0;height:auto;line-height:18px}
+ .pos-workbench .pos-cart .pos-quantity{height:18px;border:0}
+ .pos-workbench .pos-cart .pos-item-controls>input,.pos-workbench .pos-cart .pos-quantity input,.pos-workbench .pos-cart .pos-quantity button{height:18px;min-height:18px;padding-top:0;padding-bottom:0}
+}

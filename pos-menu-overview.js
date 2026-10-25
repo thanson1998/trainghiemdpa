@@ -13,7 +13,7 @@
    if(!list)return;
    if(!matchMedia('(min-width:801px)').matches){list.style.removeProperty('--pos-menu-scale');list.style.removeProperty('--pos-menu-columns');return;}
    const count=list.querySelectorAll('.pos-cart-item').length;
-   const columns=count>7&&cart.clientWidth>=560?2:1;
+   const columns=1;
    list.style.setProperty('--pos-menu-columns',String(columns));
    let scale=1;
    for(let step=0;step<5;step++){
