@@ -135,3 +135,19 @@
  .pos-workbench .pos-menu-options summary{min-height:18px;line-height:18px;padding:0}
  .pos-workbench .pos-details .pos-fields{margin:3px 0;gap:4px 7px}
 }
+
+/* Share one compact top row between POS tools and open tickets. */
+@media screen and (min-width:801px){
+ .app-shell.pos-active .main-content{padding:4px 12px;position:relative}
+ .app-shell.pos-active .main-content>.page-heading,.app-shell.pos-active .main-content>.bottom-note{display:none;margin:0}
+ .app-shell.pos-active .main-content>.sync-settings:not([open]){position:absolute;right:184px;top:9px;margin:0;font-size:10px;line-height:15px;z-index:3}
+ .app-shell.pos-active .main-content>.sync-settings[open]{flex:0 0 auto;margin:0 0 4px}
+ .app-shell.pos-active .pos-panel{display:grid;grid-template-columns:155px minmax(0,1fr) 350px;grid-template-rows:auto minmax(0,1fr);gap:4px 6px}
+ .pos-panel>.pos-toolbar-space{grid-column:1/-1;grid-row:1;min-height:28px}
+ .pos-panel .pos-topline{margin:0!important;min-height:28px}
+ .pos-panel .pos-topline h1{font-size:16px!important}.pos-panel .pos-topline>div:first-child{gap:6px}
+ .pos-panel>.pos-ticket-tabs{grid-column:2;grid-row:1;align-self:center;position:relative;z-index:1;margin:0;padding:0;min-width:0;max-height:31px;overflow:auto}
+ .pos-panel>.pos-ticket-tabs button{min-height:26px;padding:3px 7px;font-size:11px}
+ .pos-panel>.pos-workbench{grid-column:1/-1;grid-row:2}
+ .pos-panel>.form-error,.pos-panel>.form-success{grid-column:1/-1}
+}
