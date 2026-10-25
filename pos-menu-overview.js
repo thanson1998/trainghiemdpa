@@ -12,8 +12,17 @@
     root.style.setProperty('--pos-inline-info-height',info.offsetHeight+'px');
     const head=cart.querySelector('.pos-cart-head');
     if(head){const h=head.getBoundingClientRect(),i=info.getBoundingClientRect();
+     const options=cart.querySelector('.pos-menu-options');
+     options?.querySelectorAll('button').forEach(button=>{
+      const label=button.textContent.trim();
+      if(label&&button.getAttribute('aria-label')!==label)button.setAttribute('aria-label',label);
+     });
+     const toolsHeight=Math.max(30,options?.offsetHeight||0);
+     root.style.setProperty('--pos-header-tools-height',toolsHeight+'px');
      root.style.setProperty('--pos-service-left',(h.left-i.left+10)+'px');
-     root.style.setProperty('--pos-service-top',(h.bottom-i.top-36)+'px');
+     root.style.setProperty('--pos-menu-actions-left',(h.left-i.left+160)+'px');
+     root.style.setProperty('--pos-menu-actions-width',Math.max(150,h.width-170)+'px');
+     root.style.setProperty('--pos-service-top',(h.bottom-i.top-toolsHeight-6)+'px');
     }
    }
    if(body&&!observed.has(body)){observed.add(body);observer.observe(body);}

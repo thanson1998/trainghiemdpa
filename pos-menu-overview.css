@@ -193,3 +193,17 @@
  .pos-workbench:not(.cart-expanded) .pos-identity-row .order-service-choice{position:absolute;left:var(--pos-service-left,10px);top:var(--pos-service-top,0px);margin:0;z-index:5}
  .pos-workbench:not(.cart-expanded) .pos-identity-row{min-width:0}
 }
+
+/* Show native menu actions alongside service selection, including undo feedback. */
+@media screen and (min-width:801px){
+ .pos-workbench:not(.cart-expanded) .pos-cart-head{padding-bottom:calc(var(--pos-header-tools-height,30px) + 10px)}
+ .pos-workbench:not(.cart-expanded) .pos-details:not([open])::details-content,.pos-workbench:not(.cart-expanded) .pos-menu-options::details-content{content-visibility:visible}
+ .pos-workbench:not(.cart-expanded) .pos-details:not([open])>:not(summary):not(.pos-menu-options){display:none}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options{position:absolute;left:var(--pos-menu-actions-left,160px);top:var(--pos-service-top,0px);width:var(--pos-menu-actions-width,240px);max-width:none;margin:0;padding:0;border:0;background:transparent;z-index:5}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options>summary{display:none}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options .menu-actions-wrap{margin:0;padding:0}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options .menu-actions{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options .menu-actions button{min-height:30px;height:auto;font-size:11px;padding:4px 6px;line-height:1.35;gap:3px}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options .menu-action-result{font-size:11px;line-height:1.35;margin:3px 0 0;padding:3px 4px}
+ .pos-workbench:not(.cart-expanded) .pos-menu-options .menu-action-result button{font-size:11px;min-height:22px;padding:1px 3px}
+}
