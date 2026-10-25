@@ -1,0 +1,101 @@
+/* Compact administration pages only; POS and print keep their own layouts. */
+@media screen{
+.app-shell:not(.pos-active) .main-content{max-width:none;padding:10px 14px 16px}
+.app-shell:not(.pos-active) .sync-settings:not([open]){margin:0 0 5px;padding:0;border:0;background:transparent}
+.app-shell:not(.pos-active) .sync-settings:not([open]) summary{font-size:11px;line-height:18px;padding:0}
+.app-shell:not(.pos-active) .page-heading{gap:10px;margin:0 0 10px;align-items:center}
+.app-shell:not(.pos-active) .page-heading h1{font-size:22px;line-height:1.25;margin:0 0 3px}
+.app-shell:not(.pos-active) .page-heading p{font-size:13px;line-height:1.4;margin:0}
+.app-shell:not(.pos-active) .heading-actions{gap:6px;flex-wrap:wrap}
+.app-shell:not(.pos-active) .heading-actions button{min-height:36px;padding:7px 10px;font-size:13px}
+.app-shell:not(.pos-active) .payments-panel,.app-shell:not(.pos-active) .catalog-panel,.app-shell:not(.pos-active) .history-panel{padding:12px;border-radius:9px}
+.app-shell:not(.pos-active) .payment-heading,.app-shell:not(.pos-active) .catalog-intro,.app-shell:not(.pos-active) .workflow-section-head{gap:8px;margin-bottom:8px}
+.app-shell:not(.pos-active) .payment-heading h2,.app-shell:not(.pos-active) .catalog-intro h2,.app-shell:not(.pos-active) .workflow-section-head h2{font-size:21px;line-height:1.3;margin:0 0 3px}
+.app-shell:not(.pos-active) .payment-heading p,.app-shell:not(.pos-active) .catalog-intro p,.app-shell:not(.pos-active) .workflow-section-head p{font-size:13px;line-height:1.4;margin:2px 0}
+.app-shell:not(.pos-active) .payment-heading button,.app-shell:not(.pos-active) .workflow-section-head button{min-height:34px;padding:6px 10px;font-size:13px}
+.app-shell:not(.pos-active) .payment-filters,.app-shell:not(.pos-active) .orders-period,.app-shell:not(.pos-active) .catalog-toolbar{gap:7px;margin:8px 0;align-items:end}
+.app-shell:not(.pos-active) .payment-filters label,.app-shell:not(.pos-active) .orders-period label{font-size:12px;gap:3px}
+.app-shell:not(.pos-active) .payment-filters input,.app-shell:not(.pos-active) .payment-filters select,.app-shell:not(.pos-active) .orders-period input,.app-shell:not(.pos-active) .orders-filters input,.app-shell:not(.pos-active) .orders-filters select{min-height:35px;height:35px;font-size:14px;padding:5px 8px}
+.app-shell:not(.pos-active) .payment-filters button,.app-shell:not(.pos-active) .orders-period button{min-height:35px;padding:6px 9px;font-size:13px}
+.app-shell:not(.pos-active) .payment-filters .payment-search{flex:0 1 330px;min-width:200px}
+.app-shell:not(.pos-active) .payment-stats,.app-shell:not(.pos-active) .orders-kpis,.app-shell:not(.pos-active) .stats-grid,.app-shell:not(.pos-active) .market-stats,.app-shell:not(.pos-active) .ads-stats{gap:8px;margin:8px 0 10px}
+.app-shell:not(.pos-active) .payment-stats>div,.app-shell:not(.pos-active) .orders-kpis>div,.app-shell:not(.pos-active) .stats-grid>.stat,.app-shell:not(.pos-active) .market-stats>div,.app-shell:not(.pos-active) .ads-stats>div{padding:10px 12px;gap:3px;border-radius:8px;min-height:0}
+.app-shell:not(.pos-active) .orders-kpis strong,.app-shell:not(.pos-active) .stat>strong,.app-shell:not(.pos-active) .stat>div>strong,.app-shell:not(.pos-active) .payment-stats strong{font-size:24px;line-height:1.25;margin:3px 0}
+.app-shell:not(.pos-active) .orders-kpis>div>span,.app-shell:not(.pos-active) .stat>span,.app-shell:not(.pos-active) .payment-stats span{font-size:12px;line-height:1.4}
+.app-shell:not(.pos-active) .orders-kpis small,.app-shell:not(.pos-active) .stat>small,.app-shell:not(.pos-active) .stat>p,.app-shell:not(.pos-active) .payment-stats small{font-size:12px;line-height:1.4;margin:2px 0}
+.app-shell:not(.pos-active) .orders-period{padding:8px 10px}
+.app-shell:not(.pos-active) .orders-layout,.app-shell:not(.pos-active) .payment-layout{gap:10px}
+.app-shell:not(.pos-active) .orders-panel-heading{padding:10px 12px 7px}
+.app-shell:not(.pos-active) .orders-filters{gap:6px;padding:0 12px 7px}
+.app-shell:not(.pos-active) .orders-scope{padding:0 12px 7px;line-height:1.4}
+.app-shell:not(.pos-active) .orders-table td,.app-shell:not(.pos-active) .booking-list td{padding:8px 10px;font-size:14px;line-height:1.4}
+.app-shell:not(.pos-active) .orders-table th,.app-shell:not(.pos-active) .booking-list th{padding:8px 10px;font-size:12px;line-height:1.4}
+.app-shell:not(.pos-active) .orders-table .order-actions .text-btn{min-height:30px;padding:3px 0}
+.app-shell:not(.pos-active) .orders-empty,.app-shell:not(.pos-active) .payment-empty,.app-shell:not(.pos-active) .empty-list{padding:18px 12px;gap:5px;min-height:0}
+.app-shell:not(.pos-active) .booking-list{min-height:0}
+.app-shell:not(.pos-active) .payment-tabs{margin:8px 0}
+.app-shell:not(.pos-active) .payment-tabs button{min-height:35px;padding:6px 10px;font-size:14px}
+.app-shell:not(.pos-active) .payment-order{padding:10px;gap:5px;border-radius:8px}
+.app-shell:not(.pos-active) .payment-detail{padding:12px;border-radius:8px}
+.app-shell:not(.pos-active) .payment-totals{margin:10px 0}
+.app-shell:not(.pos-active) .plan-toolbar,.app-shell:not(.pos-active) .plan-subbar{padding:7px 10px;gap:7px}
+.app-shell:not(.pos-active) .plan-toolbar button,.app-shell:not(.pos-active) .plan-toolbar input,.app-shell:not(.pos-active) .plan-subbar select,.app-shell:not(.pos-active) .plan-subbar .search input{min-height:34px;font-size:13px}
+.app-shell:not(.pos-active) .plan-subbar .search{padding:1px 8px;flex:0 1 340px}
+.app-shell:not(.pos-active) .map-date,.app-shell:not(.pos-active) .plan-footer{padding:7px 10px;line-height:1.4}
+.app-shell:not(.pos-active) .legend{gap:8px;font-size:12px;flex-wrap:wrap}
+.app-shell:not(.pos-active) .catalog-intro>svg{width:22px;height:22px;margin-top:2px}
+.app-shell:not(.pos-active) .catalog-intro .dish-image-progress{display:inline-flex;margin-top:3px;padding:3px 6px}
+.app-shell:not(.pos-active) .catalog-toolbar .segmented button,.app-shell:not(.pos-active) .catalog-toolbar>.primary-btn{min-height:34px;padding:6px 9px;font-size:13px}
+.app-shell:not(.pos-active) .catalog-group-filter{margin:7px 0;gap:4px}
+.app-shell:not(.pos-active) .catalog-group-filter>span{margin:0;font-size:12px}
+.app-shell:not(.pos-active) .catalog-group-bar{gap:4px;padding:4px;flex-wrap:wrap}
+.app-shell:not(.pos-active) .catalog-group-bar button{min-height:32px;min-width:0;padding:4px 8px;font-size:13px;flex:0 0 auto}
+.app-shell:not(.pos-active) .catalog-search{min-height:36px;max-width:360px;padding:7px 10px;margin:0 0 8px;font-size:14px;top:4px}
+.app-shell:not(.pos-active) .catalog-rows-grid{gap:8px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.app-shell:not(.pos-active) .catalog-rows-grid .catalog-row{padding:9px;gap:5px 6px}
+.app-shell:not(.pos-active) .catalog-rows-grid .catalog-row b{font-size:14px;line-height:1.4}
+.app-shell:not(.pos-active) .history-entries{gap:7px}
+.app-shell:not(.pos-active) .history-entries>article{padding:10px;gap:10px}
+.app-shell:not(.pos-active) .history-entries button{min-height:34px;padding:6px 9px;font-size:13px}
+.app-shell:not(.pos-active) .market-heading,.app-shell:not(.pos-active) .ads-heading{gap:10px;margin-bottom:10px;align-items:center}
+.app-shell:not(.pos-active) .market-heading h1,.app-shell:not(.pos-active) .ads-heading h1{font-size:24px;line-height:1.25;margin:3px 0}
+.app-shell:not(.pos-active) .market-heading p,.app-shell:not(.pos-active) .ads-heading p{margin:3px 0;font-size:13px;line-height:1.4}
+.app-shell:not(.pos-active) .market-heading button,.app-shell:not(.pos-active) .ads-heading button{min-height:35px;padding:6px 10px;font-size:13px}
+.app-shell:not(.pos-active) .market-notice,.app-shell:not(.pos-active) .ads-notice{padding:8px 10px;margin:8px 0;font-size:12px;line-height:1.5}
+.app-shell:not(.pos-active) .market-tabs,.app-shell:not(.pos-active) .ads-tabs{margin:8px 0;gap:5px}
+.app-shell:not(.pos-active) .market-tabs button,.app-shell:not(.pos-active) .ads-tabs button{min-height:34px;padding:6px 9px;font-size:13px}
+.app-shell:not(.pos-active) .market-live-status{padding:8px 10px;margin:7px 0;gap:7px}
+.app-shell:not(.pos-active) .market-live-search,.app-shell:not(.pos-active) .market-discover,.app-shell:not(.pos-active) .ads-discover{padding:9px 10px;gap:8px;margin:8px 0}
+.app-shell:not(.pos-active) .market-grid,.app-shell:not(.pos-active) .ads-grid{gap:10px}
+.app-shell:not(.pos-active) .market-card,.app-shell:not(.pos-active) .ads-card{padding:12px;gap:8px;border-radius:9px}
+.app-shell:not(.pos-active) .market-editor,.app-shell:not(.pos-active) .ads-editor,.app-shell:not(.pos-active) .market-proposal{padding:12px;margin:10px 0}
+.app-shell:not(.pos-active) .market-editor fieldset,.app-shell:not(.pos-active) .ads-editor fieldset{gap:9px;margin:10px 0}
+.app-shell:not(.pos-active) .market-empty,.app-shell:not(.pos-active) .ads-empty,.app-shell:not(.pos-active) .market-live-empty{padding:18px 12px;min-height:0}
+.app-shell:not(.pos-active) .market-footer,.app-shell:not(.pos-active) .ads-footer,.app-shell:not(.pos-active) .bottom-note{margin-top:10px;line-height:1.5}
+.app-shell:not(.pos-active) .notice,.app-shell:not(.pos-active) .error-banner{padding:10px 12px;gap:8px;margin-bottom:10px}
+.app-shell:not(.pos-active) .help-modal{padding:22px 26px;width:min(680px,calc(100vw - 28px))}
+.app-shell:not(.pos-active) .help-modal h2{font-size:26px;line-height:1.3;margin:12px 0}
+.app-shell:not(.pos-active) .help-modal li{margin-bottom:10px;line-height:1.5}
+.app-shell:not(.pos-active) .help-modal li p{margin:3px 0;line-height:1.5}
+}
+@media screen and (min-width:1100px){.app-shell:not(.pos-active) .orders-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media screen and (max-width:900px){.app-shell:not(.pos-active) .main-content{padding:8px 10px 16px}.app-shell:not(.pos-active) .page-heading{flex-wrap:wrap}.app-shell:not(.pos-active) .heading-actions{display:flex!important;width:auto}.app-shell:not(.pos-active) .payment-filters .payment-search{flex:1 1 100%;min-width:0}.app-shell:not(.pos-active) .plan-subbar .search{flex:1 1 100%}.app-shell:not(.pos-active) .catalog-rows-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.app-shell:not(.pos-active) .payment-layout{grid-template-columns:1fr}.app-shell:not(.pos-active) .payment-filters input,.app-shell:not(.pos-active) .catalog-search{font-size:16px}.app-shell:not(.pos-active) .heading-actions button,.app-shell:not(.pos-active) .catalog-group-bar button,.app-shell:not(.pos-active) .payment-tabs button{min-height:40px}}
+
+@media screen{
+ .app-shell:not(.pos-active) .stat>div{margin:3px 0;line-height:1.25}
+ .app-shell:not(.pos-active) .market-connection{padding:8px 10px;gap:7px;margin:7px 0;font-size:13px}
+ .app-shell:not(.pos-active) .market-live-search{padding:0;margin:8px 0;gap:7px}
+ .app-shell:not(.pos-active) .market-live-search input,.app-shell:not(.pos-active) .market-live-search button,.app-shell:not(.pos-active) .market-discover input,.app-shell:not(.pos-active) .market-discover button{min-height:36px;padding:6px 9px;font-size:14px}
+ .app-shell:not(.pos-active) .market-live-hint{margin:6px 0;font-size:12px;line-height:1.45}
+ .app-shell:not(.pos-active) .market-keywords{margin:5px 0;gap:5px}
+}
+
+@media screen and (max-width:900px){
+ .app-shell:not(.pos-active) .payment-stats strong,.app-shell:not(.pos-active) .orders-kpis strong,.app-shell:not(.pos-active) .stat>strong,.app-shell:not(.pos-active) .stat>div>strong{font-size:20px;white-space:nowrap;line-height:1.3}
+}
+@media screen{
+ body:has(.app-shell:not(.pos-active)) .help-modal{padding:22px 26px;width:min(680px,calc(100vw - 28px));box-sizing:border-box}
+ body:has(.app-shell:not(.pos-active)) .help-modal h2{font-size:26px;line-height:1.3;margin:12px 0}
+ body:has(.app-shell:not(.pos-active)) .help-modal li{margin-bottom:10px;line-height:1.5}
+ body:has(.app-shell:not(.pos-active)) .help-modal li p{margin:3px 0;line-height:1.5}
+}
