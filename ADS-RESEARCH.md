@@ -37,3 +37,11 @@ Bộ lọc Thái Nguyên dùng tên Trang, nhóm ngành nếu nguồn cung cấp
 Chuyển tệp frontend/CSS, class giao diện và đường đọc dữ liệu nghiên cứu sang tên market để tránh nhận diện nhầm là khung quảng cáo. Các API cũ giữ tương thích qua alias. Error boundary riêng giữ POS/sidebar hoạt động khi chunk lỗi, có nút phục hồi rõ ràng. Trang thật không phụ thuộc vào việc tải dữ liệu nghiên cứu; trạng thái kết nối và danh sách kết quả cũng tải độc lập. Tự chọn kết quả có mẫu thay vì mặc định vào truy vấn rỗng. Link #thi-truong mở thẳng trang nghiên cứu; truy cập thường vẫn mặc định POS.
 
 Kiểm tra TypeScript, build và 115 bài kiểm thử. QA trình duyệt mô phỏng chặn đường cũ, lỗi metadata, lỗi trạng thái, lỗi chunk, quay về POS và 4 kích thước màn hình. Health check chỉ đọc cache, không tiêu tốn lượt SearchApi.
+
+## Bài quảng cáo đề xuất cho DPA
+
+Mục đề xuất hiển thị trên tab quảng cáo thật, dựa trên tối đa 12 mẫu đang hoạt động có nội dung trong kết quả đang xem, khử trùng ID. Nhận diện các hướng nội dung về dịp gặp gỡ/tiệc, không gian, món ăn, ưu đãi và lời mời đặt bàn (hỗ trợ chữ Unicode kiểu đậm). Bài viết gốc dùng thông tin đã biết của DPA, không lấy giá, miễn phí, quà tặng, địa chỉ hay hotline của quán khác. Đây là gợi ý biên tập theo dấu hiệu nội dung, không đánh giá hiệu quả ads và không gọi thêm SearchApi hoặc mô hình AI.
+
+Có bài viết chỉnh sửa được, sao chép, bản sửa tự lưu trên thiết bị theo bộ nguồn tham khảo, trở về bản gợi ý, giải thích nguồn cùng link ads gốc và ngày thu thập; kèm gợi ý ảnh thật DPA. Không có thao tác tự đăng Facebook. Nếu không có mẫu đang hoạt động có chữ thì không dựng đề xuất giả.
+
+Đã đọc 4 nguồn thật: The King Hotel (không gian/dịch vụ), Rồng Vàng BBQ (món ăn, nhóm đông/sinh nhật/ưu đãi), Đức Huệ (tiệc trọn gói), Sen Việt (buffet hải sản). Hướng chọn cho DPA: bữa tiệc vui và người tổ chức thảnh thơi. Kiểm thử 116 bài đạt; kiểm tra giao diện, sửa/sao chép và giữ bản nháp trên máy tính và điện thoại.
