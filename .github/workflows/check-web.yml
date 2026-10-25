@@ -54,6 +54,7 @@ jobs:
           const realFeed=await realSearch.json();
           const result=realFeed.searches?.find(s=>s.ads?.length)||realFeed.searches?.[0];
           console.log(JSON.stringify({liveAdsCheck:{status:realSearch.status,ads:result?.ads?.length,pageNames:result?.ads?.map(ad=>ad.pageName)}}));
+          console.log(JSON.stringify({marketReferenceSources:result?.ads?.slice(0,4).map(ad=>({id:ad.id,pageName:ad.pageName,title:ad.title,body:ad.body?.slice(0,1600),url:ad.url}))}));
           if(!realSearch.ok||!Array.isArray(realFeed.searches))throw new Error('Live ads feed unavailable.');
           async function read(label,url,json=false){
             const start=performance.now();
