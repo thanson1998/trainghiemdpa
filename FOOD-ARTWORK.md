@@ -21,3 +21,11 @@ Hai ảnh ghép mới do ChatGPT tạo, mã hóa WebP chất lượng 80: 218.49
 Ánh xạ chính xác các ô 48–79; giữ ảnh cũ và ưu tiên ảnh riêng từ máy chủ. Hai atlas được nén WebP, dùng chung và lưu bộ nhớ đệm cho POS/thư viện/set. Không hiển thị hình trên bản in.
 
 Dung lượng: batch 4 = 282.224 byte; batch 5 = 243.378 byte. Kiểm tra TypeScript, build, 117 bài kiểm thử và Chrome đủ 32 ô ảnh đúng tên, không lẫn ảnh bên cạnh.
+
+## Đợt 6–7: thêm 32 ảnh ChatGPT
+
+Dạ dày chiên xù, Gà trống thiến hấp, Rau xào, Cá quả nướng, Mực lẩu, Gà chọi hấp, Mướp xào lòng gà, Gà xào sả ớt, Đậu lướt ván, Gà xào nấm, Bò xào rau cải, Trứng cút, Nem bùi, Trứng gà, Ba chỉ, Nước lẩu, Chim câu, Chép giòn xào, Vách xào, Rau cải xào, Bánh đa, Khoai tây lắc phô mai ( lớn ), Gầu bò, Nem ngựa, Mỳ tôm, Cơm rang ( lớn ), Mỳ tôm xào ( lớn ), Khoai tàu kẹp thịt, Sake chiên, Lạp xưởng, Dưa chuột chẻ, Gà chiên mắm.
+
+Ánh xạ chính xác các ô 80–111; nén WebP chất lượng 80. Giữ ảnh cũ, ưu tiên ảnh riêng từ máy chủ và không in hình món trên hóa đơn/phiếu bếp.
+
+Dung lượng: batch 6 = 240.118 byte, batch 7 = 263.922 byte. Điều chỉnh riêng hàng ảnh đợt 6 để tránh lẫn món. Kiểm tra TypeScript, build, 117 bài kiểm thử và Chrome đủ 32 ô ảnh.
