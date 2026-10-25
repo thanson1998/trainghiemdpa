@@ -37,7 +37,7 @@ jobs:
             const adsState=await adsReady.json();
             const connectionResponse=await fetch(base+'/api/ads-connection?setup=public');
             const connection=await connectionResponse.json();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-live-v2')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok)break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-live-v3')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v3')break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
@@ -47,12 +47,7 @@ jobs:
           report.ads={status:adsResponse.status,venues:ads.venues.length,samples:ads.samples.length};
           const connectionResponse=await fetch(base+'/api/ads-connection?setup=public');
           const connection=await connectionResponse.json();
-          if(!connection.configured){
-            const configured=await fetch(base+'/api/ads-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sealed:'LadfowxFiOzOspBu35FOfNCIVCUxhlU8YK1Uxioebc94lF90X7R+PE3Npuh3OAVacWZeIumV1E/QMKC4j89FR2hMFVSUsgA4vN1K32ksnFH+72thJvxQND3Vcm+uAeIgArCsuPi6/4zWb02qfuDakV4nTE9lxPM0m34uxPcz3AFnUw17wWiw1Y7raHaSmlSYWM7hxfuvdvxCZW4/K/OCQSsvGrOri/6A6cXvInN98QQQ6FSJv0JFaAydZD/bSJ0MHImRBdm4FfBqlQEiOsAf5X0hDJKgX/GFBB8JazdvrnUhgOaGjzvH7oV9Q3aMANodaqZB34JenZ181m/Iipny9g==' }),signal:AbortSignal.timeout(45000)});
-            const outcome=await configured.json();
-            console.log(JSON.stringify({connectionSetup:{status:configured.status,...outcome}}));
-            if(!configured.ok)throw new Error('SearchApi connection verification failed.');
-          }
+          if(!connection.configured)throw new Error('SearchApi has not been configured.');
           const realSearch=await fetch(base+'/api/ads-live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'nhà hàng Thái Nguyên'}),signal:AbortSignal.timeout(65000)});
           const realResult=await realSearch.json();
           console.log(JSON.stringify({liveAdsCheck:{status:realSearch.status,query:realResult.query,total:realResult.total,ads:realResult.ads?.length,pageNames:realResult.ads?.slice(0,8).map(ad=>ad.pageName),error:realResult.error,providerStatus:realResult.providerStatus}}));
@@ -66,7 +61,7 @@ jobs:
             if(label==='pages'){
               const html=new TextDecoder().decode(bytes);
               report.pages.optimized=html.includes('fast-images-v2');
-              report.pages.fastPos=html.includes('ads-live-v2');
+              report.pages.fastPos=html.includes('ads-live-v3');
               const script=html.match(/src="(\.\/assets\/[^\"]+\.js)"/);
               const style=html.match(/href="(\.\/assets\/[^\"]+\.css)"/);
               if(script)await read('initialScript',new URL(script[1],'https://thanson1998.github.io/trainghiemdpa/'));
