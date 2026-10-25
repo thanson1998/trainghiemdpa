@@ -13,3 +13,11 @@ Kiểm tra TypeScript, build và 117 bài kiểm thử. Kiểm tra Chrome đủ 
 Cơm, canh cua cà, Mỳ tôm, mỳ gạo, Xúc xích lẩu, Vịt cổ xanh xào, Cá hồi sốt chanh leo, Nấm tuyết, Xúc xích 5000, Cháo cá, Dưa muối, Canh chua cá tầm, Ba chỉ nướng, Nem cá, Cá tầm xào, Cá tầm rang muối, Cá tầm hấp xì dầu, Nộm, Cá lăng chiên, Chim câu xúc bánh đa (2con), Cá chép giòn xào nấm, Ếch rang muối, Củ quả kho quẹt, Cải luộc chấm trứng, Gà đen hấp, Cơm trắng, Canh xương cổ cánh khoai sọ, Canh khoai sọ vịt cổ xanh, Cá suối chiên - to, Diềm tim nhúng, Tráng miệng, Canh khoai sọ, Vịt cổ xanh hấp, Miến chim câu.
 
 Hai ảnh ghép mới do ChatGPT tạo, mã hóa WebP chất lượng 80: 218.496 và 240.152 byte. Ánh xạ tên chính xác vào ô 16–47, giữ nguyên 16 ô trước và ưu tiên ảnh riêng từ máy chủ. Không có hình món trên bản in.
+
+## Đợt 4–5: thêm 32 ảnh ChatGPT
+
+Đà điểu xào lúc lắc, Gà hấp lá chanh, Cơm chiên hải sản, Thịt quay, Rau sống, Đậu rán, Rau lẩu, Cá chép giòn, Sụn sườn, Phù trúc, Tôm lẩu ( thêm ), Vịt xào lăn, Cá chép om dưa, Nem tai, Rau cải luộc, Rau bồ công anh xào, Nộm Hoa Chuối, Lòng tràng thập cẩm, Gỏi cá hồi, Măng, Ốc om chuối đậu, Vịt hấp, Sashimi, Đậu lẩu, Mỳ gạo, Chim câu phồng tôm, Bò lẩu, Ngô, Nấm, Gỏi tôm, Sườn Chua Ngọt, Nộm tai heo, Xôi cẩm.
+
+Ánh xạ chính xác các ô 48–79; giữ ảnh cũ và ưu tiên ảnh riêng từ máy chủ. Hai atlas được nén WebP, dùng chung và lưu bộ nhớ đệm cho POS/thư viện/set. Không hiển thị hình trên bản in.
+
+Dung lượng: batch 4 = 282.224 byte; batch 5 = 243.378 byte. Kiểm tra TypeScript, build, 117 bài kiểm thử và Chrome đủ 32 ô ảnh đúng tên, không lẫn ảnh bên cạnh.
