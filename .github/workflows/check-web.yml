@@ -9,7 +9,9 @@ on:
       - 'pos-readability.css'
       - 'page-layout.css'
       - 'dashboard.tsx'
-      - 'ads-panel.tsx'
+      - 'market-panel.tsx'
+      - 'market-live-panel.tsx'
+      - 'market-boundary.tsx'
       - 'ads-api.ts'
       - 'pos-tools-api.ts'
       - 'build.mjs'
@@ -33,25 +35,26 @@ jobs:
             const state=await r.json();
             const page=await fetch('https://thanson1998.github.io/trainghiemdpa/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             const html=await page.text();
-            const adsReady=await fetch(base+'/api/ads-research',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            const adsReady=await fetch(base+'/api/market-research',{cache:'no-store',signal:AbortSignal.timeout(15000)});
             const adsState=await adsReady.json();
-            const connectionResponse=await fetch(base+'/api/ads-connection?setup=public');
+            const connectionResponse=await fetch(base+'/api/market-connection?setup=public');
             const connection=await connectionResponse.json();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('ads-live-v3')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5')break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('market-visible-v1')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5')break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
-          const adsResponse=await fetch(base+'/api/ads-research');
+          const adsResponse=await fetch(base+'/api/market-research');
           const ads=await adsResponse.json();
           if(!adsResponse.ok||!Array.isArray(ads.venues))throw new Error('Ads research endpoint unavailable');
           report.ads={status:adsResponse.status,venues:ads.venues.length,samples:ads.samples.length};
-          const connectionResponse=await fetch(base+'/api/ads-connection?setup=public');
+          const connectionResponse=await fetch(base+'/api/market-connection?setup=public');
           const connection=await connectionResponse.json();
           if(!connection.configured)throw new Error('SearchApi has not been configured.');
-          const realSearch=await fetch(base+'/api/ads-live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'nhà hàng Thái Nguyên'}),signal:AbortSignal.timeout(65000)});
-          const realResult=await realSearch.json();
-          console.log(JSON.stringify({liveAdsCheck:{status:realSearch.status,query:realResult.query,total:realResult.total,ads:realResult.ads?.length,pageNames:realResult.ads?.slice(0,30).map(ad=>ad.pageName),error:realResult.error,providerStatus:realResult.providerStatus}}));
-          if(!realSearch.ok)throw new Error('Live ads search failed.');
+          const realSearch=await fetch(base+'/api/market-feed',{signal:AbortSignal.timeout(15000)});
+          const realFeed=await realSearch.json();
+          const result=realFeed.searches?.find(s=>s.ads?.length)||realFeed.searches?.[0];
+          console.log(JSON.stringify({liveAdsCheck:{status:realSearch.status,ads:result?.ads?.length,pageNames:result?.ads?.map(ad=>ad.pageName)}}));
+          if(!realSearch.ok||!Array.isArray(realFeed.searches))throw new Error('Live ads feed unavailable.');
           async function read(label,url,json=false){
             const start=performance.now();
             const r=await fetch(url,{signal:AbortSignal.timeout(45000)});
@@ -61,7 +64,7 @@ jobs:
             if(label==='pages'){
               const html=new TextDecoder().decode(bytes);
               report.pages.optimized=html.includes('fast-images-v2');
-              report.pages.fastPos=html.includes('ads-live-v3');
+              report.pages.fastPos=html.includes('market-visible-v1');
               const script=html.match(/src="(\.\/assets\/[^\"]+\.js)"/);
               const style=html.match(/href="(\.\/assets\/[^\"]+\.css)"/);
               if(script)await read('initialScript',new URL(script[1],'https://thanson1998.github.io/trainghiemdpa/'));

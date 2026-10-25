@@ -29,3 +29,11 @@ Kết quả gồm tên Trang, nội dung, ảnh/video nếu nguồn có, ngày b
 Kiểm thử mới: chuẩn hóa dữ liệu thật và loại trùng ID, cache, ngân sách ngày, giữ dữ liệu khi lỗi, không lộ khóa qua API/sao lưu, bootstrap RSA và từ chối capability sai. Tổng cộng 114 bài đạt; Chrome kiểm tra kết quả và lưu nghiên cứu ở 1366/820/390/320px bằng dữ liệu tổng hợp, không tạo mẫu giả trên môi trường thật.
 
 Bộ lọc Thái Nguyên dùng tên Trang, nhóm ngành nếu nguồn cung cấp và địa danh trong nội dung; loại trang thiết bị/đồ cũ/điện lạnh/thanh lý. Truy vấn mặc định tìm cụm từ chính xác. Tổng kết quả toàn nguồn không được dùng làm tổng thị trường sau khi đã lọc ngành và khu vực.
+
+## Sửa lỗi tab trắng 25/10/2026
+
+Đã tái hiện trong Chrome: chặn chunk ads-panel làm React lazy import thất bại và unmount toàn bộ app. Chưa thể khẳng định thiết bị của người dùng có bật trình chặn; đây là một đường lỗi đã kiểm chứng.
+
+Chuyển tệp frontend/CSS, class giao diện và đường đọc dữ liệu nghiên cứu sang tên market để tránh nhận diện nhầm là khung quảng cáo. Các API cũ giữ tương thích qua alias. Error boundary riêng giữ POS/sidebar hoạt động khi chunk lỗi, có nút phục hồi rõ ràng. Trang thật không phụ thuộc vào việc tải dữ liệu nghiên cứu; trạng thái kết nối và danh sách kết quả cũng tải độc lập. Tự chọn kết quả có mẫu thay vì mặc định vào truy vấn rỗng. Link #thi-truong mở thẳng trang nghiên cứu; truy cập thường vẫn mặc định POS.
+
+Kiểm tra TypeScript, build và 115 bài kiểm thử. QA trình duyệt mô phỏng chặn đường cũ, lỗi metadata, lỗi trạng thái, lỗi chunk, quay về POS và 4 kích thước màn hình. Health check chỉ đọc cache, không tiêu tốn lượt SearchApi.

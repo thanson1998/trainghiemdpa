@@ -11,6 +11,7 @@ export default {
  async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
+  url.pathname=({'/api/market-connection':'/api/ads-connection','/api/market-feed':'/api/ads-live','/api/market-research':'/api/ads-research'} as Record<string,string>)[url.pathname]||url.pathname;
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
   const allowed=env.ALLOWED_ORIGIN||'https://thanson1998.github.io';
