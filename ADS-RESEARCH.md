@@ -26,4 +26,6 @@ Tối đa 3 truy vấn mới mỗi ngày theo giờ Việt Nam, cấp lượt at
 
 Kết quả gồm tên Trang, nội dung, ảnh/video nếu nguồn có, ngày bắt đầu, trạng thái lúc lấy, liên kết quảng cáo gốc. Có thể lưu mẫu cùng quán vào nghiên cứu, nhưng mặc định yêu cầu xác minh địa chỉ tại Thái Nguyên. Lỗi nhà cung cấp được ánh xạ sang thông báo an toàn, giữ kết quả cũ và không lộ khóa hoặc payload thô.
 
-Kiểm thử mới: chuẩn hóa dữ liệu thật và loại trùng ID, cache, ngân sách ngày, giữ dữ liệu khi lỗi, không lộ khóa qua API/sao lưu, bootstrap RSA và từ chối capability sai. Tổng cộng 113 bài đạt; Chrome kiểm tra kết quả và lưu nghiên cứu ở 1366/820/390/320px bằng dữ liệu tổng hợp, không tạo mẫu giả trên môi trường thật.
+Kiểm thử mới: chuẩn hóa dữ liệu thật và loại trùng ID, cache, ngân sách ngày, giữ dữ liệu khi lỗi, không lộ khóa qua API/sao lưu, bootstrap RSA và từ chối capability sai. Tổng cộng 114 bài đạt; Chrome kiểm tra kết quả và lưu nghiên cứu ở 1366/820/390/320px bằng dữ liệu tổng hợp, không tạo mẫu giả trên môi trường thật.
+
+Bộ lọc Thái Nguyên dùng tên Trang, nhóm ngành nếu nguồn cung cấp và địa danh trong nội dung; loại trang thiết bị/đồ cũ/điện lạnh/thanh lý. Truy vấn mặc định tìm cụm từ chính xác. Tổng kết quả toàn nguồn không được dùng làm tổng thị trường sau khi đã lọc ngành và khu vực.
