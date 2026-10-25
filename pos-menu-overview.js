@@ -15,15 +15,17 @@
    const count=list.querySelectorAll('.pos-cart-item').length;
    const columns=1;
    list.style.setProperty('--pos-menu-columns',String(columns));
-   let scale=1;
-   for(let step=0;step<5;step++){
+   // Find the largest scale that fits, including names that wrap as width changes.
+   const available=Math.max(1,list.clientHeight-3);
+   const rows=[...list.querySelectorAll('.pos-cart-item')];
+   let low=0,high=1,scale=1;
+   for(let step=0;step<12;step++){
     list.style.setProperty('--pos-menu-scale',String(scale));
-    const rows=[...list.querySelectorAll('.pos-cart-item')];
     const needed=Math.max(1,...rows.map(row=>row.offsetTop+row.offsetHeight));
-    const next=Math.min(1,Math.max(1,list.clientHeight-3)/needed);
-    if(Math.abs(next-scale)<0.002){scale=next;break;}scale=next;
+    if(needed*scale<=available){low=scale;if(scale===1)break;}else high=scale;
+    scale=(low+high)/2;
    }
-   list.style.setProperty('--pos-menu-scale',String(scale));
+   list.style.setProperty('--pos-menu-scale',String(Math.max(.01,low)));
    list.dataset.visibleMenuCount=String(count);
   });
  }

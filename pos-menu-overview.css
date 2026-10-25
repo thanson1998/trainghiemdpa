@@ -82,6 +82,6 @@
 
 /* Give the catalog more room and reduce unused dish-name width. */
 @media screen and (min-width:801px){
- .pos-workbench:not(.cart-expanded){grid-template-columns:minmax(0,1fr) minmax(300px,40%)}
- .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(90px,.7fr) minmax(270px,1.3fr)}
+ .pos-workbench:not(.cart-expanded){grid-template-columns:minmax(0,1fr) minmax(300px,50%)}
+ .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(80px,.42fr) minmax(270px,1.58fr)}
 }

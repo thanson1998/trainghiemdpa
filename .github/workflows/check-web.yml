@@ -46,7 +46,7 @@ jobs:
             const adsState=await adsReady.json();
             const connectionResponse=await fetch(base+'/api/market-connection?setup=public');
             const connection=await connectionResponse.json();
-            if(state.retryPolicy==='continuous-v1'&&html.includes('market-post-v1')&&html.includes('food-art-v4')&&html.includes('pos-resize-v2')&&html.includes('pos-menu-overview.js?v=20261025-8')&&html.includes('pos-layout-fix.css?v=20261025-1')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5'&&state.artwork?.total>=187)break;
+            if(state.retryPolicy==='continuous-v1'&&html.includes('market-post-v1')&&html.includes('food-art-v4')&&html.includes('pos-resize-v2')&&html.includes('pos-menu-overview.js?v=20261025-9')&&html.includes('pos-layout-fix.css?v=20261025-1')&&adsReady.ok&&Array.isArray(adsState.venues)&&connectionResponse.ok&&connection.apiVersion==='search-v5'&&state.artwork?.total>=187)break;
             if(attempt===19)throw new Error('Deployment did not become ready within the health-check window.');
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
