@@ -1,3 +1,4 @@
+import {supplementalCell} from './dish-supplemental';
 import {imageNameKey,isIllustratedDish,dishImagePrompt} from './dish-image-model';
 import type {CatalogDish} from './catalog-model';
 export interface DishImageEnv {DB:D1Database;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>};DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string}
@@ -17,7 +18,12 @@ export async function DISH_IMAGE_STATUS(env:DishImageEnv){
   const {results}=await env.DB.prepare('SELECT status,COUNT(*) AS count FROM dish_images GROUP BY status').all<{status:string;count:number}>();
   const lock=await env.DB.prepare('SELECT expires FROM dish_image_lock WHERE id=1').first<{expires:number}>();
   const {results:errors}=await env.DB.prepare("SELECT CASE WHEN error LIKE '[daily_quota]%' THEN 'daily_quota' WHEN error LIKE '[invalid_image]%' THEN 'invalid_image' WHEN error LIKE '[account_access]%' THEN 'account_access' WHEN error LIKE '[service_unavailable]%' THEN 'service_unavailable' ELSE 'unknown' END AS reason,COUNT(*) AS count FROM dish_images WHERE status='error' GROUP BY reason").all<{reason:string;count:number}>();
-  return json({feature:'dish-images-v2',retryPolicy:'continuous-v1',enabled:!!env.AI&&env.DISH_IMAGES_ENABLED!=='false',counts:Object.fromEntries(results.map(r=>[r.status,r.count])),errors:Object.fromEntries(errors.map(r=>[r.reason,r.count])),resumeAfter:lock&&lock.expires>Date.now()?lock.expires:null});
+  const eligible=(await readDishes(env.DB)).filter(d=>isIllustratedDish(d.name));
+  const {results:stored}=await env.DB.prepare('SELECT dish_id,name_key FROM dish_images WHERE image IS NOT NULL').all<{dish_id:string;name_key:string}>();
+  const ready=new Map(stored.map(r=>[r.dish_id,r.name_key]));const individual=eligible.filter(d=>ready.get(d.id)===imageNameKey(d.name)).length;
+  const supplemental=eligible.filter(d=>ready.get(d.id)!==imageNameKey(d.name)&&supplementalCell(d.name)!==null).length;
+  const artwork={individual,supplemental,total:individual+supplemental,eligible:eligible.length,pending:eligible.length-individual-supplemental};
+  return json({artwork,feature:'dish-images-v2',retryPolicy:'continuous-v1',enabled:!!env.AI&&env.DISH_IMAGES_ENABLED!=='false',counts:Object.fromEntries(results.map(r=>[r.status,r.count])),errors:Object.fromEntries(errors.map(r=>[r.reason,r.count])),resumeAfter:lock&&lock.expires>Date.now()?lock.expires:null});
  }catch{return json({error:'Máy chủ chưa cập nhật phần lưu ảnh.'},503);}
 }
 async function readDishes(db:D1Database):Promise<CatalogDish[]>{const row=await db.prepare('SELECT data FROM menu_catalog WHERE id=?').bind('dpa-shared').first<{data:string}>();return row?JSON.parse(row.data).dishes:[];}
