@@ -1,0 +1,31 @@
+/* Keep ticket regions in normal flow when the viewport or ticket is small. */
+@media screen and (min-width:801px){
+ .pos-workbench .pos-cart{display:grid;grid-template-rows:26px auto minmax(0,1fr) auto;align-content:stretch}
+ .pos-workbench .pos-cart-head{min-width:0;flex-shrink:0;gap:10px;overflow:visible}
+ .pos-workbench .pos-cart-head>div:first-child{flex:1 1 150px}
+ .pos-workbench .pos-cart-view-actions{flex:0 1 auto;min-width:0;max-width:100%;gap:6px}
+ .pos-workbench .pos-cart-view-actions button{white-space:normal;line-height:1.4;height:auto}
+ .pos-workbench .pos-cart-body,.pos-workbench.cart-expanded .pos-cart-body{display:block;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding:10px}
+ .pos-workbench .pos-cart-body>fieldset{display:block;flex:none;height:auto;min-height:0;overflow:visible}
+ .pos-workbench .pos-ticket-info{height:auto;min-height:0;max-height:max(140px,var(--pos-info-height,1000px));overflow:auto;flex:none;scrollbar-gutter:stable}
+ .pos-workbench .pos-identity-row{flex-shrink:0;margin-bottom:8px}
+ .pos-workbench .pos-cart-items,.pos-workbench .pos-cart-empty{display:block;flex:none;min-height:0;overflow:visible}
+ .pos-workbench .pos-cart-empty{padding:25px 10px}
+ .pos-workbench .pos-cart-label{position:static;margin:8px 0 5px;padding:0}
+ .pos-workbench .pos-cart-items .pos-cart-columns{position:static;top:auto}
+ .pos-workbench .pos-cart .pos-add-inline{margin:12px 0;min-height:38px}
+ .pos-workbench .pos-cart .pos-order-note{display:flex;margin:10px 0 2px}
+ .pos-workbench .pos-cart .pos-order-note textarea{height:54px;min-height:54px;max-height:120px}
+ .pos-workbench .pos-cart .pos-cart-footer{position:relative;bottom:auto;max-height:none;overflow:visible;min-width:0;padding:10px 12px;border-top:1px solid #cdded1;background:#fbfdfb}
+ .pos-workbench .pos-cart-footer .pos-actions{position:static;bottom:auto;z-index:auto;gap:6px;padding:5px 0 0;background:transparent}
+ .pos-workbench .pos-cart-footer .pos-actions button{white-space:normal;line-height:1.4;height:auto;min-width:0}
+ .pos-workbench .pos-cart-footer .pos-print-takeaway{margin-top:8px;min-height:36px;width:100%;justify-content:center}
+ .pos-workbench .pos-resize-list{margin:8px 0;min-height:26px;flex:none}
+ .pos-workbench .pos-resize-top span{font-size:11px;letter-spacing:0;line-height:1.4;text-align:center;padding:2px 10px}
+ @container(max-width:460px){
+  .pos-cart-head{display:flex;flex-direction:column;align-items:stretch}
+  .pos-cart-head>div:first-child{flex:none!important}
+  .pos-cart-view-actions{justify-content:flex-start;margin-top:0}
+  .pos-identity-row{display:block}.pos-identity-row .order-service-choice{margin-bottom:8px}
+ }
+}
