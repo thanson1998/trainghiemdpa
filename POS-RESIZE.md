@@ -5,3 +5,5 @@ Trên màn hình từ 801px: kéo cạnh phải để thay đổi chiều rộng
 Kích thước lưu riêng trên trình duyệt bằng dpa-pos-layout-v1, không ghi vào đơn hàng hoặc cấu hình chung. Nút Đặt lại khung đưa về mặc định. Các tay kéo nhận phím mũi tên và Home. Giới hạn nhỏ nhất bảo đảm còn thao tác được phiếu và danh mục; màn hình điện thoại tiếp tục dùng chế độ chuyển Chọn món / Phiếu, không có tay kéo.
 
 Ảnh đợt 6–7 bổ sung 32 món trong cùng bản triển khai. Không thay đổi bản in, giá, số lượng hoặc dữ liệu thanh toán.
+
+Mép trên phiếu có tay kéo riêng để nâng cả khung POS lên trên bằng cách thu phần tiêu đề và trạng thái kết nối. Các tab phiếu và lỗi luôn còn hiển thị, hai cột cùng tăng chiều cao. Thanh trong phiếu vẫn chỉ điều chỉnh vùng thông tin khách. Kéo xuống hoặc Đặt lại khung để hiện lại tiêu đề; kích thước lưu trong trình duyệt.

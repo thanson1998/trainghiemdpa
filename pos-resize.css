@@ -18,3 +18,14 @@
  @container(max-width:400px){.pos-cart-head{display:block}.pos-cart-view-actions{margin-top:7px;justify-content:flex-start}.pos-identity-row{display:block}.pos-identity-row .order-service-choice{margin-bottom:6px}.pos-cart .pos-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.pos-cart .pos-actions button{font-size:11px;gap:3px;padding:7px 3px}}
 }
 @media print{.pos-resize-edge,.pos-resize-list,.pos-resize-corner,.pos-layout-reset{display:none!important}}
+
+/* The upper grip expands the complete workbench, independently of the inner dish divider. */
+.pos-resize-top{display:none}
+@media screen and (min-width:801px){
+ .pos-toolbar-space{flex:0 0 auto;height:max(0px,calc(var(--pos-toolbar-height,100px) - var(--pos-lift,0px)));overflow:hidden}
+ .pos-toolbar-content{display:flow-root}
+ .pos-resize-top{display:flex;align-items:center;justify-content:center;flex:0 0 26px;min-height:26px;border-bottom:1px solid #b6ccbc;background:#dfede3;color:#2b593c;font-size:11px;font-weight:600;cursor:ns-resize;touch-action:none;user-select:none}
+ .pos-resize-top:hover{background:#c7e1cf}.pos-resize-top:focus-visible{outline:2px solid #26734c;outline-offset:-2px}
+ .pos-workbench .pos-resize-list{min-height:26px;font-size:11px}.pos-resize-corner{height:26px}
+}
+@media print{.pos-resize-top{display:none!important}.pos-toolbar-space{height:auto!important;overflow:visible!important}}
