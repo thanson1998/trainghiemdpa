@@ -79,3 +79,9 @@
  .pos-workbench .pos-cart .pos-quantity{height:18px;border:0}
  .pos-workbench .pos-cart .pos-item-controls>input,.pos-workbench .pos-cart .pos-quantity input,.pos-workbench .pos-cart .pos-quantity button{height:18px;min-height:18px;padding-top:0;padding-bottom:0}
 }
+
+/* Give the catalog more room and reduce unused dish-name width. */
+@media screen and (min-width:801px){
+ .pos-workbench:not(.cart-expanded){grid-template-columns:minmax(0,1fr) minmax(300px,40%)}
+ .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(90px,.7fr) minmax(270px,1.3fr)}
+}
