@@ -1,3 +1,4 @@
+import {watchLiveSync} from './live-sync';
 import {isTakeaway,orderLocation,orderUnits,bookingTotal,money,today,guestCount,zoneOf,type Booking} from './model';
 import {PaymentReversalDialog} from './payment-reversal-dialog';
 import {TableCheckout} from './table-checkout';
@@ -27,7 +28,7 @@ export function PaymentsPanel({onChanged,onEdit,onGoPos}:{onChanged:()=>void;onE
  const [bookings,setBookings]=useState<Booking[]>([]),[payments,setPayments]=useState<Payment[]>([]),[selected,setSelected]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [method,setMethod]=useState<'cash'|'transfer'>('cash'),[tendered,setTendered]=useState<number|null>(0),[confirm,setConfirm]=useState(false),[receipt,setReceipt]=useState<Payment|null>(null);const [checkoutBooking,setCheckoutBooking]=useState<Booking|null>(null);const [cancelBooking,setCancelBooking]=useState<Booking|null>(null),[cancelError,setCancelError]=useState('');const cancelInFlight=useRef(false);const seq=useRef(0);const closeReceipt=useCallback(()=>setReceipt(null),[]);
  const load=useCallback(async(background=false)=>{const n=++seq.current;if(!background)setLoading(true);try{const rs=await Promise.all([apiRequest('/api/bookings?month='+month),apiRequest('/api/payments?month='+month)]);const js=await Promise.all(rs.map(async r=>await r.json() as {error?:string;bookings:Booking[];payments:Payment[]}));if(rs.some(r=>!r.ok))throw Error(js.find((_,i)=>!rs[i].ok)?.error||'Chưa tải được thanh toán.');if(n!==seq.current)return;setBookings(js[0].bookings);setPayments(js[1].payments);setError('');}catch(e){if(n===seq.current)setError(e instanceof Error?e.message:'Chưa tải được thanh toán.');}finally{if(n===seq.current)setLoading(false);}},[month]);
- useEffect(()=>{void load();const timer=setInterval(()=>{if(!document.hidden)void load(true);},10000);return()=>{clearInterval(timer);seq.current++;};},[load]);
+ useEffect(()=>{void load();const stop=watchLiveSync(()=>load(true));return()=>{stop();seq.current++;};},[load]);
  const [reversal,setReversal]=useState<Payment|null>(null),[reversalError,setReversalError]=useState('');const reversing=useRef(false);
  const closeCheckout=useCallback(()=>{setCheckoutBooking(null);void load();},[load]);
  const paidIds=new Set(payments.map(p=>p.booking.id));const unpaid=bookings.filter(b=>b.status!=='cancelled'&&!b.paidAt&&!paidIds.has(b.id));const paid=payments.filter(p=>!day||p.booking.date===day);const pending=unpaid.filter(b=>!day||b.date===day);

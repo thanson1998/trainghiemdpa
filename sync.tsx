@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {notifyLiveSync} from './live-sync';
 import {validOrigin,resolveApiBase} from './sync-config';
 
 declare global {interface Window {DPA_CONFIG?:{apiBase?:string}}}
@@ -14,6 +15,7 @@ export async function apiRequest(path:string,options:RequestInit={}){
  let response:Response;
  try{response=await fetch(apiBase+path,{...options,credentials:'omit',signal:options.signal??AbortSignal.timeout(15000)});}catch{throw new Error('Mất kết nối máy chủ. Kiểm tra Internet rồi thử lại; thông tin đang nhập vẫn được giữ.');}
  if(!response.headers.get('content-type')?.includes('application/json'))throw new Error('Máy chủ chưa sẵn sàng. Kiểm tra đường dẫn trong “Kết nối dữ liệu”.');
+ if(response.ok&&!['GET','HEAD'].includes((options.method??'GET').toUpperCase()))notifyLiveSync();
  return response;
 }
 export function SyncSettings(){

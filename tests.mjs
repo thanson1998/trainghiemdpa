@@ -1050,3 +1050,31 @@ test('supplemental food art maps exact Unicode names and counts unique illustrat
  assert.equal(supplementalArt.supplementalCell('  CÁ HẤP XÌ DẦU  '),0);assert.equal(supplementalArt.supplementalCell('Trứng Rán'),5);assert.equal(supplementalArt.supplementalCell('Cơm rang món khác'),null);assert.equal(supplementalArt.supplementalCell('Phí dịch vụ'),null);assert.equal(supplementalArt.supplementalPosition(12),'0% 89.1%');
  const dishes=[{id:crypto.randomUUID(),name:'Cơm rang',unit:'đĩa',price:40000},{id:crypto.randomUUID(),name:'Gà quay',unit:'đĩa',price:300000},{id:crypto.randomUUID(),name:'Món chưa có ảnh',unit:'đĩa',price:10000}];sqlite.prepare('INSERT INTO menu_catalog(id,data,version,updated_at) VALUES(?,?,1,0) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run('dpa-shared',JSON.stringify({dishes,templates:[]}));sqlite.prepare("INSERT INTO dish_images(dish_id,name_key,status,image,updated_at) VALUES(?,?,'ready',?,1)").run(dishes[0].id,imageModel.imageNameKey(dishes[0].name),Buffer.from([255,216,255,217]));const status=await (await imagesApi.DISH_IMAGE_STATUS({DB:db,AI:{run:async()=>{throw Error('not called')}}})).json();assert.deepEqual(status.artwork,{individual:1,supplemental:1,total:2,eligible:3,pending:1});
 });
+
+
+test('POS refreshes clean open tickets from other clients without losing dirty edits',()=>{
+ const original=booking({version:2,menu:'Original'});
+ const clean={booking:original,saved:posLogic.posFingerprint(original)};
+ const state={tickets:[clean],selected:original.id};
+ const remote={...original,version:3,menu:'Added remotely',name:'Updated customer'};
+ const updated=posLogic.refreshPosTickets(state,[remote],original.date);
+ assert.equal(updated.selected,original.id);
+ assert.equal(updated.tickets[0].booking.menu,'Added remotely');
+ assert.equal(posLogic.posDirty(updated.tickets[0]),false);
+ assert.equal(posLogic.refreshPosTickets(updated,[original],original.date),updated);
+ const editing={...state,tickets:[{...clean,booking:{...original,menu:'Local unsaved addition'}}]};
+ assert.equal(posLogic.refreshPosTickets(editing,[remote],original.date),editing);
+ assert.equal(editing.tickets[0].booking.menu,'Local unsaved addition');
+ assert.equal(posLogic.refreshPosTickets(state,[remote],'2026-11-01'),state);
+ assert.equal(posLogic.refreshPosTickets(state,[],original.date),state);
+});
+
+test('POS refresh includes payments at the same booking version and inactive open tickets',()=>{
+ const original=booking({version:2}),other=booking({version:1,tables:['S1-02']});
+ const state={selected:original.id,tickets:[original,other].map(b=>({booking:b,saved:posLogic.posFingerprint(b)}))};
+ const paid={...original,paidAt:'2026-10-26T09:00:00Z'},changed={...other,version:2,status:'cancelled'};
+ const updated=posLogic.refreshPosTickets(state,[paid,changed],original.date);
+ assert.equal(updated.tickets[0].booking.paidAt,paid.paidAt);
+ assert.equal(updated.tickets[1].booking.status,'cancelled');
+ assert.equal(posLogic.refreshPosTickets(updated,[paid,changed],original.date),updated);
+});
