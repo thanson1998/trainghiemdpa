@@ -250,3 +250,13 @@
 @media screen and (min-width:801px){
  .pos-workbench:not(.cart-expanded) .pos-cart-head:has(.pos-details[open]){max-height:36dvh}
 }
+
+@media screen{
+ .pos-workbench .pos-catalog-header .pos-find-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+ .pos-workbench .pos-catalog-header .pos-find-row .pos-search{flex:1 1 160px;min-width:100px}
+ .pos-workbench .pos-catalog-header .pos-create-dish{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;gap:4px;white-space:nowrap;min-height:34px;padding:6px 9px;font-size:12px}
+}
+@media screen and (max-width:800px){
+ .pos-workbench .pos-catalog-header .pos-find-row .pos-search{flex:1 0 100%;max-width:none}
+ .pos-workbench .pos-catalog-header .pos-create-dish{min-height:40px}
+}
