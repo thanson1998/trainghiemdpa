@@ -29,3 +29,7 @@ Dạ dày chiên xù, Gà trống thiến hấp, Rau xào, Cá quả nướng, M
 Ánh xạ chính xác các ô 80–111; nén WebP chất lượng 80. Giữ ảnh cũ, ưu tiên ảnh riêng từ máy chủ và không in hình món trên hóa đơn/phiếu bếp.
 
 Dung lượng: batch 6 = 240.118 byte, batch 7 = 263.922 byte. Điều chỉnh riêng hàng ảnh đợt 6 để tránh lẫn món. Kiểm tra TypeScript, build, 117 bài kiểm thử và Chrome đủ 32 ô ảnh.
+
+## Đợt 8–9 ngày 26/10/2026
+
+32 ảnh ChatGPT mới, ánh xạ chính xác ô 112–143: Cơm + canh cải luộc, Nước ép - Cóc, Gà lẩu, Cam Dứa, Dứa Táo, Nước ép Dứa + Ổi, Vịt món, Vịt hấp, xào lăn, canh măng, Rau bồ công anh, Sữa chua ( nhân viên ), Trà Sâm Dứa, Dưa chua, Mỳ trắng, Xúc xích, Rượu men lá - 1000ml, Bia Thái Nguyên, Mâm món trẻ con, Mâm món, Mâm đặt, Lẩu 6 người, Cỗ nhỏ, Vịt + tiết canh, Cầy 5,2kg, Gà trống thiến - hấp, xào mướp. xào xả ớt, Bia sài gòn, Bia Heineken, Rượu Bằng Phúc, Nước lọc ( nhỏ ), Tôm bỏ vỏ sốt trứng muối, Ngan hấp, Ngan xào sả ớt, Miến tỏi đen. Thêm 8 tên biến thể đã đối chiếu thủ công, không dùng suy đoán từ khóa. Ảnh mâm/lẩu là minh họa, không quy định thành phần thực đơn. Ưu tiên ảnh máy chủ, giữ nguyên dữ liệu món/giá/đơn hàng và ẩn ảnh khi in.
