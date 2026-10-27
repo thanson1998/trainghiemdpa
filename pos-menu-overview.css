@@ -275,3 +275,15 @@
 }
 @media screen and (min-width:801px) and (max-width:1100px){.pos-workbench .pos-cart .pos-cart-item{grid-template-columns:1fr}.pos-workbench .pos-cart .pos-item-controls{grid-template-columns:100px 32px minmax(65px,1fr) minmax(80px,1fr)}}
 
+
+@media screen and (min-width:801px){
+ .pos-workbench .pos-cart{container-type:inline-size}
+ .pos-workbench .pos-cart .pos-item-controls{min-width:0}
+}
+@container (max-width:650px){
+ .pos-workbench .pos-cart .pos-cart-item{grid-template-columns:minmax(0,1fr)!important;gap:5px!important}
+ .pos-workbench .pos-cart .pos-item-controls{grid-template-columns:100px 30px minmax(65px,1fr) minmax(80px,1fr)!important;gap:5px!important}
+ .pos-workbench .pos-cart .pos-quantity{width:100px!important;max-width:100px!important;grid-template-columns:30px minmax(0,1fr) 30px}
+ .pos-workbench .pos-cart .pos-quantity button{width:30px!important;min-width:30px!important}
+ .pos-workbench .pos-cart .pos-quantity input{width:36px!important;min-width:0!important}
+}
