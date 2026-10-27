@@ -1,8 +1,8 @@
 export const zones = [
  {id:'OUT',title:'Khu Bàn Đá',sub:'Ngoài trời',type:'outdoor',count:11,tables:Array.from({length:11},(_,i)=>String(i+7))},
- {id:'S3',title:'Sân nhà 3',sub:'Sân vườn',type:'patio',count:6,tables:Array.from({length:6},(_,i)=>`S3-0${i+1}`)},
- {id:'S2',title:'Sân nhà 2',sub:'Sân vườn',type:'patio',count:6,tables:Array.from({length:6},(_,i)=>`S2-0${i+1}`)},
- {id:'S1',title:'Sân nhà 1',sub:'Sân vườn',type:'patio',count:8,tables:Array.from({length:8},(_,i)=>`S1-0${i+1}`)},
+ {id:'S3',title:'Sân nhà 3',sub:'Sân vườn',type:'patio',count:9,tables:Array.from({length:9},(_,i)=>`S3-0${i+1}`)},
+ {id:'S2',title:'Sân nhà 2',sub:'Sân vườn',type:'patio',count:9,tables:Array.from({length:9},(_,i)=>`S2-0${i+1}`)},
+ {id:'S1',title:'Sân nhà 1',sub:'Sân vườn',type:'patio',count:9,tables:Array.from({length:9},(_,i)=>`S1-0${i+1}`)},
  {id:'N3',title:'Trong nhà 3',sub:'Không gian trong nhà',type:'inside',count:4,tables:Array.from({length:4},(_,i)=>`N3-0${i+1}`)},
  {id:'N2',title:'Trong nhà 2',sub:'Không gian trong nhà',type:'inside',count:6,tables:Array.from({length:6},(_,i)=>`N2-0${i+1}`)},
  {id:'N1',title:'Trong nhà 1',sub:'Không gian trong nhà',type:'inside',count:6,tables:Array.from({length:6},(_,i)=>`N1-0${i+1}`)},
