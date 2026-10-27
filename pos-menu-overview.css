@@ -319,3 +319,26 @@
  .pos-workbench .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) 92px!important;gap:5px!important}
  .pos-workbench .pos-cart-head .pos-ticket-customer label{gap:3px!important;font-size:10px!important}
 }
+
+/* Selected dish rows use about two thirds of their previous desktop height. */
+@media screen and (min-width:801px){
+ .pos-workbench .pos-cart .pos-cart-items{row-gap:3px!important}
+ .pos-workbench .pos-cart .pos-cart-item{padding:2px 5px!important;row-gap:1px!important;column-gap:6px!important;min-height:0!important}
+ .pos-workbench .pos-cart .pos-item-title{min-height:0!important;gap:4px}
+ .pos-workbench .pos-cart .pos-item-name>b{font-size:13px!important;line-height:17px!important}
+ .pos-workbench .pos-cart .pos-item-title .icon-btn{width:22px!important;min-width:22px!important;height:18px!important;min-height:18px!important;padding:1px!important}
+ .pos-workbench .pos-cart .pos-item-title .icon-btn svg{width:14px;height:14px}
+ .pos-workbench .pos-cart .pos-item-controls{margin:0!important;gap:4px!important;align-items:center}
+ .pos-workbench .pos-cart .pos-quantity button,.pos-workbench .pos-cart .pos-quantity input,.pos-workbench .pos-cart .pos-item-controls>input{height:24px!important;min-height:24px!important;padding-top:2px!important;padding-bottom:2px!important;font-size:12px!important;line-height:18px!important}
+ .pos-workbench .pos-cart .pos-item-controls>strong{font-size:12px!important;line-height:18px!important}
+ .pos-workbench .pos-cart .pos-item-unit,.pos-workbench .pos-cart .pos-included{font-size:11px;line-height:18px}
+}
+@media screen and (min-width:801px){
+ @container (max-width:650px){
+  .pos-workbench .pos-cart .pos-cart-item{gap:1px!important}
+  .pos-workbench .pos-cart .pos-item-controls{grid-template-columns:84px 28px minmax(65px,1fr) minmax(80px,1fr)!important;gap:4px!important}
+  .pos-workbench .pos-cart .pos-quantity{width:84px!important;max-width:84px!important;grid-template-columns:26px minmax(0,1fr) 26px}
+  .pos-workbench .pos-cart .pos-quantity button{width:26px!important;min-width:26px!important}
+  .pos-workbench .pos-cart .pos-quantity input{width:30px!important;min-width:0!important}
+ }
+}
