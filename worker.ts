@@ -1,3 +1,4 @@
+import {GET_ORDER_HISTORY} from './order-history-api';
 import {GET_LAYOUT,SAVE_LAYOUT} from './table-layout-api';
 import {GET_ADS_CONNECTION,CONNECT_ADS,GET_LIVE_ADS,SEARCH_LIVE_ADS} from './ads-live-api';
 import {GET_ADS,SAVE_ADS} from './ads-api';
@@ -38,7 +39,7 @@ export default {
    if(request.method==='POST'&&!request.headers.get('Content-Type')?.includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
    const response=url.pathname==='/api/ads-connection'?(request.method==='GET'?await GET_ADS_CONNECTION(request,env):request.method==='POST'?await CONNECT_ADS(request,env):Response.json({error:'Phương thức không hỗ trợ.'},{status:405})):(request.method==='GET'?await GET_LIVE_ADS(request,env):request.method==='POST'?await SEARCH_LIVE_ADS(request,env):Response.json({error:'Phương thức không hỗ trợ.'},{status:405}));const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
-  if(!['/api/table-layout','/api/ads-research','/api/pos/bank','/api/pos/shift','/api/bookings','/api/catalog','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments','/api/payments/reverse'].includes(url.pathname))return Response.json({error:'Không tìm thấy chức năng.'},{status:404,headers});
+  if(!['/api/order-history','/api/table-layout','/api/ads-research','/api/pos/bank','/api/pos/shift','/api/bookings','/api/catalog','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments','/api/payments/reverse'].includes(url.pathname))return Response.json({error:'Không tìm thấy chức năng.'},{status:404,headers});
   if(['POST','DELETE'].includes(request.method)&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});
   if(['/api/ai-status','/api/ai-check'].includes(url.pathname)){
    let response:Response;
@@ -49,7 +50,7 @@ export default {
    }else response=Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});
    const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
-  const extra:Record<string,Record<string,typeof GET>>={'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
+  const extra:Record<string,Record<string,typeof GET>>={'/api/order-history':{GET:GET_ORDER_HISTORY},'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
   if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/import-text'){const response=request.method==='POST'?await IMPORT(request,env):Response.json({error:'Chỉ hỗ trợ POST.'},{status:405,headers:{Allow:'POST, OPTIONS'}});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   const routes:Record<string,((request:Request,db:D1Database)=>Promise<Response>)|undefined>=url.pathname==='/api/bookings/move'?{POST:MOVE}:url.pathname==='/api/catalog'?{GET:GET_CATALOG,POST:POST_CATALOG}:{GET,POST,DELETE};

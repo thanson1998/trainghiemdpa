@@ -25,5 +25,5 @@ export const bookingTotal=(b:Pick<Booking,'price'|'tables'|'serviceType'>)=>b.pr
 export const orderLocation=(b:Pick<Booking,'serviceType'|'tables'>)=>isTakeaway(b)?'MANG VỀ':'Bàn '+b.tables.join(', ');
 export const guestCount=(booking:Pick<Booking,'people'|'tables'|'totalPeople'|'serviceType'>)=>booking.totalPeople??booking.people*orderUnits(booking);
 
-export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'|'serviceType'>)=>b.paidAt?0:Math.max(0,bookingTotal(b)-(b.deposit??0));
+export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'|'serviceType'>&Partial<Pick<Booking,'status'>>)=>b.paidAt||b.status==='cancelled'?0:Math.max(0,bookingTotal(b)-(b.deposit??0));
 

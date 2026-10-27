@@ -1,3 +1,4 @@
+import {validSalesRange} from './sales-date';
 import {validConfiguredTables} from './table-layout-api';
 import {tableIds,bookingTotal} from './model';
 import {learnCatalogFromMenu} from './catalog-learning';
@@ -8,10 +9,11 @@ function out(data:unknown,status=200){return Response.json(data,{status,headers:
 const overlap=`SELECT 1 FROM reservations r WHERE r.user_id=? AND r.date=? AND r.id<>? AND r.status<>'cancelled' AND NOT EXISTS(SELECT 1 FROM booking_payments paid WHERE paid.booking_id=r.id) AND r.start<? AND r.end>? AND EXISTS(SELECT 1 FROM json_each(r.table_ids) a JOIN json_each(?) b ON a.value=b.value)`;
 export async function GET(req:Request,db:D1Database){
  const u={userId:'dpa-shared'};
- const params=new URL(req.url).searchParams;const date=params.get('date'),month=params.get('month');
+ const params=new URL(req.url).searchParams;const date=params.get('date'),month=params.get('month'),from=params.get('from'),to=params.get('to');
+ if(from||to){if(date||month||!validSalesRange(from||'',to||''))return out({error:'Khoảng ngày không hợp lệ.'},400);}
  const validDate=!!date&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&!Number.isNaN(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;
- if((date&&month)||(!month&&!validDate)||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))return out({error:'Ngày hoặc tháng không hợp lệ.'},400);
- try{const statement=month?db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,month+'-01',month+'-31'):db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date=? ORDER BY start, name, id').bind(u.userId,date);
+ if(!from&&!to&&((date&&month)||(!month&&!validDate)||(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))))return out({error:'Ngày hoặc tháng không hợp lệ.'},400);
+ try{const statement=from&&to?db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,from,to):month?db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date>=? AND date<=? ORDER BY date, start, name, id').bind(u.userId,month+'-01',month+'-31'):db.prepare('SELECT *, (SELECT paid_at FROM booking_payments WHERE booking_id=reservations.id) AS paid_at FROM reservations WHERE user_id=? AND date=? ORDER BY start, name, id').bind(u.userId,date);
  const {results}=await statement.all<any>();
  return out({bookings:results.map(r=>({id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway'}:{}),...(r.paid_at?{paidAt:r.paid_at}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version,updatedAt:r.updated_at}))});
  }catch(e){console.error('Booking read failed',e);return out({error:'Không tải được dữ liệu. Vui lòng thử lại.'},503)}

@@ -1,0 +1,31 @@
+import http from 'node:http';import fs from 'node:fs';import path from 'node:path';import ts from 'typescript';import {DatabaseSync} from 'node:sqlite';import {pathToFileURL} from 'node:url';import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),compiled=new Map();
+function moduleUrl(name){if(compiled.has(name))return compiled.get(name);const file=name.endsWith('.ts')?name:name+'.ts';let text=fs.readFileSync(file,'utf8');text=text.replace(/from '([^']+)'/g,(all,spec)=>spec.startsWith('./')?"from '"+moduleUrl(spec.slice(2))+"'":spec==='zod'?"from '"+pathToFileURL(require.resolve('zod')).href+"'":all);const out=ts.transpileModule(text,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;const url='data:text/javascript;base64,'+Buffer.from(out).toString('base64');compiled.set(name,url);return url;}
+const worker=(await import(moduleUrl('worker'))).default,model=await import(moduleUrl('model')),menu=await import(moduleUrl('menu'));
+const sqlite=new DatabaseSync(':memory:');for(const f of fs.readdirSync('.').filter(f=>/^\d{4}_.*\.sql$/.test(f)).sort())sqlite.exec(fs.readFileSync(f,'utf8'));
+const db={prepare(sql){const s=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return {results:s.all(...values)}},async first(){return s.get(...values)??null},async run(){return {meta:{changes:s.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
+const assert=(await import('node:assert/strict')).default;
+const api=await import(moduleUrl('api')),pay=await import(moduleUrl('payments-api')),history=await import(moduleUrl('order-history-api')),dates=await import(moduleUrl('sales-date'));
+const request=(path,data)=>new Request('https://qa.test'+path,data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{});
+const booking=(extra={})=>({id:crypto.randomUUID(),serviceType:'takeaway',date:'2026-11-01',start:'11:00',end:'14:00',name:'Đỗ Hương',phone:'0901234567',tables:[],people:1,totalPeople:1,platters:1,price:300000,priceMode:'agreed',deposit:50000,menu:'',note:'',status:'arrived',version:0,...extra});
+const paid=booking({date:'2026-09-30'});assert.equal((await api.POST(request('/api/bookings',paid),db)).status,200);
+assert.equal((await pay.PAY(request('/api/payments',{id:paid.id,version:1,total:300000,deposit:50000,tendered:300000,method:'cash'}),db)).status,200);
+sqlite.prepare('UPDATE booking_payments SET paid_at=? WHERE booking_id=?').run('2026-10-31T17:00:00.000Z',paid.id);
+const open=booking({name:'Khách chưa thu'}),cancelled=booking({name:'Khách hủy',status:'cancelled'});for(const b of [open,cancelled])assert.equal((await api.POST(request('/api/bookings',b),db)).status,200);
+const read=async(qs)=>{const r=await history.GET_ORDER_HISTORY(request('/api/order-history?from=2026-11-01&to=2026-11-01&'+qs),db);assert.equal(r.status,200);return r.json();};
+let j=await read('dateBy=paidAt&status=paid');assert.equal(j.count,1);assert.equal(j.rows[0].payment.received,250000);assert.equal(j.rows[0].payment.booking.id,paid.id);
+assert.equal((await read('dateBy=bookingDate&status=paid')).count,0);
+assert.equal((await read('dateBy=paidAt&status=all')).count,3);assert.equal((await read('dateBy=paidAt&status=unpaid')).count,1);assert.equal((await read('dateBy=paidAt&status=cancelled')).count,1);
+assert.equal((await read('q=do%20huong')).count,1);assert.equal((await read('q=0901234567')).count,3);
+const p=await pay.GET_PAYMENTS(request('/api/payments?from=2026-11-01&to=2026-11-01&dateBy=paidAt'),db);assert.equal((await p.json()).payments.length,1);
+const b=await api.GET(request('/api/bookings?from=2026-10-01&to=2026-11-01'),db);assert.equal((await b.json()).bookings.length,2);
+for(const qs of ['from=2026-02-30&to=2026-03-01','from=2026-11-02&to=2026-11-01','from=2024-01-01&to=2026-11-01','from=2026-11-01&to=2026-11-01&page=0','from=2026-11-01&to=2026-11-01&status=bad'])assert.equal((await history.GET_ORDER_HISTORY(request('/api/order-history?'+qs),db)).status,400);
+assert.equal(model.balanceDue(cancelled),0);assert.equal(model.balanceDue(open),250000);
+assert.equal((await pay.REVERSE_PAYMENT(request('/api/payments/reverse',{id:paid.id,version:2,paidAt:'2026-10-31T17:00:00.000Z',reason:'QA correction'}),db)).status,200);
+assert.equal((await read('status=paid')).count,0);
+j=await history.GET_ORDER_HISTORY(request('/api/order-history?from=2026-09-01&to=2026-11-01&status=reopened'),db);assert.equal((await j.json()).count,1);
+for(let i=0;i<35;i++){const b=booking({name:'Page '+String(i).padStart(2,'0')});assert.equal((await api.POST(request('/api/bookings',b),db)).status,200);}
+j=await read('status=unpaid');assert.equal(j.rows.length,30);const p2=await read('status=unpaid&page=2');assert.equal(p2.rows.length,6);assert.ok(!p2.rows.some(b=>j.rows.some(a=>a.booking.id===b.booking.id)));
+assert.equal((await read('status=all')).total,36*300000);
+const routed=await worker.fetch(request('/api/order-history?from=2026-11-01&to=2026-11-01'),{DB:db,ASSETS:{fetch(){throw Error('unexpected assets');}}});assert.equal(routed.status,200);
+console.log(JSON.stringify({passed:true,vietnamMidnight:true,paymentAndBookingDates:true,unpaidAndCancelled:true,accentInsensitiveSearch:true,rangeValidation:true,pagination:true,noCancelledReceivable:true,reopenStatus:true,workerRoute:true}));

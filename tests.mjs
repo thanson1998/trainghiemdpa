@@ -7,7 +7,9 @@ import {pathToFileURL} from 'node:url';
 const require=createRequire(import.meta.url);
 const ts=require('typescript');
 const dataUrl=code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
-const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+const auditModules=new Map();
+function auditResolve(spec){if(spec.startsWith('data:')||spec.startsWith('file:')||spec.startsWith('node:'))return spec;if(!spec.startsWith('./'))return pathToFileURL(require.resolve(spec)).href;if(spec.endsWith('.css'))return dataUrl('');if(auditModules.has(spec))return auditModules.get(spec);const file=[spec,spec+'.ts',spec+'.tsx'].find(f=>fs.existsSync(f));const url=dataUrl(compile(fs.readFileSync(file,'utf8')));auditModules.set(spec,url);return url;}
+const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from ['"]([^'"]+)['"]/g,(_,s)=>'from '+JSON.stringify(auditResolve(s))).replace(/import ['"]([^'"]+)['"]/g,(_,s)=>'import '+JSON.stringify(auditResolve(s)));
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
@@ -75,6 +77,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync(new URL('./0014_pos_tools.sql',import.meta.url),'utf8'));
  sqlite.exec(fs.readFileSync('0015_ads_research.sql','utf8'));
  sqlite.exec(fs.readFileSync('0016_ads_connection.sql','utf8'));
+ sqlite.exec(fs.readFileSync('0017_table_layout.sql','utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -314,14 +317,14 @@ test('natural import suggests vacant tables within the requested area without sa
  const data={name:'Anh Sơn',date:'2026-10-25',start:'18:30',tableCount:2,zone:'S1',totalPeople:12,items:[{name:'Gà hấp',quantity:2}]};
  const result=await textImport.prepareNaturalImport(data,{smart:true,dishes:[{name:'Gà hấp',price:300000,unit:'đĩa'}]},db);
  assert.deepEqual(result.fields.tables,['S1-02','S1-03']);assert.equal(result.fields.people,6);assert.equal(result.fields.price,300000);assert.equal(result.fields.end,'21:30');assert.ok(result.warnings[0].includes('Gợi ý'));assert.equal((await(await get()).json()).bookings.length,1);
- const shortage=await textImport.prepareNaturalImport({...data,tableCount:8},{smart:true},db);assert.equal(shortage.fields.tables.length,0);assert.ok(shortage.warnings.some(w=>w.includes('không đủ')));
+ const shortage=await textImport.prepareNaturalImport({...data,tableCount:9},{smart:true},db);assert.equal(shortage.fields.tables.length,0);assert.ok(shortage.warnings.some(w=>w.includes('không đủ')));
  const explicit=await textImport.prepareNaturalImport({...data,tables:['S1-01','S1-08']},{smart:true},db);assert.deepEqual(explicit.fields.tables,['S1-01','S1-08']);
 });
 test('natural import preserves agreed table totals and original guest count in the draft',()=>{
  const result=textImport.normalizeImport({tableCount:2,totalPeople:12,pricePerTable:1200000,deposit:500000,items:[{name:'Món chưa có giá',quantity:2}]},{smart:true,defaultDate:'2026-10-25'});
  assert.equal(result.fields.price,1200000);assert.equal(result.total,2400000);assert.equal(result.fields.deposit,500000);assert.ok(result.fields.note.includes('12 người'));assert.ok(result.fields.note.includes('2 bàn'));
  const noGuess=textImport.normalizeImport({tables:['UNKNOWN'],date:'2026-99-99',start:'26:00'},{smart:true,defaultDate:'2026-10-25'});assert.equal(noGuess.fields.date,'');assert.equal(noGuess.fields.start,'');
- const prompt=textImport.naturalPrompt(new Date('2026-10-22T20:00:00Z'));assert.ok(prompt.includes('2026-10-23'));assert.ok(prompt.includes('18:30'));assert.ok(prompt.includes('tableCount=2,zone=S1,tables=[]'));
+ const prompt=textImport.naturalPrompt(new Date('2026-10-22T20:00:00Z'));assert.ok(prompt.includes('2026-10-23'));assert.ok(prompt.includes('18:30'));assert.ok(prompt.includes('tableCount=N,zone=the area code,tables=[]'));
 });
 
 test('text import computes whole-booking totals and per-table guests without duplicating dishes',()=>{
@@ -523,7 +526,7 @@ test('menu print includes table locations, guests, dishes and correct per-table 
  const b=booking({tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
  const text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['Chị Hương','Trước quầy thanh toán','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
+ for(const expected of ['Chị Hương','Trước quầy','Bàn 20 · Bàn 19 · Bàn 18','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
  assert.ok(!text.includes('mâm'),'Receipt must omit platter counts');
  assert.ok(!html.includes('<script>alert(1)</script>'));
 });

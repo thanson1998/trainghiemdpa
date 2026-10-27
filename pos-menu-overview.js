@@ -27,22 +27,9 @@
    }
    if(body&&!observed.has(body)){observed.add(body);observer.observe(body);}
    if(!list)return;
-   if(!matchMedia('(min-width:801px)').matches){list.style.removeProperty('--pos-menu-scale');list.style.removeProperty('--pos-menu-columns');return;}
-   const count=list.querySelectorAll('.pos-cart-item').length;
-   const columns=1;
-   list.style.setProperty('--pos-menu-columns',String(columns));
-   // Find the largest scale that fits, including names that wrap as width changes.
-   const available=Math.max(1,list.clientHeight-3);
-   const rows=[...list.querySelectorAll('.pos-cart-item')];
-   let low=0,high=1,scale=1;
-   for(let step=0;step<12;step++){
-    list.style.setProperty('--pos-menu-scale',String(scale));
-    const needed=Math.max(1,...rows.map(row=>row.offsetTop+row.offsetHeight));
-    if(needed*scale<=available){low=scale;if(scale===1)break;}else high=scale;
-    scale=(low+high)/2;
-   }
-   list.style.setProperty('--pos-menu-scale',String(Math.max(.01,low)));
-   list.dataset.visibleMenuCount=String(count);
+   list.style.removeProperty('--pos-menu-scale');
+   list.style.removeProperty('--pos-menu-columns');
+   list.dataset.visibleMenuCount=String(list.querySelectorAll('.pos-cart-item').length);
   });
  }
  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,characterData:true});

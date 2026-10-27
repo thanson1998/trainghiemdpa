@@ -1,16 +1,15 @@
+import {validSalesRange,utcSalesRange,monthRange} from './sales-date';
 import {bookingTotal,type Booking} from './model';
 import {z} from 'zod';
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway' as const}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version};}
 export async function GET_PAYMENTS(req:Request,db:D1Database){
  const p=new URL(req.url).searchParams,month=p.get('month');
- if(!month||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return out({error:'Chọn tháng thanh toán hợp lệ.'},400);
+ const range=p.has('from')||p.has('to')?{from:p.get('from')||'',to:p.get('to')||''}:month&&/^\d{4}-(0[1-9]|1[0-2])$/.test(month)?monthRange(month):null;
+ if(!range||!validSalesRange(range.from,range.to))return out({error:'Chọn khoảng ngày thanh toán hợp lệ.'},400);
  try{
- const byPaidAt=p.get('dateBy')==='paidAt';
- const year=Number(month.slice(0,4)),monthNumber=Number(month.slice(5,7));
- const from=new Date(month+'-01T00:00:00+07:00').toISOString();
- const to=new Date(Date.UTC(year,monthNumber,1)-7*3600000).toISOString();
- const statement=byPaidAt?db.prepare('SELECT * FROM booking_payments WHERE paid_at>=? AND paid_at<? ORDER BY paid_at DESC').bind(from,to):db.prepare('SELECT * FROM booking_payments WHERE booking_date>=? AND booking_date<=? ORDER BY paid_at DESC').bind(month+'-01',month+'-31');
+ const byPaidAt=p.get('dateBy')==='paidAt',utc=utcSalesRange(range.from,range.to);
+ const statement=byPaidAt?db.prepare('SELECT * FROM booking_payments WHERE paid_at>=? AND paid_at<? ORDER BY paid_at DESC').bind(utc.from,utc.to):db.prepare('SELECT * FROM booking_payments WHERE booking_date>=? AND booking_date<=? ORDER BY paid_at DESC').bind(range.from,range.to);
  const {results}=await statement.all<any>();
  return out({payments:results.map(r=>({booking:JSON.parse(r.snapshot),total:r.total,deposit:r.deposit,received:r.received,tendered:r.tendered,method:r.method,paidAt:r.paid_at}))});
  }catch{return out({error:'Chưa tải được thanh toán. Hãy thử lại.'},503);}
