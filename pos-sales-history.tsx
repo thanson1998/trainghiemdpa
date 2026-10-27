@@ -7,7 +7,7 @@ import type {Payment} from './payments-panel';
 import './pos-sales-history.css';
 const paidDay=(p:Payment)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(p.paidAt));
 const stamp=(value:string)=>new Date(value).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour12:false});
-export function PosSalesHistory({query,onReceipt}:{query:string;onReceipt:(p:Payment)=>void}){
+export function PosSalesHistory({query,onReceipt,onReverse,disabled=false}:{query:string;onReceipt:(p:Payment)=>void;onReverse:(p:Payment)=>void;disabled?:boolean}){
  const [month,setMonth]=useState(()=>today().slice(0,7)),[day,setDay]=useState('');
  const [payments,setPayments]=useState<Payment[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const sequence=useRef(0);
@@ -24,6 +24,6 @@ export function PosSalesHistory({query,onReceipt}:{query:string;onReceipt:(p:Pay
   <p className="pos-sales-summary"><b>{rows.length} đơn đã thanh toán</b><span>Tổng tiền <strong>{money(rows.reduce((sum,p)=>sum+p.total,0))}</strong></span></p>
   <p className="field-help">Theo ngày thu tiền · Đơn mới nhất ở trên · Chọn đơn để xem và in lại phiếu.</p>
   {error&&<p className="form-error" role="alert">{error}</p>}
-  {loading?<p role="status">Đang tải lịch sử bán hàng…</p>:rows.length?<div className="pos-sales-list">{rows.map(p=><button type="button" className="pos-sales-row" key={p.booking.id} onClick={()=>onReceipt(p)} aria-label={'Xem hóa đơn '+(p.booking.orderCode||p.booking.name)}><span><b>{p.booking.orderCode||p.booking.id}</b><span>{p.booking.name} · {orderLocation(p.booking)}</span><small>{stamp(p.paidAt)}</small></span><span><strong>{money(p.total)}</strong><small>{p.method==='cash'?'Tiền mặt':'Chuyển khoản'}</small><b className="pos-sales-view">Xem / in lại</b></span></button>)}</div>:!error&&<p className="pos-no-results">Chưa có đơn đã thanh toán phù hợp. Thử chọn Cả tháng hoặc tháng khác.</p>}
+  {loading?<p role="status">Đang tải lịch sử bán hàng…</p>:rows.length?<div className="pos-sales-list">{rows.map(p=><article className="pos-sales-entry" key={p.booking.id}><button type="button" className="pos-sales-row" disabled={disabled} onClick={()=>onReceipt(p)} aria-label={'Xem hóa đơn '+(p.booking.orderCode||p.booking.name)}><span><b>{p.booking.orderCode||p.booking.id}</b><span>{p.booking.name} · {orderLocation(p.booking)}</span><small>{stamp(p.paidAt)}</small></span><span><strong>{money(p.total)}</strong><small>{p.method==='cash'?'Tiền mặt':'Chuyển khoản'}</small><b className="pos-sales-view">Xem / in lại</b></span></button><button type="button" className="secondary-btn pos-sales-reopen" disabled={disabled} aria-label={'Hoàn đơn để sửa '+(p.booking.orderCode||p.booking.name)} onClick={()=>onReverse(p)}>Hoàn đơn để sửa</button></article>)}</div>:!error&&<p className="pos-no-results">Chưa có đơn đã thanh toán phù hợp. Thử chọn Cả tháng hoặc tháng khác.</p>}
  </section>;
 }
