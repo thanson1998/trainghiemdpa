@@ -5,7 +5,7 @@ const prefix='DPA_MENU_V1:';
 const setPrefix='DPA_MENU_V2:';
 export function readMenuSet(value:string):MenuSet|undefined{
  if(!value.startsWith(setPrefix))return;
- try{const set=JSON.parse(value.slice(setPrefix.length)).set;return set?{...set,name:cleanSetName(set.name,set)}:undefined;}catch{return;}
+ try{const data=JSON.parse(value.slice(setPrefix.length)),set=data.set;return set?{...set,name:cleanSetName(set.name,{...set,itemNames:data.items?.map((i:MenuItem)=>i.name)})}:undefined;}catch{return;}
 }
 export const menuSetQuantity=(value:string,tableCount=1)=>readMenuSet(value)?.quantity??tableCount;
 export const hasPricedMenu=(value:string)=>!!readMenuSet(value)||readMenu(value).some(item=>item.name.trim()&&item.price!==null);

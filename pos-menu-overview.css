@@ -260,3 +260,5 @@
  .pos-workbench .pos-catalog-header .pos-find-row .pos-search{flex:1 0 100%;max-width:none}
  .pos-workbench .pos-catalog-header .pos-create-dish{min-height:40px}
 }
+
+@media screen{.pos-template-card{min-width:0;display:flex;flex-direction:column;gap:5px}.pos-template-card .pos-template{width:100%;flex:1}.pos-template-edit{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px}.pos-template-editor{width:min(1000px,96vw)!important;max-width:1000px!important;max-height:92dvh;overflow:auto}.pos-template-editor form{padding:16px}.pos-template-editor fieldset{padding:0;margin:0;border:0;min-width:0}.pos-template-editor label{display:grid;gap:6px}.pos-template-editor .dish-editor{margin-top:14px}}
