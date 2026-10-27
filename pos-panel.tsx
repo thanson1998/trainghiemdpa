@@ -45,7 +45,7 @@ export function PosPanel({catalog,catalogError,onCatalog,onSaveCatalog,catalogLo
  const flagInFlight=useRef(false);
  const [wide,setWide]=useState(false);const [openFeedback,setOpenFeedback]=useState('');const cartRef=useRef<HTMLElement>(null),catalogBodyRef=useRef<HTMLDivElement>(null),catalogRef=useRef<HTMLElement>(null);
  const resizing=usePosResize(cartRef);
- const [state,setState]=useState(initial),[pane,setPane]=useState<'menu'|'tables'|'orders'|'sets'|'history'>('menu'),[mobile,setMobile]=useState<'menu'|'cart'>('menu'),[category,setCategory]=useState('Hay dùng'),[query,setQuery]=useState(''),[zone,setZone]=useState('all');
+ const [state,setState]=useState(initial),[pane,setPane]=useState<'menu'|'tables'|'orders'|'sets'|'history'>('menu'),[mobile,setMobile]=useState<'menu'|'cart'>('menu'),[category,setCategory]=useState('Tất cả'),[query,setQuery]=useState(''),[zone,setZone]=useState('all');
  const [bookings,setBookings]=useState<Booking[]>([]),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[storageError,setStorageError]=useState('');
  const [editDish,setEditDish]=useState<{dish:CatalogDish;base:number}|null>(null);const closeEditDish=useCallback(()=>setEditDish(null),[]);
  const [quickDish,setQuickDish]=useState(false);const closeQuickDish=useCallback(()=>setQuickDish(false),[]);
