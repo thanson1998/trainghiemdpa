@@ -1,5 +1,5 @@
 import {MapStage} from './map-stage';
-import {zones,type Booking} from './model';
+import {zones,customZone,type Booking} from './model';
 import {useEffect,useState} from 'react';
 import {apiRequest} from './sync';
 import {Check} from 'lucide-react';
@@ -24,7 +24,7 @@ export function TableMapPicker({booking,bookings,onChange,disabled=false,zone='a
   {failure?<p className="form-error" role="alert">{failure} Đang thử tải lại lịch bàn…</p>:waiting&&<p className="field-help" role="status">Đang kiểm tra lịch bàn theo ngày đã chọn…</p>}
   <div className="mini-map-legend"><span><i/>Trống</span><span><i className="picked"/>Đã chọn</span><span><i className="occupied"/>Trùng giờ</span><b>{booking.tables.length} bàn đã chọn</b></div>
   <div className="mini-map-scroll"><div className={'mini-floor-map '+(zone!=='all'?'mini-single-zone':'')} role="group" aria-label="Sơ đồ chọn bàn thu nhỏ">
-   {shown.map(z=><section className={'mini-zone mini-zone-'+z.id} key={z.id}><h3>{z.title}</h3><div className="mini-zone-tables">{z.tables.map(id=>{
+   {shown.map(z=><section className={'mini-zone mini-zone-'+z.id+(customZone(z.id)?' mini-zone-custom':'')} key={z.id}><h3>{z.title}</h3><div className="mini-zone-tables">{z.tables.map(id=>{
     const picked=booking.tables.includes(id),other=conflicts.filter(row=>row.tables.includes(id)),taken=other.length>0;
     const match=!query||posFold(id+' '+z.title).includes(posFold(query));
     return <button type="button" key={id} className={(picked?'picked ':taken?'occupied ':'')+(!match?'dimmed':'')} aria-pressed={picked} aria-label={'Bàn '+id+' · '+z.title+(picked?' · đã chọn':'')+(taken?' · trùng giờ':'')} title={taken?'Trùng giờ: '+other.map(row=>row.name+' ('+row.start+'–'+row.end+')').join(', '):z.title+' · Bàn '+id} disabled={locked||!match||(!picked&&taken)} onClick={()=>onChange(picked?booking.tables.filter(t=>t!==id):[...booking.tables,id])}>{picked&&<Check size={11}/>}<span>{id}</span></button>;
