@@ -288,34 +288,34 @@
  .pos-workbench .pos-cart .pos-quantity input{width:36px!important;min-width:0!important}
 }
 
-/* Dense dish picker: reserve space for dishes instead of repeated instructions. */
+
+/* Compact the ticket identity block while retaining every editable field. */
 @media screen{
- .pos-workbench .pos-catalog .pos-catalog-header{padding:5px 7px;gap:4px}
- .pos-workbench .pos-catalog-header .pos-find-row .pos-search{max-width:none;min-width:0}
- .pos-workbench .pos-catalog .pos-catalog-body{padding:6px 7px}
- .pos-workbench .pos-categories{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;margin:0 0 6px;padding:3px 0 5px;scrollbar-width:thin}
- .pos-workbench .pos-categories button{flex:0 0 auto;min-height:30px;padding:4px 8px;font-size:12px;white-space:nowrap}
- .pos-workbench .pos-categories small{flex:0 0 auto;white-space:nowrap}
- .pos-workbench .pos-frequent-help{margin:3px 0 6px;font-size:11px}
- .pos-workbench .pos-product-grid:not(.pos-open-orders){grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px}
- .pos-workbench .pos-product-tile{border-radius:7px}
- .pos-workbench .pos-product-tile .pos-product-main{height:auto;flex:1;display:grid;grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto auto;align-content:start;gap:2px 6px;min-height:84px;padding:7px!important}
- .pos-workbench .pos-product-tile .pos-product-main .dish-thumbnail{grid-column:1;grid-row:1/3;width:34px;height:34px;border-radius:5px;margin:0}
- .pos-workbench .pos-product-tile .pos-product-main>b{grid-column:2;grid-row:1;min-height:0;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
- .pos-workbench .pos-product-tile .pos-product-main>small{grid-column:2;grid-row:2;font-size:10px;line-height:1.35}
- .pos-workbench .pos-product-tile .pos-product-price{grid-column:1/-1;grid-row:3;margin:3px 0 0;min-height:24px;align-self:end}
- .pos-workbench .pos-product-tile .pos-product-price strong{font-size:14px;line-height:1.3}
- .pos-workbench .pos-product-tile .pos-product-plus{width:24px;height:24px;border-radius:5px}
- .pos-workbench .pos-product-tile .pos-selected-quantity{grid-column:1/-1;font-size:11px;line-height:1.3;margin:2px 0 0}
- .pos-workbench .pos-product-tile.tools-visible .pos-product-tools{position:static;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px 4px;border-top:1px solid #e4ebe6;background:#f8faf8}
- .pos-workbench .pos-product-tile.tools-visible .pos-product-tools>button{display:flex;flex-direction:row;gap:3px;min-height:28px;padding:3px 1px;font-size:10px;line-height:1.2}
- .pos-workbench .pos-product-tile .pos-product-tools svg{width:13px;height:13px;flex:none}
+ .pos-workbench .pos-cart-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:5px 8px!important;padding:7px 9px!important}
+ .pos-workbench .pos-cart-head>div:first-child{min-width:0!important}
+ .pos-workbench .pos-cart-head>div:first-child>span{font-size:10px;line-height:1.2}
+ .pos-workbench .pos-cart-head h2{font-size:16px!important;line-height:1.25!important;margin:1px 0!important;overflow-wrap:anywhere}
+ .pos-workbench .pos-cart-head .pos-cart-view-actions{margin:0!important;gap:4px;justify-content:flex-end;flex-wrap:wrap;max-width:190px}
+ .pos-workbench .pos-cart-head .pos-cart-view-actions button{min-height:28px;padding:4px 6px;font-size:11px}
+ .pos-workbench .pos-ticket-meta{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:3px 8px;font-size:12px;line-height:1.4}
+ .pos-workbench .pos-ticket-meta .ticket-date-warning{font-size:11px;line-height:1.35;margin:0;padding:2px 5px;border-radius:4px}
+ .pos-workbench .pos-cart-head .pos-ticket-customer{grid-column:1/-1;margin:0!important;width:100%}
+ .pos-workbench .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) 105px!important;gap:8px!important;margin:0!important}
+ .pos-workbench .pos-cart-head .pos-ticket-customer label{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px!important;font-size:11px!important;white-space:nowrap}
+ .pos-workbench .pos-cart-head .pos-ticket-customer input{height:30px!important;min-height:30px!important;padding:4px 6px!important;font-size:13px!important}
+ .pos-workbench .pos-cart-head .pos-ticket-details{grid-column:1/-1;margin:0!important}
+ .pos-workbench .pos-cart-head .pos-ticket-info{display:flex!important;flex-wrap:wrap;align-items:start;gap:4px 6px!important;padding:0!important}
+ .pos-workbench .pos-cart-head .pos-identity-row{flex:1 1 auto;margin:0!important;gap:4px!important}
+ .pos-workbench .pos-cart-head .pos-ticket-info .pos-menu-options{margin:0!important;flex:1 1 auto!important}
+ .pos-workbench .pos-cart-head .pos-ticket-info .pos-details{flex:0 0 auto;width:auto!important;margin:0!important;padding:3px 0!important}
+ .pos-workbench .pos-cart-head .pos-ticket-info .pos-details[open]{flex:1 0 100%;width:100%!important}
+ .pos-workbench .pos-cart-head .pos-ticket-info .pos-details>summary{font-size:11px;line-height:20px;min-height:20px}
+ .pos-workbench .pos-cart-head .order-service-choice button,.pos-workbench .pos-cart-head .menu-actions button{min-height:28px;padding:4px 6px;font-size:11px}
+ .pos-workbench .pos-cart-head .pos-set{flex:1 0 100%;width:100%;margin:3px 0 0!important}
+ .pos-workbench .pos-cart-head .pos-order-statuses{flex-basis:100%}
 }
-@media screen and (max-width:800px){
- .pos-workbench .pos-product-grid:not(.pos-open-orders){grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
- .pos-workbench .pos-product-tile .pos-product-main{min-height:88px;padding:7px!important}
- .pos-workbench .pos-product-tile.tools-visible .pos-product-tools>button{min-height:40px;flex-direction:column;gap:2px;font-size:10px}
- .pos-workbench .pos-product-tile .pos-product-price strong{font-size:14px}
- .pos-workbench .pos-catalog-header .pos-find-row .pos-search{flex:1 1 180px}
- .pos-workbench .pos-catalog-header .pos-create-dish{min-height:34px;padding:5px 7px;font-size:11px}
+@media screen and (max-width:480px){
+ .pos-workbench .pos-cart-head .pos-cart-view-actions{max-width:160px}
+ .pos-workbench .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) 92px!important;gap:5px!important}
+ .pos-workbench .pos-cart-head .pos-ticket-customer label{gap:3px!important;font-size:10px!important}
 }
