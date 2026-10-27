@@ -323,7 +323,7 @@
 /* Selected dish rows use about two thirds of their previous desktop height. */
 @media screen and (min-width:801px){
  .pos-workbench .pos-cart .pos-cart-items{row-gap:3px!important}
- .pos-workbench .pos-cart .pos-cart-item{padding:2px 5px!important;row-gap:1px!important;column-gap:6px!important;min-height:0!important}
+ .pos-workbench .pos-cart .pos-cart-item{padding:1px 5px!important;row-gap:1px!important;column-gap:6px!important;min-height:0!important}
  .pos-workbench .pos-cart .pos-item-title{min-height:0!important;gap:4px}
  .pos-workbench .pos-cart .pos-item-name>b{font-size:13px!important;line-height:17px!important}
  .pos-workbench .pos-cart .pos-item-title .icon-btn{width:22px!important;min-width:22px!important;height:18px!important;min-height:18px!important;padding:1px!important}
