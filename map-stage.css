@@ -1,8 +1,8 @@
 .floorplan:not(.single-zone){grid-template-columns:.92fr repeat(3,minmax(0,1fr)) 58px}
 .mini-floor-map:not(.mini-single-zone){grid-template-columns:.85fr repeat(3,minmax(0,1fr)) 30px}
-.map-stage{grid-column:5;grid-row:2;align-self:center;justify-self:stretch;display:flex;align-items:center;justify-content:center;min-height:126px;padding:10px 7px;border:2px solid #ae8446;border-radius:8px;background:linear-gradient(90deg,#f5ead4,#fffbef);color:#6c4b20;box-shadow:0 2px 7px #76532518;text-align:center}
+.map-stage{grid-column:5;grid-row:2;align-self:center;justify-self:stretch;display:flex;align-items:center;justify-content:center;min-height:378px;padding:10px 7px;border:2px solid #ae8446;border-radius:8px;background:linear-gradient(90deg,#f5ead4,#fffbef);color:#6c4b20;box-shadow:0 2px 7px #76532518;text-align:center}
 .map-stage b{writing-mode:vertical-rl;font-size:15px;line-height:1.5;letter-spacing:2px;white-space:nowrap}
-.mini-floor-map .map-stage{min-height:88px;padding:7px 3px;border-width:1px;border-radius:5px;box-shadow:none}
+.mini-floor-map .map-stage{min-height:264px;padding:7px 3px;border-width:1px;border-radius:5px;box-shadow:none}
 .mini-floor-map .map-stage b{font-size:10px;letter-spacing:1px}
-.booking-location-floor .map-stage{min-height:80px}
+.booking-location-floor .map-stage{min-height:240px}
 @media print{.map-stage{background:#fff!important;color:#000;border-color:#777;box-shadow:none}}
