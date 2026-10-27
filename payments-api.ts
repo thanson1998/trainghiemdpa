@@ -5,7 +5,13 @@ export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type
 export async function GET_PAYMENTS(req:Request,db:D1Database){
  const p=new URL(req.url).searchParams,month=p.get('month');
  if(!month||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return out({error:'Chọn tháng thanh toán hợp lệ.'},400);
- try{const {results}=await db.prepare('SELECT * FROM booking_payments WHERE booking_date>=? AND booking_date<=? ORDER BY paid_at DESC').bind(month+'-01',month+'-31').all<any>();
+ try{
+ const byPaidAt=p.get('dateBy')==='paidAt';
+ const year=Number(month.slice(0,4)),monthNumber=Number(month.slice(5,7));
+ const from=new Date(month+'-01T00:00:00+07:00').toISOString();
+ const to=new Date(Date.UTC(year,monthNumber,1)-7*3600000).toISOString();
+ const statement=byPaidAt?db.prepare('SELECT * FROM booking_payments WHERE paid_at>=? AND paid_at<? ORDER BY paid_at DESC').bind(from,to):db.prepare('SELECT * FROM booking_payments WHERE booking_date>=? AND booking_date<=? ORDER BY paid_at DESC').bind(month+'-01',month+'-31');
+ const {results}=await statement.all<any>();
  return out({payments:results.map(r=>({booking:JSON.parse(r.snapshot),total:r.total,deposit:r.deposit,received:r.received,tendered:r.tendered,method:r.method,paidAt:r.paid_at}))});
  }catch{return out({error:'Chưa tải được thanh toán. Hãy thử lại.'},503);}
 }

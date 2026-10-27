@@ -45,7 +45,21 @@ export async function DELETE(req:Request,db:D1Database){
 }
 
 export async function HISTORY(_req:Request,db:D1Database){
- try{const {results}=await db.prepare('SELECT h.*,r.version AS current_version FROM reservation_history h LEFT JOIN reservations r ON r.id=h.booking_id ORDER BY h.event_id DESC LIMIT 100').all<any>();return out({history:results.map(r=>({id:r.event_id,bookingId:r.booking_id,action:r.action,version:r.version,currentVersion:r.current_version??0,booking:JSON.parse(r.snapshot),createdAt:r.created_at}))});}catch{return out({error:'Chưa tải được lịch sử đặt bàn.'},503);}
+ try{
+  const {results}=await db.prepare(`SELECT h.*,r.version AS current_version,p.paid_at AS current_paid_at,
+   CASE WHEN h.version=p.booking_version+1 THEN p.snapshot END AS payment_snapshot,
+   p.total AS payment_total,p.deposit AS payment_deposit,p.received AS payment_received,
+   p.tendered AS payment_tendered,p.method AS payment_method
+   FROM reservation_history h LEFT JOIN reservations r ON r.id=h.booking_id
+   LEFT JOIN booking_payments p ON p.booking_id=h.booking_id
+   ORDER BY h.event_id DESC LIMIT 100`).all<any>();
+  return out({history:results.map(r=>({id:r.event_id,bookingId:r.booking_id,
+   action:r.payment_snapshot?'paid':r.action,version:r.version,currentVersion:r.current_version??0,
+   currentPaidAt:r.current_paid_at??undefined,booking:JSON.parse(r.snapshot),
+   ...(r.payment_snapshot?{payment:{booking:JSON.parse(r.payment_snapshot),total:r.payment_total,
+    deposit:r.payment_deposit,received:r.payment_received,tendered:r.payment_tendered,
+    method:r.payment_method,paidAt:r.current_paid_at}}:{}),createdAt:r.created_at}))});
+ }catch{return out({error:'Chưa tải được lịch sử đặt bàn.'},503);}
 }
 export async function RESTORE(req:Request,db:D1Database){
  try{
