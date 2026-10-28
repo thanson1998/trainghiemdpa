@@ -1,1 +1,15 @@
-.checkout-bill-payment{text-align:center;border-top:1px dashed #999;padding-top:12px;margin-top:14px;break-inside:avoid}.checkout-bill-payment h3{font-size:15px;margin:0 0 8px}.checkout-bill-payment p{font-size:13px;line-height:1.4;margin:5px 0}.checkout-bill-payment small{display:block;font-size:12px;line-height:1.4}.checkout-bill-payment img{display:block;width:52mm;height:52mm;max-width:100%;object-fit:contain;margin:8px auto;background:#fff}.checkout-bill-print-error{max-width:72mm;margin:8px auto}@media print{.checkout-bill-payment{break-inside:avoid}.checkout-bill-print-error{display:none!important}}
+.checkout-bill-settlement{break-inside:avoid;page-break-inside:avoid}
+.checkout-bill-payment{display:grid;grid-template-columns:minmax(0,1fr) 40mm;column-gap:6px;row-gap:2px;align-items:center;border:0;padding-top:6px;margin-top:4px;text-align:left;break-before:avoid;page-break-before:avoid}
+.checkout-bill-payment h3{grid-column:1/-1;text-align:center;font-size:13px;line-height:1.3;margin:0 0 4px}
+.checkout-bill-payment p{grid-column:1;font-size:12px;line-height:1.35;margin:1px 0;min-width:0;overflow-wrap:anywhere}
+.checkout-bill-payment small{grid-column:1/-1;display:block;text-align:center;font-size:11px;line-height:1.35;margin-top:4px}
+.checkout-bill-payment img{grid-column:2;grid-row:2/span 4;display:block;width:40mm;height:40mm;max-width:100%;object-fit:contain;margin:0;background:#fff}
+.checkout-bill-print-error{max-width:72mm;margin:8px auto}
+@media print{
+ .checkout-bill-paper .checkout-bill{break-inside:avoid;page-break-inside:avoid}
+ .checkout-bill-settlement{break-inside:avoid!important;page-break-inside:avoid!important;break-after:avoid;page-break-after:avoid}
+ .checkout-bill-settlement .checkout-bill-totals{margin-top:8px;padding-top:4px}
+ .checkout-bill-settlement .checkout-bill-totals p{margin:4px 0}
+ .checkout-bill>footer{break-before:avoid;page-break-before:avoid;margin-top:6px;padding-top:6px}
+ .checkout-bill-print-error{display:none!important}
+}
