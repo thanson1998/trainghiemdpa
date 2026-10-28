@@ -1081,3 +1081,13 @@ test('POS refresh includes payments at the same booking version and inactive ope
  assert.equal(updated.tickets[1].booking.status,'cancelled');
  assert.equal(posLogic.refreshPosTickets(updated,[paid,changed],original.date),updated);
 });
+
+const compactTime=await import(dataUrl(compile(fs.readFileSync(new URL('./time-input-value.ts',import.meta.url),'utf8'))));
+test('time entry formats four digits immediately and preserves incomplete typing',()=>{
+ let value='';for(const digit of '1800')value=compactTime.normalizeTimeInput(value+digit);assert.equal(value,'18:00');
+ for(const [input,expected] of [['0930','09:30'],['0000','00:00'],['2359','23:59'],['9:30','09:30'],['18:00','18:00'],['',''],['1','1'],['18','18'],['180','180'],['18:','18:']])assert.equal(compactTime.normalizeTimeInput(input),expected,input);
+});
+test('time entry finishes short hours on blur but never coerces invalid times',()=>{
+ for(const [input,expected] of [['900','09:00'],['930','09:30'],['18','18:00'],['9','09:00'],['0','00:00']])assert.equal(compactTime.normalizeTimeInput(input,true),expected,input);
+ for(const input of ['2400','2360','9999','24','24:00','18:60','18000','18:0','abcd','18xx']){assert.equal(compactTime.normalizeTimeInput(input),input);assert.equal(compactTime.normalizeTimeInput(input,true),input);}
+});
