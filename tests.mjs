@@ -814,7 +814,7 @@ test('image routes retain origin and JSON protection, and receipts and kitchen p
  assert.equal((await worker.default.fetch(new Request('https://dpa.example/api/dish-images',{method:'POST',body:'{}'}),env)).status,415);
  assert.equal((await worker.default.fetch(new Request('https://dpa.example/api/dish-images/nope'),env)).status,404);assert.equal(calls,0);
  const render=(Component,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(Component,props));
- for(const html of [render(checkoutBillModule.CheckoutBill,{booking:booking()}),render(printModule.MenuPrintPreview,{booking:booking(),onClose(){}})])assert.doesNotMatch(html,/<img|dish-thumbnail|dish-art-sprite/);
+ for(const html of [render(checkoutBillModule.CheckoutBill,{booking:booking()}),render(printModule.MenuPrintPreview,{booking:booking(),onClose(){}})])assert.doesNotMatch(html,/<img(?![^>]*bill-payment-qr)|dish-thumbnail|dish-art-sprite/);
 });
 
 const cancelModule=await import(dataUrl(compile(fs.readFileSync(new URL('./pos-cancel.ts',import.meta.url),'utf8').replace("'./pos-logic'",JSON.stringify(posLogicUrl)))));
@@ -865,7 +865,7 @@ test('takeaway orders save without table conflicts while table service still req
 test('takeaway bills and kitchen prints show MANG VỀ, full totals and no physical table or food photos',async()=>{
  const b=booking({serviceType:'takeaway',tables:[],totalPeople:2,price:1200000,deposit:200000,menu:menu.writeMenu([{name:'Gà',quantity:1,price:null,included:true}],{name:'Set mang về',quantity:1,people:2,pricePerTable:1200000})});
  const render=(Component,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(Component,props));
- for(const html of [render(checkoutBillModule.CheckoutBill,{booking:b}),render(printModule.MenuPrintPreview,{booking:b,onClose(){}})]){assert.match(html,/MANG VỀ/);assert.match(html,/1,200,000/);assert.doesNotMatch(html,/0 bàn|<img|dish-thumbnail/);}
+ for(const html of [render(checkoutBillModule.CheckoutBill,{booking:b}),render(printModule.MenuPrintPreview,{booking:b,onClose(){}})]){assert.match(html,/MANG VỀ/);assert.match(html,/1,200,000/);assert.doesNotMatch(html,/0 bàn|<img(?![^>]*bill-payment-qr)|dish-thumbnail/);}
  assert.match(render(printModule.MenuPrintPreview,{booking:b,onClose(){}}),/1,000,000/);
  const csv=bookingExport.bookingCsv([b]);assert.match(csv,/MANG VỀ/);assert.match(csv,/"1200000","200000","1000000"/);
 });
@@ -1090,4 +1090,15 @@ test('time entry formats four digits immediately and preserves incomplete typing
 test('time entry finishes short hours on blur but never coerces invalid times',()=>{
  for(const [input,expected] of [['900','09:00'],['930','09:30'],['18','18:00'],['9','09:00'],['0','00:00']])assert.equal(compactTime.normalizeTimeInput(input,true),expected,input);
  for(const input of ['2400','2360','9999','24','24:00','18:60','18000','18:0','abcd','18xx']){assert.equal(compactTime.normalizeTimeInput(input),input);assert.equal(compactTime.normalizeTimeInput(input,true),input);}
+});
+
+test('temporary bill prints the supplied MB recipient and original QR with the remaining amount',()=>{
+ const b=booking({tables:['S1-01','S1-02'],price:1250000,deposit:500000});
+ const render=b=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b}));
+ const html=render(b),section=html.match(/<section class="checkout-bill-payment"[\s\S]*?<\/section>/)?.[0];
+ assert.ok(section);for(const value of ['MB - Ngân hàng Quân Đội','VQRQAHRRB5757','DOAN THI THANH VAN','bill-payment-qr.png','2,000,000','Nhập số tiền'])assert.ok(section.includes(value),value);
+ assert.ok(!section.includes('amount='));assert.ok(html.indexOf('checkout-bill-payment')>html.indexOf('checkout-bill-totals'));
+ assert.ok(!render({...b,deposit:2500000}).includes('checkout-bill-payment'));
+ assert.ok(!render({...b,status:'cancelled'}).includes('checkout-bill-payment'));
+ assert.ok(!render({...b,paidAt:'2026-10-28T09:00:00Z'}).includes('checkout-bill-payment'));
 });
