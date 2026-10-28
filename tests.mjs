@@ -1102,3 +1102,16 @@ test('temporary bill prints the supplied MB recipient and original QR with the r
  assert.ok(!render({...b,status:'cancelled'}).includes('checkout-bill-payment'));
  assert.ok(!render({...b,paidAt:'2026-10-28T09:00:00Z'}).includes('checkout-bill-payment'));
 });
+
+const templateFlagsModule=await import(dataUrl(compile(fs.readFileSync('./template-flags.ts','utf8'))));
+test('template flags synchronize through the deployed catalog format without changing set or dish totals',async()=>{
+ const original=[{id:crypto.randomUUID(),name:'Set test',menu:menu.writeMenu([{name:'Gà',price:null,quantity:2,unit:'đĩa',included:true}],{name:'Set test',pricePerTable:1200000,quantity:1})},{id:crypto.randomUUID(),name:'Menu test',menu:menu.writeMenu([{name:'Gà',price:200000,quantity:2,unit:'đĩa'}])}];
+ const flagged=original.map(t=>({...t,menu:templateFlagsModule.withTemplateFlags(t.menu,{pinned:true,soldOut:true})}));
+ for(let i=0;i<flagged.length;i++){assert.ok(menu.validMenu(flagged[i].menu));assert.deepEqual(menu.readMenu(flagged[i].menu),menu.readMenu(original[i].menu));assert.equal(menu.menuSum(flagged[i].menu),menu.menuSum(original[i].menu));}
+ const response=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[],templates:flagged}),db);assert.equal(response.status,200);
+ const saved=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();for(const t of saved.templates)assert.deepEqual(templateFlagsModule.templateFlags(t.menu),{pinned:true,soldOut:true});
+ assert.equal((await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[],templates:original}),db)).status,409);
+ const edited=templateFlagsModule.preserveTemplateFlags({...original[0],name:'Renamed'},flagged[0]);assert.deepEqual(templateFlagsModule.templateFlags(edited.menu),{pinned:true,soldOut:true});
+ const restored={...flagged[0],menu:templateFlagsModule.withTemplateFlags(flagged[0].menu,{soldOut:false})};assert.deepEqual(templateFlagsModule.templateFlags(templateFlagsModule.preserveTemplateFlags(restored,flagged[0]).menu),{pinned:true,soldOut:false});
+ const plain={...original[0],id:crypto.randomUUID()};assert.equal(templateFlagsModule.sortTemplates([plain,flagged[0]])[0].id,flagged[0].id);
+});
