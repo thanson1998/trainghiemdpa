@@ -1,6 +1,6 @@
 .dish-thumbnail{display:block;width:64px;height:64px;flex:none;border-radius:9px;overflow:hidden;background:#f5efe5;border:1px solid #e9e2d5}
 .dish-thumbnail img,.dish-art-sprite{display:block;width:100%;height:100%;object-fit:cover}
-.dish-art-sprite{background-image:url('./dish-illustrations.webp');background-size:400% 400%;background-repeat:no-repeat}
+.dish-art-sprite{background-image:url('./thumbnails/dish-illustrations.webp');background-size:400% 400%;background-repeat:no-repeat}
 .dish-image-progress{display:inline-block;font-size:13px;line-height:1.5;padding:6px 9px;margin:7px 0 0;border-radius:6px;background:#edf4ee;color:#345444}
 .pos-product .dish-thumbnail{width:64px;height:64px}
 .catalog-row>div>.dish-thumbnail{float:left;width:52px;height:52px;margin:0 9px 6px 0}
@@ -20,18 +20,18 @@
 @media(max-width:800px){.pos-product .template-thumbnail{width:56px;height:56px}}
 @media print{.template-thumbnail{display:none!important}}
 
-.dish-art-extra{background-image:url('./dish-art-extra-20261025.webp');background-size:400% 447.86%}
+.dish-art-extra{background-image:url('./thumbnails/dish-art-extra-20261025.webp');background-size:400% 447.86%}
 
-.dish-art-batch2{background-image:url('./dish-art-batch-2-20261025.webp')}
-.dish-art-batch3{background-image:url('./dish-art-batch-3-20261025.webp');background-size:400% 447.86%}
+.dish-art-batch2{background-image:url('./thumbnails/dish-art-batch-2-20261025.webp')}
+.dish-art-batch3{background-image:url('./thumbnails/dish-art-batch-3-20261025.webp');background-size:400% 447.86%}
 
-.dish-art-batch4{background-image:url('./dish-art-batch-4-20261025.webp');background-size:400% 447.86%}
-.dish-art-batch5{background-image:url('./dish-art-batch-5-20261025.webp');background-size:400% 447.86%}
+.dish-art-batch4{background-image:url('./thumbnails/dish-art-batch-4-20261025.webp');background-size:400% 447.86%}
+.dish-art-batch5{background-image:url('./thumbnails/dish-art-batch-5-20261025.webp');background-size:400% 447.86%}
 
-.dish-art-batch6{background-image:url('./dish-art-batch-6-20261025.webp');background-size:400% 447.86%}
+.dish-art-batch6{background-image:url('./thumbnails/dish-art-batch-6-20261025.webp');background-size:400% 447.86%}
 
-.dish-art-batch7{background-image:url('./dish-art-batch-7-20261025.webp');background-size:400% 447.86%}
+.dish-art-batch7{background-image:url('./thumbnails/dish-art-batch-7-20261025.webp');background-size:400% 447.86%}
 
-.dish-art-batch8{background-image:url('./dish-art-batch-8-20261026.webp');background-size:400% 400%}
+.dish-art-batch8{background-image:url('./thumbnails/dish-art-batch-8-20261026.webp');background-size:400% 400%}
 
-.dish-art-batch9{background-image:url('./dish-art-batch-9-20261026.webp');background-size:400% 400%}
+.dish-art-batch9{background-image:url('./thumbnails/dish-art-batch-9-20261026.webp');background-size:400% 400%}

@@ -1115,3 +1115,24 @@ test('template flags synchronize through the deployed catalog format without cha
  const restored={...flagged[0],menu:templateFlagsModule.withTemplateFlags(flagged[0].menu,{soldOut:false})};assert.deepEqual(templateFlagsModule.templateFlags(templateFlagsModule.preserveTemplateFlags(restored,flagged[0]).menu),{pinned:true,soldOut:false});
  const plain={...original[0],id:crypto.randomUUID()};assert.equal(templateFlagsModule.sortTemplates([plain,flagged[0]])[0].id,flagged[0].id);
 });
+
+const requestPool=await import(dataUrl(compile(fs.readFileSync('./request-pool.ts','utf8'))));
+test('concurrent data reads share a request but retain independently readable bodies and never cache completed reads',async()=>{
+ requestPool.invalidatePendingReads();let calls=0,resolve;const fetcher=()=>{calls++;return new Promise(r=>resolve=r);};
+ const one=requestPool.coalescedRead('catalog',fetcher),two=requestPool.coalescedRead('catalog',fetcher);assert.equal(calls,1);resolve(Response.json({version:12}));
+ const [a,b]=await Promise.all([one,two]);assert.notEqual(a,b);assert.deepEqual(await a.json(),{version:12});assert.deepEqual(await b.json(),{version:12});
+ await requestPool.coalescedRead('catalog',async()=>{calls++;return Response.json({version:13});});assert.equal(calls,2);
+ let failures=0;await assert.rejects(requestPool.coalescedRead('failed',async()=>{failures++;throw Error('offline');}));await requestPool.coalescedRead('failed',async()=>{failures++;return Response.json({ok:true});});assert.equal(failures,2);
+});
+test('a mutation invalidates an older in-flight read before the next refresh',async()=>{
+ requestPool.invalidatePendingReads();let finish;const old=requestPool.coalescedRead('orders',()=>new Promise(r=>finish=r));requestPool.invalidatePendingReads();
+ const fresh=requestPool.coalescedRead('orders',async()=>Response.json({version:2}));finish(Response.json({version:1}));assert.deepEqual(await(await old).json(),{version:1});assert.deepEqual(await(await fresh).json(),{version:2});
+});
+const perfThumbnailUrl=dataUrl(compile('export function DishThumbnail(){return null;}'));
+const perfCardUrl=dataUrl(compile(fs.readFileSync('./pos-product-card.tsx','utf8').replace("'./dish-thumbnail'",JSON.stringify(perfThumbnailUrl))));
+const perfDishGrid=await import(dataUrl(compile(fs.readFileSync('./pos-dish-grid.tsx','utf8').replace("'./pos-product-card'",JSON.stringify(perfCardUrl)))));
+test('large dish catalogs initially render one batch while retaining the full available count',()=>{
+ const dishes=Array.from({length:275},(_,i)=>({id:crypto.randomUUID(),name:'Món thử '+i,unit:'đĩa',price:50000}));
+ const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(perfDishGrid.PosDishGrid,{dishes,menu:'',units:1,disabled:false,onAdd(){},onEdit(){},onFlag(){}}));
+ assert.equal((html.match(/pos-product-tile/g)||[]).length,48);assert.match(html,/Xem thêm món \(227\)/);
+});

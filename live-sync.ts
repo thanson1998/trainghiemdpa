@@ -7,7 +7,7 @@ export function notifyLiveSync(){
  window.dispatchEvent(new Event(signalEvent));
 }
 
-export function watchLiveSync(refresh:()=>unknown){
+export function watchLiveSync(refresh:()=>unknown,options:{intervalMs?:number}={}){
  let pending:ReturnType<typeof setTimeout>|undefined;
  let active=false,disposed=false;
  const schedule=()=>{
@@ -15,7 +15,7 @@ export function watchLiveSync(refresh:()=>unknown){
   pending=setTimeout(async()=>{pending=undefined;if(document.hidden||disposed)return;active=true;try{await refresh();}catch{}finally{active=false;}},80);
  };
  const stored=(event:StorageEvent)=>{if(event.key===signalKey)schedule();};
- const interval=setInterval(schedule,3000);
+ const interval=setInterval(schedule,options.intervalMs??3000);
  window.addEventListener(signalEvent,schedule);
  window.addEventListener('storage',stored);
  window.addEventListener('focus',schedule);

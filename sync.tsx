@@ -1,3 +1,4 @@
+import {coalescedRead,invalidatePendingReads} from './request-pool';
 import {useState} from 'react';
 import {notifyLiveSync} from './live-sync';
 import {validOrigin,resolveApiBase} from './sync-config';
@@ -13,9 +14,9 @@ export function dishImageUrl(path:string){return apiBase&&/^\/api\/dish-images\/
 export async function apiRequest(path:string,options:RequestInit={}){
  if(!apiBase)throw new Error('Chưa kết nối đồng bộ. Mở “Kết nối dữ liệu” và nhập đường dẫn máy chủ DPA đã triển khai.');
  let response:Response;
- try{response=await fetch(apiBase+path,{...options,credentials:'omit',signal:options.signal??AbortSignal.timeout(15000)});}catch{throw new Error('Mất kết nối máy chủ. Kiểm tra Internet rồi thử lại; thông tin đang nhập vẫn được giữ.');}
+ try{const request=()=>fetch(apiBase+path,{...options,credentials:'omit' as const,signal:options.signal??AbortSignal.timeout(15000)});response=(options.method??'GET').toUpperCase()==='GET'&&!options.signal&&!options.headers?await coalescedRead(apiBase+path+'|'+(options.cache??''),request):await request();}catch{throw new Error('Mất kết nối máy chủ. Kiểm tra Internet rồi thử lại; thông tin đang nhập vẫn được giữ.');}
  if(!response.headers.get('content-type')?.includes('application/json'))throw new Error('Máy chủ chưa sẵn sàng. Kiểm tra đường dẫn trong “Kết nối dữ liệu”.');
- if(response.ok&&!['GET','HEAD'].includes((options.method??'GET').toUpperCase()))notifyLiveSync();
+ if(response.ok&&!['GET','HEAD'].includes((options.method??'GET').toUpperCase())){invalidatePendingReads();notifyLiveSync();}
  return response;
 }
 export function SyncSettings(){
