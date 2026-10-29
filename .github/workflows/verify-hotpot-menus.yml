@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '0020_hotpot_menus_20261029.sql'
+      - '0021_hotpot_eight_guests.sql'
       - '.github/workflows/verify-hotpot-menus.yml'
   workflow_dispatch:
 permissions:
@@ -16,7 +17,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
-          const expected=[{price:2000000,people:12,items:['Gà','Chim','Bò hoa','Tôm','Mực','Diềm tim']},{price:1500000,items:['Gà','Cá','Tôm','Bò','Diềm tim','Sườn sụn']}];
+          const expected=[{price:2000000,people:12,items:['Gà','Chim','Bò hoa','Tôm','Mực','Diềm tim']},{price:1500000,people:8,items:['Gà','Cá','Tôm','Bò','Diềm tim','Sườn sụn']}];
           for(let attempt=0;attempt<35;attempt++){
             try{
               const r=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
