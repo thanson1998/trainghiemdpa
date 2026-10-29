@@ -1,47 +1,39 @@
-# Booking reminder emails
+# Daily booking email notifications
 
-Status: implementation tested; delivery stays OFF until configured and deployed to the existing Cloudflare Worker. Publishing to GitHub Pages alone does not deploy the Worker.
+## Current behavior
 
-## Connections
+The website's **Gửi mail thông báo** tab controls the shared schedule. Default: enabled, **06:00 every day, Asia/Ho_Chi_Minh**. Arrival-based reminders are removed entirely. A single email summarizes the day's reserved dine-in bookings, including customer, tables, time, guest count, set name, dishes and notes. Cancelled, paid, arrived/completed and takeaway orders are excluded. Empty days send a no-bookings summary.
 
-1. Access the existing Cloudflare account that owns Worker `trainghiemdpa` and D1 `dpa-bookings`.
-2. Create/sign in to Resend. Use an API key restricted to **Sending access**. Never commit or paste a key into frontend code, GitHub, or chat.
-3. Confirm the destination inbox. For an initial trial, `DPA <onboarding@resend.dev>` can send only to the email that owns the Resend account. A verified sending domain is needed for other recipients / normal production sending.
+Changing the time or enable switch requires **Lưu cài đặt**. Settings persist in D1 across devices and deployments. Version checks prevent overwriting changes from another device. Changing the time does not resend a summary already delivered that day. The mail settings API never accepts recipient, sender or API-key changes.
 
-Provider documentation: https://resend.com/docs/api-reference/emails/send-email and https://resend.com/docs/knowledge-base/403-error-resend-dev-domain
+## Server configuration
 
-## Configure in Cloudflare dashboard
+The existing Cloudflare Worker is `trainghiemdpa`, with D1 `dpa-bookings`. Resend sends the emails. Configure these four values on Cloudflare, never in browser code, GitHub or chat:
 
-Workers & Pages → `trainghiemdpa` → Settings → Variables and Secrets. Set these server-side values:
+| Name | Value |
+| --- | --- |
+| RESEND_API_KEY | Resend API key restricted to sending |
+| BOOKING_EMAIL_TO | The confirmed destination inbox |
+| BOOKING_EMAIL_FROM | Sender on a verified domain, or `DPA <onboarding@resend.dev>` for an account-owner-only trial |
+| BOOKING_EMAIL_ENABLED | Bootstrap on/off state; shared saved settings take precedence |
 
-| Name | Type | Value |
-| --- | --- | --- |
-| RESEND_API_KEY | Secret | Resend sending API key |
-| BOOKING_EMAIL_TO | Secret | Confirmed recipient email |
-| BOOKING_EMAIL_FROM | Variable | `DPA <onboarding@resend.dev>` for the account-owner-only trial; otherwise an address on the verified sending domain |
-| BOOKING_EMAIL_DAILY_TIME | Variable | `08:00` |
-| BOOKING_EMAIL_BEFORE_MINUTES | Variable | `120`; use `0` for daily-only notifications |
-| BOOKING_EMAIL_ENABLED | Variable | Keep `false` until ready; change to `true` to activate |
+For the initial trial, resend.dev can send only to the email that owns the Resend account. Use a verified domain for other recipients or normal branded sending. No Gmail password is needed.
 
-Do not put a Gmail password in any of these fields. The website sends through Resend, not through the user's personal Gmail account.
+https://resend.com/docs/api-reference/emails/send-email
+https://resend.com/docs/knowledge-base/403-error-resend-dev-domain
 
-## Deploy and verify
+## Deployment
 
-- Run `node --test email-reminders.test.mjs` and the TypeScript check.
-- Authenticate Wrangler to the correct Cloudflare account. Apply `0018_email_reminders.sql` or the normal pending migrations, then deploy the Worker. The job journal also initializes automatically on the first enabled scheduled run.
-- Retain the existing `* * * * *` Cron Trigger. Both dish-image processing and email reminders run independently from that trigger.
-- Read `/api/email-reminders`: it reports configured/enabled state, a masked inbox and the latest provider-accepted send time. No public endpoint sends emails or changes the recipient.
-- Activate only after confirming the inbox, provider identity and schedule with the owner.
-- Verify the first actual email in the recipient inbox and in Resend delivery logs. A provider-accepted request does not prove inbox delivery. No real email has been sent as part of local tests.
+Cloudflare Builds runs `npm run build` then `npm run deploy`. The deploy script applies pending D1 migrations, imports only the explicit mail allowlist from Build secrets to Worker runtime over stdin, and deploys with `--keep-vars`. It does not expose credentials in logs or import unrelated build credentials. The script also works when mail secrets are already configured at runtime.
 
-## Behavior
+Migration `0019_email_schedule.sql` initializes the requested 06:00 enabled schedule; repeating it preserves saved settings. Later updates through the website override bootstrap build/runtime variables, so subsequent deployments do not reset the schedule.
 
-Times are Asia/Ho_Chi_Minh (UTC+7). One daily summary is sent after the configured time, only when there are upcoming reserved dine-in bookings that day. The before-arrival reminder becomes eligible within the configured lead time, including bookings entered late and arrivals shortly after midnight. Cancelled, arrived, completed, takeaway and paid bookings are excluded. Empty days do not send mail.
+Retain the existing every-minute Cron Trigger. It runs the mail scheduler independently of dish-image processing. The scheduler sends at or after the configured time and can catch up after a brief outage. Durable job IDs, atomic claims and Resend idempotency keys prevent duplicate sends across retries and concurrent cron ticks. Unconfirmed delivery retries with backoff up to eight attempts while eligible; the request snapshot stays the same for provider idempotency.
 
-Emails include the saved set name and dishes. They reflect a snapshot; staff should check the current booking before preparing. Durable job keys, atomic claims and Resend idempotency keys prevent duplicate sends across retries and concurrent cron ticks. Pending delivery snapshots retain the same request body for provider idempotency. Changed arrival times have a new reminder key; changes after an email was sent do not retract it. At most two unsent jobs are attempted per tick; errors retry with backoff up to eight attempts while the booking is still eligible. Operational logs contain job IDs and fixed error codes, never the API key or full email body.
+## Verification
 
-To disable: set `BOOKING_EMAIL_ENABLED=false` on the Worker. Keep the Cron Trigger for the existing dish-image service.
+Run `node --test email-reminders.test.mjs`, the existing tests, the TypeScript check and a production build. Check `/api/email-reminders` for configured/enabled state, daily time, next send, a masked inbox and the latest provider-accepted timestamp. Verify actual delivery in Gmail/Resend; provider acceptance alone does not prove inbox delivery.
 
-## Cloudflare Builds configuration
+The status endpoint is read-only. POST to the same endpoint accepts only enabled, dailyTime and version, following the existing internal POS access model. There is no public send-now endpoint and no client access to provider credentials. For the original test email Gmail marked it as spam; it was moved to Inbox using Report not spam.
 
-The deploy command now runs `node deploy.mjs`. If mail values are configured under Builds instead of Runtime variables, this script validates the four required mail values, imports only the explicit mail allowlist with `wrangler secret bulk` over stdin, and deploys with `--keep-vars`. It never imports unrelated build tokens or prints mail credentials. Runtime imports happen inside Cloudflare, not through GitHub or the browser. When using this workflow, change BOOKING_EMAIL_ENABLED in Builds and redeploy; future deployments reuse the build values. Keep it false until the first configured deployment is verified.
+To pause mail, switch off auto sending in the website tab and save. Leave the Cron Trigger in place for other services.

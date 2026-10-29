@@ -30,7 +30,7 @@ jobs:
               html=await page.text();
               // An invalid range must return 400. This checks routing without reading customer data.
               const route=await fetch(base+'/api/order-history?from=invalid&to=invalid',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              if(page.ok&&html.includes('pos-menu-overview.js?v=20261027-ux5')&&route.status===400)break;
+              if(page.ok&&html.includes('pos-menu-overview.js?v=20261028-perf1')&&route.status===400)break;
               if(attempt===29)throw Error('Current deployment is not ready.');
             }catch(e){if(attempt===29)throw e;}
             await new Promise(resolve=>setTimeout(resolve,6000));

@@ -21,8 +21,8 @@ export function reminderConfig(env:EmailReminderEnv){
  const to=env.BOOKING_EMAIL_TO?.trim()||'';
  const from=env.BOOKING_EMAIL_FROM?.trim()||'';
  const sender=from.match(/<([^<>]+)>$/)?.[1]||from;
- const dailyTime=env.BOOKING_EMAIL_DAILY_TIME?.trim()||'08:00';
- const beforeMinutes=env.BOOKING_EMAIL_BEFORE_MINUTES===undefined?120:Number(env.BOOKING_EMAIL_BEFORE_MINUTES);
+ const dailyTime='06:00';
+ const beforeMinutes=0;
  const validTime=/^([01]\d|2[0-3]):[0-5]\d$/.test(dailyTime);
  const missing=[!env.RESEND_API_KEY?.trim()?'RESEND_API_KEY':'',!email.test(to)?'BOOKING_EMAIL_TO':'',!email.test(sender)||/[\r\n]/.test(from)?'BOOKING_EMAIL_FROM':'',!validTime?'BOOKING_EMAIL_DAILY_TIME':'',!Number.isInteger(beforeMinutes)||beforeMinutes<0||beforeMinutes>1440?'BOOKING_EMAIL_BEFORE_MINUTES':''].filter(Boolean);
  return {to,from,dailyTime,beforeMinutes,missing,enabled:env.BOOKING_EMAIL_ENABLED==='true',ready:!missing.length};
@@ -30,23 +30,42 @@ export function reminderConfig(env:EmailReminderEnv){
 export function vietnamClock(now:number){
  const local=new Date(now+7*60*60*1000).toISOString();return {date:local.slice(0,10),time:local.slice(11,16)};
 }
-export type ReminderJob={key:string;kind:'daily'|'before';bookings:Booking[]};
+export type ReminderJob={key:string;kind:'daily';date:string;bookings:Booking[]};
 export function dueEmailJobs(bookings:Booking[],now:number,config:Pick<ReturnType<typeof reminderConfig>,'dailyTime'|'beforeMinutes'>):ReminderJob[]{
  const clock=vietnamClock(now);
- const pending=bookings.filter(b=>b.status==='reserved'&&!b.paidAt&&b.serviceType!=='takeaway');
- const jobs:ReminderJob[]=[];
- const daily=pending.filter(b=>b.date===clock.date&&b.start>clock.time).sort((a,b)=>a.start.localeCompare(b.start)||a.name.localeCompare(b.name,'vi'));
- if(clock.time>=config.dailyTime&&daily.length)jobs.push({key:'daily/'+clock.date,kind:'daily',bookings:daily});
- if(config.beforeMinutes>0)for(const b of pending){
-  const arrival=Date.parse(b.date+'T'+b.start+':00+07:00');
-  if(arrival>now&&arrival-now<=config.beforeMinutes*60000)jobs.push({key:'before/'+b.id+'/'+b.date+'/'+b.start.replace(':',''),kind:'before',bookings:[b]});
- }
- return jobs;
+ if(clock.time<config.dailyTime)return [];
+ const daily=bookings.filter(b=>b.date===clock.date&&b.status==='reserved'&&!b.paidAt&&b.serviceType!=='takeaway').sort((a,b)=>a.start.localeCompare(b.start)||a.name.localeCompare(b.name,'vi'));
+ return [{key:'daily/'+clock.date,kind:'daily',date:clock.date,bookings:daily}];
+}
+export type EmailSchedule={enabled:boolean;dailyTime:string;version:number;updatedAt:string|null};
+const settingsSchema=`CREATE TABLE IF NOT EXISTS booking_email_settings (id TEXT PRIMARY KEY CHECK(id='daily'),enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),daily_time TEXT NOT NULL,version INTEGER NOT NULL,updated_at TEXT)`;
+export async function loadEmailSchedule(env:EmailReminderEnv):Promise<EmailSchedule>{
+ try{
+  const row=await env.DB.prepare("SELECT enabled,daily_time,version,updated_at FROM booking_email_settings WHERE id='daily'").first<{enabled:number;daily_time:string;version:number;updated_at:string|null}>();
+  if(row)return {enabled:!!row.enabled,dailyTime:row.daily_time,version:row.version,updatedAt:row.updated_at};
+ }catch(error){if(!/no such table.*booking_email_settings/i.test(String(error)))throw error;}
+ return {enabled:reminderConfig(env).enabled,dailyTime:'06:00',version:0,updatedAt:null};
+}
+export function nextDailySend(dailyTime:string,now=Date.now(),lastSentAt:string|null=null){
+ const clock=vietnamClock(now);let next=Date.parse(clock.date+'T'+dailyTime+':00+07:00');if(next<=now||(lastSentAt&&vietnamClock(Date.parse(lastSentAt)).date===clock.date))next+=86400000;return new Date(next).toISOString();
+}
+export async function saveEmailSchedule(request:Request,env:EmailReminderEnv){
+ let body:any;try{body=await request.json();}catch{return Response.json({error:'Dữ liệu cấu hình không hợp lệ.'},{status:400});}
+ if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','dailyTime','version'].includes(k))||typeof body.enabled!=='boolean'||typeof body.dailyTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.dailyTime)||!Number.isInteger(body.version)||body.version<0)return Response.json({error:'Chọn giờ gửi theo định dạng 24 giờ và kiểm tra cấu hình.'},{status:400});
+ try{
+  await env.DB.prepare(settingsSchema).run();
+  const previous=await loadEmailSchedule(env);
+  if(previous.version!==body.version)return Response.json({error:'Cấu hình vừa thay đổi trên thiết bị khác. Tải lại trước khi lưu.'},{status:409});
+  const stamp=new Date().toISOString();
+  const saved=await env.DB.prepare(`INSERT INTO booking_email_settings(id,enabled,daily_time,version,updated_at) VALUES('daily',?,?,1,?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled,daily_time=excluded.daily_time,version=booking_email_settings.version+1,updated_at=excluded.updated_at WHERE booking_email_settings.version=? RETURNING version`).bind(body.enabled?1:0,body.dailyTime,stamp,body.version).first<{version:number}>();
+  if(!saved)return Response.json({error:'Cấu hình vừa thay đổi. Tải lại và thử lại.'},{status:409});
+  return emailReminderStatus(env);
+ }catch{return Response.json({error:'Chưa lưu được lịch gửi mail. Vui lòng thử lại.'},{status:503});}
 }
 const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export function reminderContent(job:ReminderJob){
- const date=job.bookings[0].date.split('-').reverse().join('/');
- const subject=job.kind==='daily'?`DPA • Hôm nay ${date}: ${job.bookings.length} lượt đặt bàn`:`DPA • Sắp đón khách ${job.bookings[0].start} — ${orderLocation(job.bookings[0])}`;
+ const date=job.date.split('-').reverse().join('/');
+ const subject=`DPA • Hôm nay ${date}: ${job.bookings.length} lượt đặt bàn`;
  const blocks=job.bookings.map(b=>[
   `${b.start}–${b.end} | ${orderLocation(b)}`,
   `Khách: ${b.name} | ${guestCount(b)} người`,
@@ -55,21 +74,21 @@ export function reminderContent(job:ReminderJob){
   `Thực đơn:\n${menuText(b.menu)||'Chưa cập nhật'}`,
   ...(b.note?[`Ghi chú: ${b.note}`]:[]),
  ].join('\n'));
- const text=subject+'\nGiờ Việt Nam\n\n'+blocks.join('\n\n--------------------\n\n')+'\n\nLịch có thể thay đổi sau khi gửi. Kiểm tra website trước khi chuẩn bị:\nhttps://thanson1998.github.io/trainghiemdpa/';
- const html=`<div style="font-family:Arial,sans-serif;color:#234736;max-width:680px;margin:auto"><h2>${escapeHtml(subject)}</h2><p>Giờ Việt Nam</p>${blocks.map(block=>`<div style="padding:16px;background:#f4f6ee;margin:12px 0;border-radius:8px;white-space:pre-line">${escapeHtml(block)}</div>`).join('')}<p>Lịch có thể thay đổi sau khi gửi. <a href="https://thanson1998.github.io/trainghiemdpa/">Mở website DPA để kiểm tra</a>.</p></div>`;
+ const text=subject+'\nGiờ Việt Nam\n\n'+(blocks.length?blocks.join('\n\n--------------------\n\n'):'Hôm nay chưa có bàn đặt.')+'\n\nLịch có thể thay đổi sau khi gửi. Kiểm tra website trước khi chuẩn bị:\nhttps://thanson1998.github.io/trainghiemdpa/';
+ const html=`<div style="font-family:Arial,sans-serif;color:#234736;max-width:680px;margin:auto"><h2>${escapeHtml(subject)}</h2><p>Giờ Việt Nam</p>${(blocks.length?blocks:['Hôm nay chưa có bàn đặt.']).map(block=>`<div style="padding:16px;background:#f4f6ee;margin:12px 0;border-radius:8px;white-space:pre-line">${escapeHtml(block)}</div>`).join('')}<p>Lịch có thể thay đổi sau khi gửi. <a href="https://thanson1998.github.io/trainghiemdpa/">Mở website DPA để kiểm tra</a>.</p></div>`;
  return {subject,text,html};
 }
 export async function emailReminderStatus(env:EmailReminderEnv){
- const c=reminderConfig(env);let lastSentAt:string|null=null,journalReady=false;
+ const c=reminderConfig(env),schedule=await loadEmailSchedule(env);let lastSentAt:string|null=null,journalReady=false;
  try{const row=await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_email_jobs WHERE state='sent'").first<{sent:string|null}>();lastSentAt=row?.sent??null;journalReady=true;}catch{/* A new installation has not initialized its journal yet. */}
- return Response.json({enabled:c.enabled,configured:c.ready,dailyTime:c.dailyTime,beforeMinutes:c.beforeMinutes,timeZone:'Asia/Ho_Chi_Minh',recipient:c.to&&email.test(c.to)?c.to.slice(0,2)+'***@'+c.to.split('@')[1]:null,lastSentAt,journalReady},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({...schedule,configured:c.ready,beforeMinutes:0,nextSendAt:schedule.enabled?nextDailySend(schedule.dailyTime,Date.now(),lastSentAt):null,timeZone:'Asia/Ho_Chi_Minh',recipient:c.to&&email.test(c.to)?c.to.slice(0,2)+'***@'+c.to.split('@')[1]:null,lastSentAt,journalReady},{headers:{'Cache-Control':'no-store'}});
 }
 export async function processBookingEmails(env:EmailReminderEnv,now=Date.now(),send:typeof fetch=fetch){
- const config=reminderConfig(env);
+ const base=reminderConfig(env),schedule=await loadEmailSchedule(env),config={...base,...schedule,beforeMinutes:0};
  if(!config.enabled||!config.ready)return {sent:0,skipped:'not_configured'};
  await env.DB.prepare(journalSchema).run();
- const clock=vietnamClock(now),tomorrow=vietnamClock(now+86400000).date;
- const response=await getBookings(new Request('https://dpa.internal/api/bookings?from='+clock.date+'&to='+tomorrow),env.DB);
+ const clock=vietnamClock(now);
+ const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+clock.date),env.DB);
  if(!response.ok)throw new Error('EMAIL_BOOKINGS_UNAVAILABLE');
  const data=await response.json() as {bookings:Booking[]};
  const jobs=dueEmailJobs(data.bookings,now,config);let sent=0,attempted=0;

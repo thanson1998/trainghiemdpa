@@ -1,4 +1,4 @@
-import {emailReminderStatus,processBookingEmails,type EmailReminderEnv} from './email-reminders';
+import {emailReminderStatus,saveEmailSchedule,processBookingEmails,type EmailReminderEnv} from './email-reminders';
 import {GET_ORDER_HISTORY} from './order-history-api';
 import {GET_LAYOUT,SAVE_LAYOUT} from './table-layout-api';
 import {GET_ADS_CONNECTION,CONNECT_ADS,GET_LIVE_ADS,SEARCH_LIVE_ADS} from './ads-live-api';
@@ -22,7 +22,7 @@ export default {
   if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Nguồn truy cập không được cấu hình.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-  if(url.pathname==='/api/email-reminders'&&request.method==='GET'){const response=await emailReminderStatus(env);const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
+  if(url.pathname==='/api/email-reminders'){if(request.method==='POST'&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Yêu cầu phải có định dạng JSON.'},{status:415,headers});const response=request.method==='GET'?await emailReminderStatus(env):request.method==='POST'?await saveEmailSchedule(request,env):Response.json({error:'Phương thức không được hỗ trợ.'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/dish-images'||url.pathname.startsWith('/api/dish-images/')){
    if(request.method==='GET'&&url.pathname.startsWith('/api/dish-images/')&&typeof caches!=='undefined'){
     const edgeCache=(caches as unknown as {default?:Cache}).default;
