@@ -7,3 +7,11 @@
 .menu-print-service-time dt{font-size:10.5pt;font-weight:700;margin:0 0 8px}
 .menu-print-service-time dd{margin:0;font-size:11pt;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media print{.menu-print-location>.menu-print-service-time{display:block!important}.menu-print-service-time dt,.menu-print-service-time dd{font-weight:700!important}}
+
+/* Solid black, real Arial Bold strokes for thermal kitchen printers. */
+.menu-print-sheet,.menu-print-sheet *{font-family:Arial,Helvetica,sans-serif!important;color:#000!important;font-weight:700!important;text-shadow:none!important;-webkit-text-stroke:0;letter-spacing:0;text-rendering:auto}
+.menu-print-sheet{font-size:11.5pt;line-height:1.5;-webkit-font-smoothing:auto;filter:none;opacity:1}
+.menu-print-sheet .menu-print-facts dd,.menu-print-sheet .menu-print-facts small,.menu-print-sheet .menu-print-dishes p,.menu-print-sheet .dish-print-count,.menu-print-sheet .dish-print-price,.menu-print-sheet .dish-print-included,.menu-print-sheet .dish-print-note,.menu-print-sheet .menu-print-price>div,.menu-print-sheet .menu-print-footer{font-size:11.5pt;line-height:1.5}
+.menu-print-sheet .menu-print-facts dt,.menu-print-sheet .menu-print-brand span,.menu-print-sheet .menu-print-heading>p{font-size:10.5pt;line-height:1.5}
+.menu-print-sheet .menu-print-service-time dd{font-size:12pt}
+@media print{.menu-print-sheet,.menu-print-sheet *{color:#000!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
