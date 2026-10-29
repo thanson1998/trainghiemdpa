@@ -1,0 +1,18 @@
+/* Keep the 80 mm bill readable without changing its amounts or payment details. */
+.checkout-bill .checkout-bill-table{table-layout:auto;width:100%;border-collapse:collapse;font:12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:0}
+.checkout-bill .checkout-bill-table th,.checkout-bill .checkout-bill-table td{box-sizing:border-box;padding:7px 2px;vertical-align:top}
+.checkout-bill .checkout-bill-table th{font-size:11.5px;line-height:1.35;vertical-align:middle;font-weight:700}
+.checkout-bill .checkout-bill-table th:first-child{width:34%;text-align:left}
+.checkout-bill .checkout-bill-table th:nth-child(2){width:16%;text-align:left}
+.checkout-bill .checkout-bill-table th:nth-child(3),.checkout-bill .checkout-bill-table th:nth-child(4){width:25%;text-align:right}
+.checkout-bill .checkout-bill-table td:first-child{font-size:12px;line-height:1.45;white-space:normal;word-break:normal;overflow-wrap:anywhere;text-align:left}
+.checkout-bill .checkout-bill-table td:nth-child(2){font-size:12px;line-height:1.45;white-space:normal;word-break:normal;overflow-wrap:normal;text-align:left}
+.checkout-bill .checkout-bill-table td:nth-child(2) b{font-weight:700}
+.checkout-bill .checkout-bill-table td:nth-child(3),.checkout-bill .checkout-bill-table td:nth-child(4){font-size:11.5px;line-height:1.52;white-space:nowrap;word-break:normal;overflow-wrap:normal;text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:'tnum';letter-spacing:-.1px}
+.checkout-bill .checkout-bill-table td:nth-child(3){padding-right:5px}
+.checkout-bill .checkout-bill-table td:nth-child(4){padding-left:5px}
+.checkout-bill .checkout-bill-table td small{font-size:10px;white-space:normal;display:inline-block;max-width:18mm;line-height:1.35}
+.checkout-bill .checkout-bill-table tr{break-inside:avoid;page-break-inside:avoid}
+.checkout-bill .checkout-bill-totals p{align-items:baseline;gap:8px;line-height:1.4}
+.checkout-bill .checkout-bill-totals p>:last-child{flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media print{.checkout-bill .checkout-bill-table{width:100%!important}.checkout-bill .checkout-bill-table th,.checkout-bill .checkout-bill-table td{padding-top:6px;padding-bottom:6px}}
