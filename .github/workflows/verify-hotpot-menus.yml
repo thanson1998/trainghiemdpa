@@ -1,0 +1,32 @@
+name: Verify requested hotpot menus
+on:
+  push:
+    paths:
+      - '0020_hotpot_menus_20261029.sql'
+      - '.github/workflows/verify-hotpot-menus.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Wait for both menu updates in the live catalog
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          const expected=[{price:2000000,people:12,items:['Gà','Chim','Bò hoa','Tôm','Mực','Diềm tim']},{price:1500000,items:['Gà','Cá','Tôm','Bò','Diềm tim','Sườn sụn']}];
+          for(let attempt=0;attempt<35;attempt++){
+            try{
+              const r=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+              assert(r.ok);const catalog=await r.json();
+              for(const e of expected){
+                const matches=catalog.templates.filter(t=>t.menu.startsWith('DPA_MENU_V2:')).map(t=>({...t,parsed:JSON.parse(t.menu.slice(12))})).filter(t=>t.parsed.set?.pricePerTable===e.price&&(!e.people||t.parsed.set.people===e.people)&&t.name.toLowerCase().includes('lẩu'));
+                assert(matches.length>0,'Requested menu is not ready');
+                for(const t of matches){assert.deepEqual(t.parsed.items.map(i=>i.name),e.items);assert(t.parsed.items.every(i=>i.included===true&&i.price===null));}
+              }
+              console.log('Verified live: Lẩu 12 người 2,000,000đ and Lẩu 1,500,000đ, six requested items each.');break;
+            }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
+          }
+          JS
