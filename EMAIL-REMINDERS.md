@@ -41,3 +41,7 @@ Times are Asia/Ho_Chi_Minh (UTC+7). One daily summary is sent after the configur
 Emails include the saved set name and dishes. They reflect a snapshot; staff should check the current booking before preparing. Durable job keys, atomic claims and Resend idempotency keys prevent duplicate sends across retries and concurrent cron ticks. Pending delivery snapshots retain the same request body for provider idempotency. Changed arrival times have a new reminder key; changes after an email was sent do not retract it. At most two unsent jobs are attempted per tick; errors retry with backoff up to eight attempts while the booking is still eligible. Operational logs contain job IDs and fixed error codes, never the API key or full email body.
 
 To disable: set `BOOKING_EMAIL_ENABLED=false` on the Worker. Keep the Cron Trigger for the existing dish-image service.
+
+## Cloudflare Builds configuration
+
+The deploy command now runs `node deploy.mjs`. If mail values are configured under Builds instead of Runtime variables, this script validates the four required mail values, imports only the explicit mail allowlist with `wrangler secret bulk` over stdin, and deploys with `--keep-vars`. It never imports unrelated build tokens or prints mail credentials. Runtime imports happen inside Cloudflare, not through GitHub or the browser. When using this workflow, change BOOKING_EMAIL_ENABLED in Builds and redeploy; future deployments reuse the build values. Keep it false until the first configured deployment is verified.
