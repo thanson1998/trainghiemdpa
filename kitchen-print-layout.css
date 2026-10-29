@@ -1,0 +1,9 @@
+/* Kitchen ticket: date and guests above, table and bold service time below. */
+.menu-print-facts>div:nth-child(2){display:none}
+.menu-print-facts>div:nth-child(3){grid-column:2;grid-row:1}
+.menu-print-location{position:relative;min-height:100px;box-sizing:border-box}
+.menu-print-location>h3,.menu-print-location>div{width:calc(50% - 5px)}
+.menu-print-location>.menu-print-service-time{position:absolute;top:12px;right:0;width:calc(50% - 5px);margin:0;font-size:11pt;line-height:1.5;font-weight:700;break-inside:avoid}
+.menu-print-service-time dt{font-size:10.5pt;font-weight:700;margin:0 0 8px}
+.menu-print-service-time dd{margin:0;font-size:11pt;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media print{.menu-print-location>.menu-print-service-time{display:block!important}.menu-print-service-time dt,.menu-print-service-time dd{font-weight:700!important}}
