@@ -34,6 +34,8 @@ Retain the existing every-minute Cron Trigger. It runs the mail scheduler indepe
 
 Run `node --test email-reminders.test.mjs`, the existing tests, the TypeScript check and a production build. Check `/api/email-reminders` for configured/enabled state, daily time, next send, a masked inbox and the latest provider-accepted timestamp. Verify actual delivery in Gmail/Resend; provider acceptance alone does not prove inbox delivery.
 
-The status endpoint is read-only. POST to the same endpoint accepts only enabled, dailyTime and version, following the existing internal POS access model. There is no public send-now endpoint and no client access to provider credentials. For the original test email Gmail marked it as spam; it was moved to Inbox using Report not spam.
+The status endpoint is read-only. POST to the same endpoint accepts only enabled, dailyTime and version, following the existing internal POS access model. Manual tests are limited to the configured recipient, at most one attempt per minute and five per Vietnam calendar day; clients never receive provider credentials. For the original test email Gmail marked it as spam; it was moved to Inbox using Report not spam.
 
 To pause mail, switch off auto sending in the website tab and save. Leave the Cron Trigger in place for other services.
+
+The “Gửi thử ngay” button posts an empty body to /api/email-reminders/test. It sends the current daily summary with [GỬI THỬ] in the subject, even when automatic sending is paused. Test delivery rows have independent keys and do not consume, reset or move the daily schedule. The automatic lastSentAt field deliberately excludes test emails. Provider acceptance is shown separately from actual inbox delivery.

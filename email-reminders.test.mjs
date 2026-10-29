@@ -69,3 +69,21 @@ test('next run uses Vietnam time and persisted settings survive repeat migration
  const DB=db(),e=env(DB);const sql=fs.readFileSync('0019_email_schedule.sql','utf8');DB.sql.exec(sql);assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'06:00');
  await mod.saveEmailSchedule(request({enabled:false,dailyTime:'05:30',version:1}),e);DB.sql.exec(sql);assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'05:30');assert.equal((await mod.loadEmailSchedule(e)).enabled,false);
 });
+
+test('manual test sends once, keeps the daily schedule and delivery independent, and rejects custom recipients',async()=>{
+ const DB=db(),e=env(DB),calls=[];const send=async(url,options)=>{calls.push(JSON.parse(options.body));return Response.json({id:'test-'+calls.length})};
+ const req=()=>new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+ const before=await mod.loadEmailSchedule(e);
+ let r=await mod.sendTestBookingEmail(req(),e,at('2026-11-06T05:00:00'),send);assert.equal(r.status,200);assert.equal(calls.length,1);assert.deepEqual(calls[0].to,['owner@example.com']);assert.match(calls[0].subject,/GỬI THỬ/);
+ assert.deepEqual(await mod.loadEmailSchedule(e),before);
+ assert.equal((await(await mod.emailReminderStatus(e)).json()).lastSentAt,null);
+ assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T05:00:20'),send)).status,429);assert.equal(calls.length,1);
+ await mod.processBookingEmails(e,at('2026-11-06T06:00:00'),send);assert.equal(calls.length,2);assert.ok(!calls[1].subject.includes('GỬI THỬ'));
+ const bad=new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',body:JSON.stringify({to:'stranger@example.com'})});assert.equal((await mod.sendTestBookingEmail(bad,e,at('2026-11-06T06:01:00'),send)).status,400);
+ for(let i=1;i<=4;i++)assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T07:0'+i+':00'),send)).status,200);
+ assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T07:06:00'),send)).status,429);assert.equal(calls.length,6);
+});
+test('manual provider failures report uncertainty without changing the schedule or leaking credentials',async()=>{
+ const DB=db(),e=env(DB),req=new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',body:'{}'});
+ const r=await mod.sendTestBookingEmail(req,e,at('2026-11-06T05:00:00'),async()=>new Response('private-provider-message',{status:403}));assert.equal(r.status,502);const result=await r.json();assert.equal(result.code,'PROVIDER_HTTP_403');assert.ok(!JSON.stringify(result).includes('test-only-key'));assert.ok(!JSON.stringify(result).includes('private-provider-message'));assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'06:00');
+});

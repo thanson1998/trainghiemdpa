@@ -30,7 +30,7 @@ export function reminderConfig(env:EmailReminderEnv){
 export function vietnamClock(now:number){
  const local=new Date(now+7*60*60*1000).toISOString();return {date:local.slice(0,10),time:local.slice(11,16)};
 }
-export type ReminderJob={key:string;kind:'daily';date:string;bookings:Booking[]};
+export type ReminderJob={key:string;kind:'daily'|'test';date:string;bookings:Booking[]};
 export function dueEmailJobs(bookings:Booking[],now:number,config:Pick<ReturnType<typeof reminderConfig>,'dailyTime'|'beforeMinutes'>):ReminderJob[]{
  const clock=vietnamClock(now);
  if(clock.time<config.dailyTime)return [];
@@ -65,7 +65,7 @@ export async function saveEmailSchedule(request:Request,env:EmailReminderEnv){
 const escapeHtml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export function reminderContent(job:ReminderJob){
  const date=job.date.split('-').reverse().join('/');
- const subject=`DPA • Hôm nay ${date}: ${job.bookings.length} lượt đặt bàn`;
+ const subject=(job.kind==='test'?'[GỬI THỬ] ':'')+`DPA • Hôm nay ${date}: ${job.bookings.length} lượt đặt bàn`;
  const blocks=job.bookings.map(b=>[
   `${b.start}–${b.end} | ${orderLocation(b)}`,
   `Khách: ${b.name} | ${guestCount(b)} người`,
@@ -80,7 +80,7 @@ export function reminderContent(job:ReminderJob){
 }
 export async function emailReminderStatus(env:EmailReminderEnv){
  const c=reminderConfig(env),schedule=await loadEmailSchedule(env);let lastSentAt:string|null=null,journalReady=false;
- try{const row=await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_email_jobs WHERE state='sent'").first<{sent:string|null}>();lastSentAt=row?.sent??null;journalReady=true;}catch{/* A new installation has not initialized its journal yet. */}
+ try{const row=await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_email_jobs WHERE state='sent' AND job_key LIKE 'daily/%'").first<{sent:string|null}>();lastSentAt=row?.sent??null;journalReady=true;}catch{/* A new installation has not initialized its journal yet. */}
  return Response.json({...schedule,configured:c.ready,beforeMinutes:0,nextSendAt:schedule.enabled?nextDailySend(schedule.dailyTime,Date.now(),lastSentAt):null,timeZone:'Asia/Ho_Chi_Minh',recipient:c.to&&email.test(c.to)?c.to.slice(0,2)+'***@'+c.to.split('@')[1]:null,lastSentAt,journalReady},{headers:{'Cache-Control':'no-store'}});
 }
 export async function processBookingEmails(env:EmailReminderEnv,now=Date.now(),send:typeof fetch=fetch){
@@ -115,4 +115,34 @@ export async function processBookingEmails(env:EmailReminderEnv,now=Date.now(),s
   }
  }
  return {sent};
+}
+
+// Explicit manual tests use a separate journal; they never consume or reset a daily delivery.
+export async function sendTestBookingEmail(request:Request,env:EmailReminderEnv,now=Date.now(),send:typeof fetch=fetch){
+ const config=reminderConfig(env);
+ if(!config.ready)return Response.json({error:'Chưa kết nối đầy đủ dịch vụ gửi mail.'},{status:409});
+ let body:any;try{body=await request.json();}catch{return Response.json({error:'Yêu cầu không hợp lệ.'},{status:400});}
+ if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length)return Response.json({error:'Email thử chỉ gửi tới địa chỉ đã cấu hình.'},{status:400});
+ try{
+  await env.DB.prepare(journalSchema).run();
+  const clock=vietnamClock(now),key='test/'+clock.date+'/'+clock.time.replace(':','');
+  const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+clock.date),env.DB);
+  if(!response.ok)return Response.json({error:'Chưa đọc được lịch đặt bàn để gửi thử.'},{status:503});
+  const data=await response.json() as {bookings:Booking[]};
+  const job=dueEmailJobs(data.bookings,now,{dailyTime:'00:00',beforeMinutes:0})[0];job.kind='test';job.key=key;
+  const payload=JSON.stringify({from:config.from,to:[config.to],...reminderContent(job)});
+  const claim=await env.DB.prepare(`INSERT OR IGNORE INTO booking_email_jobs(job_key,payload,state,attempts,lease_until,next_attempt) SELECT ?,?,'sending',1,?,0 WHERE (SELECT COUNT(*) FROM booking_email_jobs WHERE job_key LIKE ?) < 5 RETURNING job_key`).bind(key,payload,now+120000,'test/'+clock.date+'/%').first<{job_key:string}>();
+  if(!claim)return Response.json({error:'Đã gửi thử trong phút này hoặc đủ 5 lần hôm nay. Vui lòng thử lại sau.'},{status:429});
+  try{
+   const result=await send('https://api.resend.com/emails',{method:'POST',headers:{'Authorization':'Bearer '+env.RESEND_API_KEY!.trim(),'Content-Type':'application/json','Idempotency-Key':'dpa-booking/'+key},body:payload,signal:AbortSignal.timeout(10000)});
+   if(!result.ok)throw new Error('PROVIDER_HTTP_'+result.status);
+   const accepted=await result.json() as {id?:string};if(!accepted.id)throw Error('PROVIDER_INVALID_RESPONSE');
+   await env.DB.prepare("UPDATE booking_email_jobs SET state='sent',sent_at=?,provider_id=?,error_code=NULL WHERE job_key=?").bind(new Date(now).toISOString(),accepted.id,key).run();
+   return Response.json({accepted:true,sentAt:new Date(now).toISOString(),message:'Đã gửi email thử tới hộp thư đã cấu hình. Kiểm tra Hộp thư đến hoặc Spam.'});
+  }catch(error){
+   const code=error instanceof Error&&/^PROVIDER_/.test(error.message)?error.message:'SEND_UNCONFIRMED';
+   await env.DB.prepare("UPDATE booking_email_jobs SET state='error',lease_until=0,error_code=? WHERE job_key=?").bind(code,key).run();
+   return Response.json({error:'Chưa xác nhận được email thử đã gửi. Kiểm tra Resend hoặc hộp thư trước khi thử lại.',code},{status:502});
+  }
+ }catch{return Response.json({error:'Chưa gửi được email thử. Vui lòng thử lại.'},{status:503});}
 }
