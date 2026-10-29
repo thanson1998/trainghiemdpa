@@ -15,3 +15,7 @@
 
 .time-24-field{min-width:0;margin-bottom:18px}.time-24-field>span{display:block;font-size:14px;color:#5b7050}.time-24-field i{color:#aa755b;font-style:normal}.time-24-control{display:grid;grid-template-columns:minmax(0,1fr) 10px minmax(0,1fr);align-items:center;gap:6px;margin-top:7px}.drawer-body .time-24-control select{width:100%;min-width:0;margin:0;font-size:16px;font-variant-numeric:tabular-nums}.time-24-control>span{text-align:center;font-size:18px;color:#315545}
 
+
+/* Selected set title in the table reservation preview. */
+.tooltip-set-name{display:block;margin-top:7px;padding:6px 8px;border-left:3px solid #ac914f;border-radius:3px;background:#f6f0df;color:#315545;font-size:12px;font-weight:700;line-height:1.45;overflow-wrap:anywhere}
+.tooltip-menu .tooltip-set-name+p{margin-top:5px}
