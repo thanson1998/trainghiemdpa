@@ -41,12 +41,13 @@ jobs:
           try{
             for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
               const context=await browser.newContext({locale:'vi-VN',timezoneId:'Asia/Ho_Chi_Minh',viewport:{width:1440,height:1000}});
-              const page=await context.newPage();await page.goto(host,{waitUntil:'domcontentloaded'});
+              const page=await context.newPage();page.on('pageerror',error=>console.log('Page error',host,error.message));await page.goto(host+'?layout='+process.env.GITHUB_SHA,{waitUntil:'domcontentloaded'});
               const toolbar=page.locator('.pos-header-service-tools');await toolbar.waitFor();for(const name of ['Tại quán','Mang về','Làm mới menu'])assert.equal(await toolbar.getByRole('button',{name,exact:true}).count(),1);assert.equal(await page.locator('.pos-item-extras:visible,.pos-item-note-summary:visible').count(),0);
               const dates=page.locator('.pos-inline-schedule');await dates.waitFor({timeout:30000});
               const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>i.value),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>l.querySelector('input')?.value)}))}));
               assert.equal(await dates.count(),1);assert(await dates.locator('input[type=date]').isEditable());
               await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('1130');
+              await state('immediate-start-input');
               await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='14:30');
               await state('after-start');
               await dates.getByLabel('Giờ kết thúc POS',{exact:true}).fill('15:30');
