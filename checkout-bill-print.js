@@ -37,16 +37,21 @@
  .single-sheet .checkout-bill-note{font-size:12px;margin-top:6px;padding-top:6px}.single-sheet .checkout-bill-totals p{font-size:13px;margin:3px 0}.single-sheet .checkout-bill-totals strong{font-size:15px}
  .single-sheet .checkout-bill-payment{grid-template-columns:minmax(0,1fr) 32mm}.single-sheet .checkout-bill-payment img{width:32mm;height:32mm}.single-sheet .checkout-bill-payment p,.single-sheet .checkout-bill-payment small{font-size:11px}
  .single-sheet .checkout-bill>footer{font-size:11px;margin-top:4px;padding-top:4px}
+
+ .payment-receipt{box-sizing:border-box;width:80mm;max-width:80mm;margin:0;padding:4mm;background:#fff;color:#000;font:15px/1.4 Arial,Helvetica,sans-serif;overflow-wrap:anywhere}
+ .payment-receipt h2{text-align:center;font-size:19px;margin:4px 0}.payment-receipt h3{text-align:center;font-size:18px;margin:10px 0}.payment-receipt>p{font-size:14px;margin:7px 0}
+ .payment-menu{border-top:1px dashed #999;border-bottom:1px dashed #999;margin:14px 0;padding:4px 0}.payment-menu p,.payment-totals p{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:6px 0;font-size:14px;line-height:1.4}.payment-menu p>span:last-child{max-width:43%;text-align:right;flex-shrink:0}.payment-menu small{display:none}.payment-totals{margin:12px 0;border-bottom:1px dashed #999;padding-bottom:6px}.payment-totals strong{font-size:17px}.payment-totals p>:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+ .single-sheet.payment-receipt{padding:3mm}.single-sheet.payment-receipt h2{font-size:17px}.single-sheet.payment-receipt h3{font-size:15px;margin:6px 0}.single-sheet.payment-receipt>p{font-size:12px;margin:4px 0}.single-sheet .payment-menu{margin:8px 0;padding:2px 0}.single-sheet .payment-menu p,.single-sheet .payment-totals p{font-size:12px;line-height:1.35;margin:4px 0}.single-sheet .payment-totals{margin:8px 0;padding-bottom:4px}.single-sheet .payment-totals strong{font-size:15px}
  @media print{html,body{width:80mm!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important}.checkout-bill-paper{margin:0!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
  `;
  const frames=win=>new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));
  async function printPaper(paper,mode){
-  const frame=document.createElement('iframe');frame.title='Bill tạm tính 80mm';frame.setAttribute('aria-hidden','true');
+  const frame=document.createElement('iframe');frame.title='Bill thanh toán 80mm';frame.setAttribute('aria-hidden','true');
   Object.assign(frame.style,{position:'fixed',left:'-10000px',top:'0',width:'80mm',height:'1px',border:'0'});document.body.appendChild(frame);
   let timer;const cleanup=()=>{clearTimeout(timer);frame.remove();};
   try{
    const doc=frame.contentDocument,win=frame.contentWindow;if(!doc||!win)throw Error('Không mở được khung in. Vui lòng thử lại.');
-   doc.open();doc.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Bill tạm tính DPA</title></head><body></body></html>');doc.close();
+   doc.open();doc.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Bill thanh toán DPA</title></head><body></body></html>');doc.close();
    const base=doc.createElement('base');base.href=document.baseURI;doc.head.appendChild(base);
    const layout=doc.createElement('style');layout.textContent=css;doc.head.appendChild(layout);
    const clone=paper.cloneNode(true);if(mode==='single')clone.classList.add('single-sheet');doc.body.appendChild(clone);
@@ -70,10 +75,10 @@
    await frames(win);timer=setTimeout(cleanup,300000);win.focus();win.print();
   }catch(error){cleanup();throw error;}
  }
- const updateControls=()=>document.querySelectorAll('.checkout-bill-overlay .checkout-bill-print-actions').forEach(actions=>{
+ const updateControls=()=>document.querySelectorAll('.payment-backdrop .payment-print-actions').forEach(actions=>{
   if(actions.querySelector('[data-bill-print-mode]'))return;
   const label=document.createElement('label');Object.assign(label.style,{display:'flex',alignItems:'center',gap:'6px',fontSize:'12px',width:'100%',justifyContent:'center'});label.append('Khổ in: ');
-  const select=document.createElement('select');select.dataset.billPrintMode='true';select.setAttribute('aria-label','Khổ in bill tạm tính');
+  const select=document.createElement('select');select.dataset.billPrintMode='true';select.setAttribute('aria-label','Khổ in bill thanh toán');
   for(const [value,text] of [['single','1 tờ XP-80C (80 × 297 mm)'],['roll','Giấy cuộn dài (giữ cỡ chữ)']]){const option=document.createElement('option');option.value=value;option.textContent=text;select.appendChild(option);}
   const button=actions.querySelector('.primary-btn');
   const caption=()=>{if(button&&!button.disabled)button.textContent=select.value==='single'?'In 1 tờ XP-80C':'In bill giấy cuộn dài';};
@@ -82,12 +87,12 @@
  new MutationObserver(updateControls).observe(document.documentElement,{childList:true,subtree:true});updateControls();
  document.addEventListener('keydown',event=>{
   if(!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='p')return;
-  const button=document.querySelector('.checkout-bill-overlay .checkout-bill-print-actions .primary-btn');
+  const button=document.querySelector('.payment-backdrop .payment-print-actions .primary-btn');
   if(button){event.preventDefault();event.stopImmediatePropagation();button.click();}
  },true);
  document.addEventListener('click',async event=>{
-  const button=event.target instanceof Element?event.target.closest('.checkout-bill-print-actions .primary-btn'):null;
-  if(!button)return;const overlay=button.closest('.checkout-bill-overlay'),paper=overlay?.querySelector('.checkout-bill-paper');if(!paper)return;
+  const button=event.target instanceof Element?event.target.closest('.payment-print-actions .primary-btn'):null;
+  if(!button)return;const overlay=button.closest('.payment-backdrop'),paper=overlay?.querySelector('.payment-receipt');if(!paper)return;
   event.preventDefault();event.stopImmediatePropagation();if(active.has(overlay)||button.disabled)return;
   active.add(overlay);button.disabled=true;const label=button.textContent;button.textContent='Đang chuẩn bị bill…';overlay.querySelector('[data-continuous-bill-error]')?.remove();
   try{await printPaper(paper,overlay.querySelector('[data-bill-print-mode]')?.value||'single');}catch(error){const message=document.createElement('p');message.dataset.continuousBillError='true';message.className='form-error checkout-bill-print-error';message.setAttribute('role','alert');message.textContent=error instanceof Error?error.message:'Chưa chuẩn bị được bill. Vui lòng thử lại.';button.parentElement.after(message);}
