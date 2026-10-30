@@ -1,7 +1,10 @@
 
 /* Compact POS form. These rules never target printed bills. */
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head{--pos-shared-columns:minmax(0,150px) minmax(0,100px) minmax(0,130px);grid-template-columns:minmax(0,1fr) auto!important;gap:7px 8px!important;align-items:start!important}
-.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child{min-width:0!important}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child{min-width:0!important;display:flex;align-items:center;flex-wrap:nowrap;gap:10px}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child>span{flex:0 0 auto;white-space:nowrap}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child>h2{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0!important}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child>.pos-cart-customer{display:none}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child>span{font-size:13px;line-height:1.3}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head h2{font-size:19px!important;line-height:1.25!important;overflow-wrap:anywhere}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-cart-view-actions{display:contents}
