@@ -23,8 +23,8 @@ jobs:
               for(const host of hosts){
                 const r=await fetch(host+'?layout=20261030-3',{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!html.includes('booking-time-defaults.js?v=20261030-1')||!html.includes('kitchen-print-layout.css?v=20261030-3')||!html.includes('kitchen-print-layout.js?v=20261030-3'))throw Error('Updated form and print layout not ready');
-                for(const [path,marker] of [['booking-time-defaults.js?v=20261030-1','h*60+m+180'],['kitchen-print-layout.js?v=20261030-3','menu-print-table-lines'],['kitchen-print-layout.css?v=20261030-3','31mm']]){
+                if(!r.ok||!html.includes('booking-time-defaults.js?v=20261030-2')||!html.includes('kitchen-print-layout.css?v=20261030-5')||!html.includes('kitchen-print-layout.js?v=20261030-3'))throw Error('Updated form and print layout not ready');
+                for(const [path,marker] of [['booking-time-defaults.js?v=20261030-2','h*60+m+180'],['kitchen-print-layout.js?v=20261030-3','menu-print-table-lines'],['kitchen-print-layout.css?v=20261030-5','31mm']]){
                   const asset=await fetch(host+path,{signal:AbortSignal.timeout(15000)});
                   if(!asset.ok||!(await asset.text()).includes(marker))throw Error('Updated asset not ready: '+path);
                 }

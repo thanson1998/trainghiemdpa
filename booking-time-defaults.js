@@ -39,7 +39,7 @@
   if(!event.target||typeof event.target!=='object')return;
   if(name==='focusout'){if(!edited.has(event.target))return;edited.delete(event.target);}else edited.add(event.target);
   queueMicrotask(()=>update(event.target));
- },true);
+ });
  new MutationObserver(records=>{if(records.some(record=>record.addedNodes.length))stripLabels();}).observe(document.documentElement,{childList:true,subtree:true});
  stripLabels();
 })();
