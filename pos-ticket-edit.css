@@ -12,7 +12,7 @@
 @media(max-width:480px){.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) minmax(90px,1fr)!important}.pos-cart.pos-cart-refined .pos-customer>label:first-child{grid-column:1/-1}}
 
 /* Keep pricing and kitchen notes on the same row. */
-.pos-cart.pos-cart-refined .pos-cart-body fieldset:has(>.pos-inline-pricing){display:flex;flex-wrap:wrap;column-gap:10px;align-items:flex-start}
+.pos-cart.pos-cart-refined .pos-cart-body fieldset:has(>.pos-inline-pricing){display:flex;flex-direction:row;flex-wrap:wrap;column-gap:10px;align-items:flex-start;align-content:flex-start}
 .pos-cart.pos-cart-refined .pos-cart-body fieldset:has(>.pos-inline-pricing)>*{box-sizing:border-box;flex:0 0 100%;min-width:0}
 .pos-cart.pos-cart-refined .pos-cart-body fieldset>.pos-inline-pricing{order:10;flex:1 1 calc(50% - 5px);margin:8px 0;padding:7px;gap:6px;align-self:stretch}
 .pos-cart.pos-cart-refined .pos-cart-body fieldset>.pos-order-note{order:11;flex:1 1 calc(50% - 5px);margin:8px 0;max-width:none;font-size:11px;gap:4px}
