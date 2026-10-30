@@ -6,6 +6,7 @@
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(()=>{frame=0;sync();});};
  function sync(){
   document.querySelectorAll('.pos-cart').forEach(cart=>{
+   cart.querySelectorAll('.pos-cart-head button').forEach(button=>{if(['Chọn bàn','Tại quán / chọn bàn'].includes(button.textContent.trim())&&!button.classList.contains('pos-hidden-table-picker'))button.classList.add('pos-hidden-table-picker');});
    const details=cart.querySelector('.pos-details'),meta=cart.querySelector('.pos-ticket-meta'),more=cart.querySelector('.pos-add-inline'),customer=cart.querySelector('.pos-customer');
    if(!details||!meta||!more||!customer)return;
    const labels=Array.from(details.querySelectorAll('.pos-fields>label'));

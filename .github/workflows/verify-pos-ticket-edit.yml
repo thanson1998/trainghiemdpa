@@ -20,9 +20,9 @@ jobs:
           for(let attempt=0;attempt<35;attempt++){
             try{
               for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
-                const r=await fetch(host+'?ticket=20261030-1',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+                const r=await fetch(host+'?ticket='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-1')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
+                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-2')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
               }
               break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
@@ -59,6 +59,9 @@ jobs:
               assert.equal(await page.getByRole('button',{name:'Chọn thêm món',exact:true}).count(),0);
               assert.equal(await page.getByText('Giá · giờ · tùy chọn',{exact:true}).isVisible(),false);
               const pricing=page.locator('.pos-inline-pricing');
+              assert.equal(await page.getByRole('button',{name:/^(Chọn bàn|Tại quán \/ chọn bàn)$/}).count(),0);
+              const checkLayout=async()=>{const a=await pricing.boundingBox(),b=await page.locator('.pos-order-note').boundingBox();assert(a&&b);assert(Math.abs(a.y-b.y)<3,'pricing and kitchen note share a row');assert(a.x+a.width<=b.x+2,'pricing is beside kitchen note');};
+              await checkLayout();await page.setViewportSize({width:390,height:900});await checkLayout();await page.setViewportSize({width:1440,height:1000});
               await pricing.getByLabel('Cách tính giá POS',{exact:true}).selectOption('agreed');
               const amount=pricing.getByLabel('Giá chốt POS mỗi bàn',{exact:true});await amount.waitFor();await amount.fill('1500000');await amount.press('Tab');
               await page.waitForFunction(()=>document.querySelector('.pos-inline-pricing input[aria-label="Giá chốt POS mỗi bàn"]')?.value.replace(/\D/g,'')==='1500000');

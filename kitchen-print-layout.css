@@ -44,3 +44,5 @@
 
 /* Kitchen tickets omit the deposit and remaining payment rows. */
 .menu-print-sheet .menu-print-price>.menu-print-total+div,.menu-print-sheet .menu-print-price>.menu-print-balance{display:none!important}
+
+.menu-print-sheet .menu-print-heading>p{display:none!important}
