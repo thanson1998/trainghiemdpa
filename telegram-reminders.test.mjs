@@ -11,6 +11,39 @@ const booking={id:'one',date:'2026-11-06',start:'18:00',end:'21:00',name:'DPA',p
 function db(){const sql=new DatabaseSync(':memory:');return {bookings:[booking],sql,prepare(q){let args=[];return {bind(...a){args=a;return this},async run(){return sql.prepare(q).run(...args)},async first(){return sql.prepare(q).get(...args)||null},async all(){return {results:sql.prepare(q).all(...args)}}}},async batch(stmts){sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};}
 const env=DB=>({DB,TELEGRAM_BOT_TOKEN:'123:test_only',TELEGRAM_CHAT_ID:'456',TELEGRAM_ENABLED:'true'});
 const ok=()=>Promise.resolve(Response.json({ok:true,result:{message_id:7}}));
+const checkUpdate=(id,when=at('20:00'),patch={})=>({update_id:id,message:{date:when/1000,text:'/check',from:{id:456,is_bot:false},chat:{id:456,type:'private'},...patch}});
+test('/check is private to the configured owner and rejects other commands or edited messages',()=>{
+ assert(mod.isTelegramCheck(checkUpdate(1),'456'));assert(mod.isTelegramCheck(checkUpdate(2,undefined,{text:'/check@dpa_baocao_2026_bot'}),'456'));
+ for(const patch of [{text:'/check@another_bot'},{text:'/check tomorrow'},{text:'check'},{chat:{id:999,type:'private'}},{chat:{id:456,type:'group'}},{from:{id:999}},{from:{id:456,is_bot:true}}])assert(!mod.isTelegramCheck(checkUpdate(3,undefined,patch),'456'));
+ assert(!mod.isTelegramCheck({update_id:4,edited_message:checkUpdate(4).message},'456'));
+});
+test('/check reports fresh POS orders once per command, keeps cursor and preserves scheduled report keys',async()=>{
+ const DB=db(),e=env(DB);DB.bookings=[{...booking,status:'arrived',tables:['N1-01','N1-02']}];let updates=[checkUpdate(100)],offsets=[],replies=[];
+ const send=async(url,opts)=>{const body=JSON.parse(opts.body);if(url.endsWith('/getUpdates')){offsets.push(body.offset);return Response.json({ok:true,result:updates});}replies.push(body);return ok();};
+ await mod.processTelegramChecks(e,at('20:00'),send);await mod.processTelegramChecks(e,at('20:01'),send);
+ assert.equal(replies.length,1);assert(replies[0].text.includes('Đơn đang mở: 1 | Bàn: 2'));assert(replies[0].text.includes('Đang phục vụ: 1'));assert.deepEqual(offsets,[0,101]);
+ DB.bookings=[];updates=[checkUpdate(101,at('20:02')),checkUpdate(102,at('20:02'),{from:{id:999}})];
+ await mod.processTelegramChecks({...e,TELEGRAM_ENABLED:'false'},at('20:02'),send);
+ assert.equal(replies.length,2);assert(replies[1].text.includes('không có đơn đang mở'));assert.equal(DB.sql.prepare('SELECT next_offset FROM booking_telegram_poll').get().next_offset,103);
+ assert.equal(DB.sql.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE job_key NOT LIKE 'command/%'").get().n,0);
+});
+test('command snapshots survive rate limits, midnight and duplicate or concurrent polls',async()=>{
+ const DB=db(),e=env(DB),atNight=Date.parse('2026-11-07T00:00:00+07:00');let limited=true,replies=[];const updates=[checkUpdate(200,at('23:59'))];
+ const send=async(url,opts)=>{if(url.endsWith('/getUpdates'))return Response.json({ok:true,result:updates});replies.push(opts.body);return limited?Response.json({ok:false,error_code:429},{status:429}):ok();};
+ await mod.processTelegramChecks(e,atNight,send);assert(replies[0].includes('06/11/2026'));
+ limited=false;DB.bookings=[];await mod.processTelegramChecks(e,atNight+60000,send);assert.equal(replies.length,2);assert.equal(replies[0],replies[1]);
+ await mod.processTelegramChecks(e,atNight+120000,send);assert.equal(replies.length,2);
+ const another=db();let release;const blocked=new Promise(r=>release=r);const delayed=async(url)=>{if(url.endsWith('/getUpdates')){await blocked;return Response.json({ok:true,result:[]});}return ok();};
+ const first=mod.processTelegramChecks(env(another),at('20:00'),delayed);
+ for(let i=0;i<30&&!another.sql.prepare("SELECT name FROM sqlite_master WHERE name='booking_telegram_poll'").get();i++)await new Promise(r=>setTimeout(r,1));
+ await new Promise(r=>setTimeout(r,5));const second=await mod.processTelegramChecks(env(another),at('20:00'),delayed);assert.equal(second.skipped,'poll_busy');release();await first;
+});
+test('a timed-out command reply is not blindly resent and poll failures preserve the cursor',async()=>{
+ const DB=db(),e=env(DB);let calls=0,pollFail=false;
+ const send=async(url)=>{if(url.endsWith('/getUpdates')){if(pollFail)throw Error('offline');return Response.json({ok:true,result:[checkUpdate(300)]});}calls++;throw Error('delivery unknown');};
+ await mod.processTelegramChecks(e,at('20:00'),send);pollFail=true;await mod.processTelegramChecks(e,at('20:01'),send);
+ assert.equal(calls,1);assert.equal(DB.sql.prepare('SELECT next_offset FROM booking_telegram_poll').get().next_offset,301);assert.equal(DB.sql.prepare('SELECT state FROM booking_telegram_jobs').get().state,'uncertain');
+});
 test('serving orders match POS, distinguish orders from tables and never claim empty',async()=>{
  const serving=[{...booking,id:'a',name:'Serving A',status:'arrived',tables:['N2-01']},{...booking,id:'b',name:'Serving B',status:'arrived',tables:['S3-01']},{...booking,id:'c',name:'Serving C',status:'arrived',tables:['N1-01','N1-02']}];
  const report=mod.telegramSummary(serving,at('20:00'));
