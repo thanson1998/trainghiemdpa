@@ -9,7 +9,7 @@ html=html.replace('</head>','<link rel="stylesheet" href="./pos-layout-fix.css?v
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-menu-overview.css?v=20261028-rows2"/><script defer src="./pos-menu-overview.js?v=20261028-perf1"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20261026-3"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-9"/><script defer src="./kitchen-print-layout.js?v=20261030-3"></script></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-10"/><script defer src="./kitchen-print-layout.js?v=20261030-4"></script></head>');
 html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261030-2"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261030-15"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
 // Hashed JS, CSS and artwork can be cached independently across visits.
