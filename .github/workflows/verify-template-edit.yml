@@ -1,0 +1,29 @@
+name: Verify template editor deployment
+on:
+  push:
+    paths:
+      - 'menu.ts'
+      - 'menu-editor.tsx'
+      - 'catalog-api.ts'
+      - '.github/workflows/verify-template-edit.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check deployed template fix without changing live data
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://trainghiemdpa.thanson198.workers.dev';
+          for(let attempt=0;attempt<35;attempt++){
+            try{
+              const r=await fetch(base+'/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+              if(!r.ok||r.headers.get('X-DPA-Template-Edit')!=='included-additions-v1')throw Error('Template fix is not deployed yet');
+              const page=await fetch('https://thanson1998.github.io/trainghiemdpa/?print=20261030',{signal:AbortSignal.timeout(15000)});
+              const html=await page.text();if(!html.includes('kitchen-print-layout.css?v=20261030-1'))throw Error('Compact print layout is not deployed yet');
+              console.log('Verified live template-save fix and compact kitchen-print stylesheet.');break;
+            }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
+          }
+          JS

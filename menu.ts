@@ -81,3 +81,19 @@ export function prepareTemplateMenu(value:string,name:string):string{
  const items=readMenu(value).filter(i=>i.name.trim());
  return !readMenuSet(value)&&items.length&&items.every(i=>i.price===null)?includeUnpricedInSet(value,name):value;
 }
+
+// A dish added while editing a saved set belongs to its fixed price.
+// Order editors keep their separately priced add-ons.
+export const templateAddedItems=(items:MenuItem[],inSet:boolean):MenuItem[]=>inSet?items.map(item=>({...item,price:null,included:true})):items;
+export function includeNewTemplateItems(value:string,previous?:string):string{
+ if(!value.startsWith(setPrefix))return value;
+ const data=JSON.parse(value.slice(setPrefix.length));
+ const key=(item:MenuItem)=>[item.name,normalizeUnit(item.unit),item.note??''].map(s=>s.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi')).join('|');
+ const existing=new Set(readMenu(previous??'',1,false).map(key));
+ let changed=false;
+ data.items=data.items.map((item:MenuItem)=>{
+  if(!item.name.trim()||existing.has(key(item))||item.included&&item.price===null)return item;
+  changed=true;return {...item,price:null,included:true};
+ });
+ return changed?setPrefix+JSON.stringify(data):value;
+}

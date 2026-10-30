@@ -5,25 +5,26 @@ import {DishSearch} from './dish-search';
 import {useState} from 'react';
 import {Plus,Trash2} from 'lucide-react';
 import {PriceInput} from './price-input';
-import {prepareTemplateMenu,formatMoneyText,readMenu,writeMenu,itemQuantity,mergeMenuItems,menuSum,readMenuSet,menuSetQuantity,setMenuQuantity,type MenuItem} from './menu';
+import {templateAddedItems,prepareTemplateMenu,formatMoneyText,readMenu,writeMenu,itemQuantity,mergeMenuItems,menuSum,readMenuSet,menuSetQuantity,setMenuQuantity,type MenuItem} from './menu';
 import {type Catalog} from './catalog-model';
-const newItem=():MenuItem=>({name:'',price:null,quantity:1,unit:'đĩa'});
+const newItem=(inSet=false):MenuItem=>({name:'',price:null,quantity:1,unit:'đĩa',...(inSet?{included:true}:{})});
 export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=true,tableCount=1,onApplySet,editingTemplate=false}:{value:string;onChange:(value:string)=>void;onApplyTotal?:(total:number)=>void;catalog?:Catalog;allowTemplates?:boolean;editingTemplate?:boolean;tableCount?:number;onApplySet?:(people:number)=>void}){
  const [template,setTemplate]=useState(''),[notice,setNotice]=useState(''),[templateQuantity,setTemplateQuantity]=useState(1);
  const [showUnits,setShowUnits]=useState(false);
  const sourceSet=readMenuSet(value);
+ const editingSetTemplate=editingTemplate&&!!sourceSet;
  const set=sourceSet?{...sourceSet,quantity:menuSetQuantity(value,tableCount)}:undefined;
  const setCount=menuSetQuantity(value,tableCount);
  const selectedSet=catalog?readMenuSet(catalog.templates.find(t=>t.id===template)?.menu??''):undefined;
  const changeSetCount=(quantity:number)=>{if(!set||!Number.isInteger(quantity)||quantity<1||quantity>1000)return;try{onChange(setMenuQuantity(value,quantity,tableCount));if(set.people)onApplySet?.(set.people*quantity);setNotice('');}catch(error){setNotice(error instanceof Error?error.message:'Không thể đổi số lượng set.');}};
- const parsed=readMenu(value,tableCount),items=parsed.length?parsed:[newItem()];
+ const parsed=readMenu(value,tableCount),items=parsed.length?parsed:[newItem(editingSetTemplate)];
  const named=items.filter(item=>item.name.trim());
  const priced=named.filter(item=>item.price!==null);
  const total=menuSum(value,tableCount);
  const complete=named.length>0&&named.every(item=>(item.included||(item.price!==null&&Number.isInteger(item.price)&&item.price>=0&&item.price<=100000000))&&itemQuantity(item)>0&&itemQuantity(item)<=1000);
  const update=(index:number,patch:Partial<MenuItem>)=>onChange(writeMenu(items.map((item,i)=>i===index?{...item,...patch}:item),set));
  const commitMerged=(rows:MenuItem[],message:string)=>{try{const merged=mergeMenuItems(rows);if(merged.length>80){setNotice('Mỗi thực đơn tối đa 80 món.');return;}onChange(writeMenu(merged,set));setNotice(merged.length<rows.length?'Đã cộng dồn số lượng món trùng. Giữ nguyên đơn giá và đơn vị đang có trong menu.':message);}catch(error){setNotice(error instanceof Error?error.message:'Không thể cộng dồn món.');}};
- const append=(added:MenuItem[])=>commitMerged([...items.filter(item=>item.name.trim()||item.price!==null),...added],'Đã thêm vào thực đơn. Bạn có thể sửa giá và số lượng riêng cho đặt bàn này.');
+ const append=(added:MenuItem[])=>commitMerged([...items.filter(item=>item.name.trim()||item.price!==null),...templateAddedItems(added,editingSetTemplate)],'Đã thêm vào thực đơn. Bạn có thể sửa giá và số lượng riêng cho đặt bàn này.');
  const mergeTyped=()=>{if(items.some((item,i)=>items.slice(0,i).some(other=>other.name.trim()&&other.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN')===item.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi-VN'))))commitMerged(items,'');};
 
  return <section className="dish-editor" aria-label="Món ăn và giá tiền">
@@ -44,7 +45,7 @@ export function MenuEditor({value,onChange,onApplyTotal,catalog,allowTemplates=t
    <button type="button" className="icon-btn dish-remove" aria-label={`Xóa món ${i+1}`} onClick={()=>onChange(writeMenu(items.filter((_,index)=>index!==i),set))}><Trash2 size={16}/></button>
   </div>)}
   </div>
-  <button type="button" className="text-btn dish-add" disabled={items.length>=80} onClick={()=>onChange(writeMenu([...items,newItem()],set))}><Plus size={15}/>Thêm món</button>
+  <button type="button" className="text-btn dish-add" disabled={items.length>=80} onClick={()=>onChange(writeMenu([...items,newItem(editingSetTemplate)],set))}><Plus size={15}/>Thêm món</button>
   {priced.length>0&&<div className="dish-editor-total"><div><span>Tổng giá thực đơn đã nhập</span><strong>{money(total)}</strong></div>{onApplyTotal&&<button type="button" className="secondary-btn" disabled={!complete||total>100000000} onClick={()=>onApplyTotal(total)}>Dùng tổng món làm giá bàn</button>}{!complete&&<small>Nhập đủ giá và số lượng các món để áp dụng tổng vào giá bàn.</small>}</div>}
  </section>
 }
