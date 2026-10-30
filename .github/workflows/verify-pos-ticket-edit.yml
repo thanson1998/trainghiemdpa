@@ -22,7 +22,7 @@ jobs:
               for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
                 const r=await fetch(host+'?ticket='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-10')||!html.includes('pos-ticket-edit.css?v=20261030-9')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
+                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-10')||!html.includes('pos-ticket-edit.css?v=20261030-11')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
               }
               break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
@@ -46,7 +46,9 @@ jobs:
               const dates=page.locator('.pos-inline-schedule');await dates.waitFor({timeout:30000});
               const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>({value:i.value,type:i.type})),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>({value:l.querySelector('input')?.value,type:l.querySelector('input')?.type}))}))}));
               assert.equal(await dates.count(),1);assert(await dates.locator('input[type=date]').isEditable());
+              await page.evaluate(()=>{window.timeEvents=[];for(const name of ['input','change','focusout'])document.addEventListener(name,e=>{if(e.target instanceof HTMLInputElement&&/Giờ bắt đầu|Giờ kết thúc/.test(e.target.getAttribute('aria-label')??''))window.timeEvents.push({event:name,value:e.target.value,trusted:e.isTrusted});},true);});
               await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('1130');
+              console.log('Time input events',JSON.stringify(await page.evaluate(()=>window.timeEvents)));
               await state('immediate-start-input');
               await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='14:30');
               await state('after-start');

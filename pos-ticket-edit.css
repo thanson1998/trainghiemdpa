@@ -39,9 +39,9 @@
 /* Customer beside status; guest count and phone beside the end time. */
 @media(min-width:801px){
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head{grid-template-columns:minmax(0,150px) minmax(0,100px) repeat(2,minmax(0,130px))!important}
-.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-price-mode{grid-column:1/4;grid-row:3;grid-template-columns:subgrid}
-.pos-workbench .pos-cart.pos-cart-refined .pos-ticket-meta{grid-column:1/4;grid-row:4;display:grid;grid-template-columns:subgrid}
-.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule{grid-column:1/-1;grid-template-columns:subgrid}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-price-mode{grid-column:1/4;grid-row:3;grid-template-columns:var(--pos-shared-columns)}
+.pos-workbench .pos-cart.pos-cart-refined .pos-ticket-meta{grid-column:1/4;grid-row:4;display:block}
+.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule{grid-column:1/-1;grid-template-columns:var(--pos-shared-columns)}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer{grid-column:4;grid-row:3/5;align-self:start;margin:0!important;min-width:0}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:40px minmax(0,1fr)!important;gap:7px 4px!important}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer .pos-customer>label:first-child{grid-column:1/-1;grid-row:1}
