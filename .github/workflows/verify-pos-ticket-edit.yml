@@ -22,7 +22,7 @@ jobs:
               for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
                 const r=await fetch(host+'?ticket='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-8')||!html.includes('pos-ticket-edit.css?v=20261030-9')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
+                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-10')||!html.includes('pos-ticket-edit.css?v=20261030-9')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
               }
               break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
@@ -44,7 +44,7 @@ jobs:
               const page=await context.newPage();page.on('pageerror',error=>console.log('Page error',host,error.message));await page.goto(host+'?layout='+process.env.GITHUB_SHA,{waitUntil:'domcontentloaded'});
               const toolbar=page.locator('.pos-header-service-tools');await toolbar.waitFor();for(const name of ['Tại quán','Mang về','Làm mới menu'])assert.equal(await toolbar.getByRole('button',{name,exact:true}).count(),1);assert.equal(await page.locator('.pos-item-extras:visible,.pos-item-note-summary:visible').count(),0);
               const dates=page.locator('.pos-inline-schedule');await dates.waitFor({timeout:30000});
-              const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>i.value),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>l.querySelector('input')?.value)}))}));
+              const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>({value:i.value,type:i.type})),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>({value:l.querySelector('input')?.value,type:l.querySelector('input')?.type}))}))}));
               assert.equal(await dates.count(),1);assert(await dates.locator('input[type=date]').isEditable());
               await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('1130');
               await state('immediate-start-input');

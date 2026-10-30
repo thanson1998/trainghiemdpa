@@ -39,7 +39,8 @@
      const edit=()=>{
       const target=pair.original;if(!target?.isConnected||target.matches(':disabled')||target.readOnly)return;
       const proto=target instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(proto,'value').set.call(target,input.value);
+      let value=input.value;if((key==='start'||key==='end')&&/^\d{4}$/.test(value))value=value.slice(0,2)+':'+value.slice(2);
+      Object.getOwnPropertyDescriptor(proto,'value').set.call(target,value);
       target.dispatchEvent(new Event(target instanceof HTMLSelectElement?'change':'input',{bubbles:true}));schedule();
      };
      input.addEventListener('input',edit);input.addEventListener('change',edit);
