@@ -22,7 +22,7 @@ jobs:
               for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
                 const r=await fetch(host+'?ticket='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-12')||!html.includes('pos-ticket-edit.css?v=20261030-11')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
+                if(!r.ok||!html.includes('pos-ticket-edit.js?v=20261030-12')||!html.includes('pos-ticket-edit.css?v=20261030-16')||!html.includes('booking-time-defaults.js?v=20261030-2'))throw Error('Current form is not ready');
               }
               break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
