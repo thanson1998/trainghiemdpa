@@ -58,6 +58,23 @@
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools .pos-layout-reset{position:absolute;right:9px;top:7px}
 .pos-cart .pos-header-service-tools button[hidden]{display:none!important}
 
+/* Compact open-order cards: five columns in the desktop POS pane. */
+.pos-workbench .pos-catalog-body{container-name:pos-orders-pane;container-type:inline-size}
+.pos-workbench .pos-product-grid.pos-open-orders{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-items:stretch}
+.pos-workbench .pos-open-orders .pos-order-card{min-width:0;min-height:0;padding:9px;gap:5px;border-radius:7px}
+.pos-workbench .pos-open-orders .pos-order-location{font-size:15px;line-height:1.3;margin:0}
+.pos-workbench .pos-open-orders .pos-order-card>b{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.pos-workbench .pos-open-orders .pos-order-card>small{font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.pos-workbench .pos-open-orders .pos-status{font-size:10px;padding:3px 5px;line-height:1.4;margin:0}
+.pos-workbench .pos-open-orders .pos-order-balance{display:block;margin-top:3px;padding-top:6px}
+.pos-workbench .pos-open-orders .pos-order-balance>small{display:block;font-size:10px;margin-bottom:2px}
+.pos-workbench .pos-open-orders .pos-order-balance>strong{display:block;font-size:clamp(12px,2.1cqw,16px);line-height:1.4;white-space:nowrap}
+.pos-workbench .pos-open-orders .pos-order-card-actions{gap:5px;padding-top:5px}
+.pos-workbench .pos-open-orders .pos-order-card-actions>button{min-height:32px!important;padding:6px 4px;font-size:11px;line-height:1.4}
+@container pos-orders-pane (min-width:450px){.pos-workbench .pos-product-grid.pos-open-orders{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container pos-orders-pane (min-width:540px){.pos-workbench .pos-product-grid.pos-open-orders{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container pos-orders-pane (max-width:280px){.pos-workbench .pos-product-grid.pos-open-orders{grid-template-columns:minmax(0,1fr)}}
+
 /* Customer beside status; guest count and phone beside the end time. */
 @media(min-width:801px){
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head{grid-template-columns:minmax(0,150px) minmax(0,100px) repeat(2,minmax(0,130px))!important}
