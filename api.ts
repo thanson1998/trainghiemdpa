@@ -20,7 +20,8 @@ export async function GET(req:Request,db:D1Database){
 }
 export async function POST(req:Request,db:D1Database,restoring=false){
  const u={userId:'dpa-shared'};
- try{const parsed=schema.safeParse(await req.json());if(!parsed.success)return out({error:parsed.error.issues[0].message},400);
+ try{const input=await req.json();const parsed=schema.safeParse(input);if(!parsed.success)return out({error:parsed.error.issues[0].message},400);
+ if(parsed.data.status==='cancelled'&&((input as {action?:unknown}).action!=='cancel-open-order'||parsed.data.version===0))return out({error:'Chỉ hủy phiếu tại POS > Đơn đang mở > Hủy phiếu.'},409);
  if(!await validConfiguredTables(db,parsed.data.tables))return out({error:'Bàn không còn trong cấu hình sơ đồ. Tải lại danh sách bàn.'},400);
  const b={...parsed.data,serviceType:parsed.data.serviceType??'dine-in' as const};if(await isPaid(db,b.id))return out({error:'Đơn đã thanh toán được giữ nguyên để đối soát.'},409);if(b.status!=='cancelled'){
  let catalogRow:{data:string}|null=null;
@@ -40,12 +41,8 @@ export async function POST(req:Request,db:D1Database,restoring=false){
  const catalogWarning=await learnCatalogFromMenu(db,b.menu,b.learnDishNames);return out({ok:true,version:savedVersion,catalogWarning});
  }catch(e){console.error('Booking save failed',e);return out({error:'Chưa lưu được đặt bàn. Vui lòng thử lại.'},503)}
 }
-export async function DELETE(req:Request,db:D1Database){
- const u={userId:'dpa-shared'};
- try{const parsed=z.object({id:z.string().uuid(),version:z.number().int().min(1)}).safeParse(await req.json());if(!parsed.success)return out({error:'Yêu cầu không hợp lệ.'},400);const data=parsed.data;if(await isPaid(db,data.id))return out({error:'Không thể xóa đơn đã thanh toán.'},409);
- const result=await db.prepare('DELETE FROM reservations WHERE id=? AND user_id=? AND version=?').bind(data.id,u.userId,data.version).run();
- if(!result.meta.changes)return out({error:'Dữ liệu vừa thay đổi. Hãy tải lại trước khi xóa.'},409);return out({ok:true});
- }catch{return out({error:'Không thể xóa. Vui lòng thử lại.'},503)}
+export async function DELETE(_req:Request,_db:D1Database){
+ return out({error:'Không xóa đặt bàn. Chỉ hủy phiếu tại POS > Đơn đang mở > Hủy phiếu; lịch sử vẫn được giữ.'},409);
 }
 
 export async function HISTORY(_req:Request,db:D1Database){

@@ -14,7 +14,7 @@ export async function cancelPosOrder(selected:Booking,getTickets:()=>PosTicket[]
  if(current.status==='cancelled')return current;
  if(current.version!==selected.version)throw Error('Phiếu vừa thay đổi trên thiết bị khác. Đóng hộp này và tải lại danh sách trước khi hủy.');
  const cancelled={...current,status:'cancelled' as const};
- const saved=await request('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cancelled)});
+ const saved=await request('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...cancelled,action:'cancel-open-order'})});
  const result=await saved.json() as {version?:number;error?:string};
  if(!saved.ok)throw Error(result.error||'Chưa hủy được phiếu. Tải lại để kiểm tra rồi thử lại.');
  if(!Number.isInteger(result.version))throw Error('Chưa xác nhận được kết quả hủy. Tải lại danh sách để kiểm tra.');

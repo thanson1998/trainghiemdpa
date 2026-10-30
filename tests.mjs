@@ -13,6 +13,21 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const modelUrl=dataUrl(compile(fs.readFileSync(new URL('./model.ts',import.meta.url),'utf8')));
 const menuUrl=dataUrl(compile(fs.readFileSync(new URL('./menu.ts',import.meta.url),'utf8')));
 const menu=await import(menuUrl);
+test('adding priced catalog dishes to a set template includes them without changing order extras',()=>{
+ const added={name:'Tôm',price:180000,quantity:2,unit:'đĩa'};
+ assert.deepEqual(menu.templateAddedItems([added],true),[{...added,price:null,included:true}]);
+ assert.deepEqual(menu.templateAddedItems([added],false),[added]);
+ const original=menu.writeMenu([{name:'Gà',price:null,included:true,quantity:1,unit:'đĩa'}],{name:'Lẩu 8 người',pricePerTable:1500000,people:8,quantity:1});
+ const edited=menu.writeMenu([...menu.readMenu(original),added],menu.readMenuSet(original));
+ const flagged='DPA_MENU_V2:'+JSON.stringify({...JSON.parse(edited.slice(12)),templateFlags:{pinned:true,soldOut:false}});
+ const saved=menu.includeNewTemplateItems(flagged,original);
+ assert.equal(menu.readMenu(saved).length,2);assert.equal(menu.readMenu(saved)[1].included,true);assert.equal(menu.readMenu(saved)[1].price,null);
+ assert.equal(menu.menuSum(saved),1500000);assert.equal(menu.readMenuSet(saved).people,8);assert.equal(JSON.parse(saved.slice(12)).templateFlags.pinned,true);
+ assert.equal(menu.readMenu(menu.setMenuQuantity(saved,3))[1].quantity,6);
+ assert.equal(menu.includeNewTemplateItems(saved,saved),saved);
+ assert.equal(menu.readMenu(edited)[1].price,180000);assert.equal(menu.menuSum(edited),1860000);
+ const plain=menu.writeMenu([added]);assert.equal(menu.includeNewTemplateItems(plain),plain);
+});
 const exportSource=fs.readFileSync(new URL('./booking-export.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl));const bookingExport=await import(dataUrl(compile(exportSource)));
 const requestedMenus=JSON.parse(fs.readFileSync(new URL('./menu-templates-20261023.json',import.meta.url),'utf8'));
 test('requested menus retain full bundles, different same-price variants and unknown carp price',()=>{
@@ -47,6 +62,7 @@ const supplementalUrl=dataUrl(compile(fs.readFileSync('dish-supplemental.ts','ut
 const imagesUrl=dataUrl(compile(fs.readFileSync(new URL('./dish-images-api.ts',import.meta.url),'utf8').replace("'./dish-supplemental'",JSON.stringify(supplementalUrl)).replace("'./dish-image-model'",JSON.stringify(imageModelUrl))));const imagesApi=await import(imagesUrl);
 const catalogSource=fs.readFileSync(new URL('./catalog-api.ts',import.meta.url),'utf8').replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./dish-groups'",JSON.stringify(groupsUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const catalogApi=await import(dataUrl(compile(catalogSource)));
+
 const importSource=fs.readFileSync(new URL('./text-import.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href));
 const importUrl=dataUrl(compile(importSource));const textImport=await import(importUrl);
 const paymentsUrl=dataUrl(compile(fs.readFileSync(new URL('./payments-api.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const paymentsApi=await import(paymentsUrl);
@@ -89,7 +105,7 @@ const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10
 test('checkout bill shows dishes, units and set quantities while retaining agreed total, deposit and unpaid balance',()=>{
  const b=booking({orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b})),text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['DPA-25102026-01','S1-01, S1-02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Chưa xác nhận thanh toán'])assert.ok(text.includes(expected),expected);
+ for(const expected of ['DPA-25102026-01','S1-01, S1-02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
  assert.match(html,/<b>2<\/b> đĩa/);assert.match(html,/<b>3<\/b> chai/);assert.ok(!text.includes('4 đĩa'));
 });
 
@@ -160,7 +176,7 @@ test('payment rejects stale totals, missing cash, excess transfer and cancelled 
  const original=booking({deposit:500000});await api.POST(req('POST',original),db);const current=(await(await get()).json()).bookings[0];const body={id:current.id,version:1,total:1500000,deposit:500000,tendered:1000000,method:'transfer'};
  for(const patch of [{version:2},{total:1400000},{deposit:0}])assert.equal((await paymentsApi.PAY(req('POST',{...body,...patch}),db)).status,409);
  for(const patch of [{tendered:999999},{tendered:1100000},{method:'card'},{tendered:-1}])assert.equal((await paymentsApi.PAY(req('POST',{...body,...patch}),db)).status,400);
- await api.POST(req('POST',{...current,status:'cancelled'}),db);assert.equal((await paymentsApi.PAY(req('POST',{...body,version:2}),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM booking_payments').get().n,0);
+ await api.POST(req('POST',{...current,status:'cancelled',action:'cancel-open-order'}),db);assert.equal((await paymentsApi.PAY(req('POST',{...body,version:2}),db)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM booking_payments').get().n,0);
 });
 test('settled orders reject booking edits, deletion, table moves and history restore',async()=>{
  const original=booking({deposit:1500000});await api.POST(req('POST',original),db);const before=(await(await get()).json()).bookings[0];const entry=(await(await api.HISTORY(req('GET'),db)).json()).history[0];
@@ -196,7 +212,8 @@ test('odd total guest counts persist and print accurately while legacy guest cou
 });
 test('history restores deleted bookings with higher versions and rejects stale clients',async()=>{
  const original=booking();await api.POST(req('POST',original),db);let current=(await(await get()).json()).bookings[0];const oldCode=current.orderCode;
- await api.POST(req('POST',{...current,name:'Edited'}),db);current=(await(await get()).json()).bookings[0];assert.equal((await api.DELETE(req('DELETE',{id:original.id,version:2}),db)).status,200);
+ await api.POST(req('POST',{...current,name:'Edited'}),db);current=(await(await get()).json()).bookings[0];// Historical deletion fixture, no longer exposed to clients.
+ sqlite.prepare('DELETE FROM reservations WHERE id=?').run(original.id);
  const entries=(await(await api.HISTORY(req('GET'),db)).json()).history;assert.equal(entries.filter(e=>e.action==='created').length,1);assert.equal(entries[0].action,'deleted');
  assert.equal((await api.RESTORE(req('POST',{id:entries[0].id,expectedVersion:0}),db)).status,200);
  const restored=(await(await get()).json()).bookings[0];assert.equal(restored.id,original.id);assert.equal(restored.name,'Edited');assert.equal(restored.version,3);assert.notEqual(restored.orderCode,oldCode);
@@ -380,7 +397,7 @@ test('transfer route supports same-day adjacent bookings, rejects cancelled orde
  await api.POST(req('POST',booking({tables:['S1-08'],start:'14:00',end:'16:00'})),db);
  const moveRequest=new Request('https://worker.example/api/bookings/move',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://thanson1998.github.io'},body:JSON.stringify({id:original.id,version:1,tables:['S1-08']})});
  const response=await worker.default.fetch(moveRequest,{DB:db,ASSETS:{}});assert.equal(response.status,200);assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://thanson1998.github.io');
- const current=(await(await get()).json()).bookings.find(b=>b.id===original.id);await api.POST(req('POST',{...current,status:'cancelled'}),db);
+ const current=(await(await get()).json()).bookings.find(b=>b.id===original.id);await api.POST(req('POST',{...current,status:'cancelled',action:'cancel-open-order'}),db);
  assert.equal((await api.MOVE(req('POST',{id:original.id,version:3,tables:['S1-07']}),db)).status,409);
  assert.equal((await worker.default.fetch(new Request('https://worker.example/api/bookings/move',{method:'POST',body:'{}'}),{DB:db,ASSETS:{}})).status,415);
  const getMove=await worker.default.fetch(new Request('https://worker.example/api/bookings/move'),{DB:db,ASSETS:{}});assert.equal(getMove.status,405);assert.equal(getMove.headers.get('Allow'),'POST, OPTIONS');
@@ -445,7 +462,7 @@ test('daily order codes are persistent, date-based and never reuse a deleted num
  assert.equal((await read('2026-10-23'))[0].orderCode,'DPA-23102026-01');
  assert.equal((await api.POST(req('POST',{...first,name:'Changed name',version:1}),db)).status,200);
  assert.equal((await read('2026-10-22')).find(b=>b.id===first.id).orderCode,'DPA-22102026-01');
- assert.equal((await api.DELETE(req('DELETE',{id:second.id,version:1}),db)).status,200);
+ sqlite.prepare('DELETE FROM reservations WHERE id=?').run(second.id);
  assert.equal((await api.POST(req('POST',booking({date:'2026-10-22',tables:['S1-08']})),db)).status,200);
  rows=await read('2026-10-22');assert.ok(rows.some(b=>b.orderCode==='DPA-22102026-03'));assert.ok(!rows.some(b=>b.orderCode==='DPA-22102026-02'));
  assert.equal((await api.POST(req('POST',{...first,date:'2026-10-23',tables:['S1-08'],version:2}),db)).status,200);
@@ -497,12 +514,12 @@ test('stale edits and stale deletes cannot overwrite another device',async()=>{
  assert.equal((await api.POST(req('POST',{...b,name:'Anh Nam',version:1}),db)).status,200);
  assert.equal((await api.POST(req('POST',{...b,name:'Bản cũ',version:1}),db)).status,409);
  assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:1}),db)).status,409);
- assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:2}),db)).status,200);
- assert.equal((await(await get()).json()).bookings.length,0);
+ assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:2}),db)).status,409);
+ assert.equal((await(await get()).json()).bookings.length,1);
 });
 test('cancellation releases the table, invalid data are rejected',async()=>{
  const b=booking();await api.POST(req('POST',b),db);
- assert.equal((await api.POST(req('POST',{...b,status:'cancelled',version:1}),db)).status,200);
+ assert.equal((await api.POST(req('POST',{...b,status:'cancelled',version:1,action:'cancel-open-order'}),db)).status,200);
  assert.equal((await api.POST(req('POST',booking()),db)).status,200);
  for(const patch of [{tables:['UNKNOWN']},{tables:['7','7']},{date:'2026-02-30'},{end:'10:00'},{people:0},{price:-1}])assert.equal((await api.POST(req('POST',booking(patch)),db)).status,400);
 });
@@ -558,7 +575,7 @@ test('monthly list includes all dates, sorts chronologically and excludes adjace
  for(const query of ['month=2026-13','month=2026-00','month=2026-1','date=2026-02-30','month=2026-10&date=2026-10-01'])assert.equal((await api.GET(new Request('https://dpa.example/api/bookings?'+query),db)).status,400);
 });
 test('monthly list handles December, leap February, empty months and cancellation',async()=>{
- for(const b of [booking({date:'2024-02-29'}),booking({date:'2024-03-01'}),booking({date:'2026-12-31',status:'cancelled'}),booking({date:'2027-01-01'})])assert.equal((await api.POST(req('POST',b),db)).status,200);
+ for(const b of [booking({date:'2024-02-29'}),booking({date:'2024-03-01'}),booking({date:'2026-12-31'}),booking({date:'2027-01-01'})]){assert.equal((await api.POST(req('POST',b),db)).status,200);if(b.date==='2026-12-31')assert.equal((await api.POST(req('POST',{...b,version:1,status:'cancelled',action:'cancel-open-order'}),db)).status,200);}
  for(const [month,expected] of [['2024-02','2024-02-29'],['2026-12','2026-12-31'],['2027-01','2027-01-01']]){const r=await api.GET(new Request('https://dpa.example/api/bookings?month='+month),db);assert.deepEqual((await r.json()).bookings.map(b=>b.date),[expected]);}
  assert.deepEqual((await(await api.GET(new Request('https://dpa.example/api/bookings?month=2026-06'),db)).json()).bookings,[]);
 });
@@ -680,7 +697,7 @@ test('cancelling an unpaid table retains menu deposit and history while releasin
  const original=booking({tables:['N2-04','N2-05'],deposit:250000,menu:menu.writeMenu([{name:'Gà',price:300000,quantity:2,unit:'đĩa'}])});
  assert.equal((await api.POST(req('POST',original),db)).status,200);
  const current=(await(await get()).json()).bookings.find(b=>b.id===original.id);
- assert.equal((await api.POST(req('POST',{...current,status:'cancelled'}),db)).status,200);
+ assert.equal((await api.POST(req('POST',{...current,status:'cancelled',action:'cancel-open-order'}),db)).status,200);
  const cancelled=(await(await get()).json()).bookings.find(b=>b.id===original.id);
  for(const key of ['menu','deposit','price','tables','orderCode'])assert.deepEqual(cancelled[key],current[key]);
  assert.equal(cancelled.status,'cancelled');assert.equal(cancelled.version,current.version+1);
@@ -880,8 +897,8 @@ test('takeaway service survives kitchen confirmation, cancellation, deletion and
  const b=booking({serviceType:'takeaway',tables:[],price:500000,deposit:100000});assert.equal((await api.POST(req('POST',b),db)).status,200);const saved=(await(await get()).json()).bookings[0];
  assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:saved}),db)).status,200);
  const last=(await(await api.GET_PRINT(new Request('https://dpa.example/api/bookings/prints?id='+b.id),db)).json()).last;assert.equal(last.serviceType,'takeaway');
- assert.equal((await api.POST(req('POST',{...saved,status:'cancelled'}),db)).status,200);assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:2}),db)).status,200);
- const entry=sqlite.prepare("SELECT * FROM reservation_history WHERE booking_id=? AND action='deleted' ORDER BY event_id DESC LIMIT 1").get(b.id);assert.equal(JSON.parse(entry.snapshot).serviceType,'takeaway');
+ assert.equal((await api.POST(req('POST',{...saved,status:'cancelled',action:'cancel-open-order'}),db)).status,200);assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:2}),db)).status,409);sqlite.prepare('DELETE FROM reservations WHERE id=?').run(b.id);
+ const entry=sqlite.prepare("SELECT * FROM reservation_history WHERE booking_id=? AND action='created' ORDER BY event_id DESC LIMIT 1").get(b.id);assert.equal(JSON.parse(entry.snapshot).serviceType,'takeaway');
  assert.equal((await api.RESTORE(req('POST',{id:entry.event_id,expectedVersion:0}),db)).status,200);const restored=(await(await get()).json()).bookings[0];assert.equal(restored.serviceType,'takeaway');assert.deepEqual(restored.tables,[]);assert.equal(restored.price,500000);
 });
 
@@ -1092,15 +1109,13 @@ test('time entry finishes short hours on blur but never coerces invalid times',(
  for(const input of ['2400','2360','9999','24','24:00','18:60','18000','18:0','abcd','18xx']){assert.equal(compactTime.normalizeTimeInput(input),input);assert.equal(compactTime.normalizeTimeInput(input,true),input);}
 });
 
-test('temporary bill prints the supplied MB recipient and original QR with the remaining amount',()=>{
+test('payment bill includes recipient and QR while review keeps its compact checklist',()=>{
  const b=booking({tables:['S1-01','S1-02'],price:1250000,deposit:500000});
- const render=b=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b}));
- const html=render(b),section=html.match(/<section class="checkout-bill-payment"[\s\S]*?<\/section>/)?.[0];
- assert.ok(section);for(const value of ['MB - Ngân hàng Quân Đội','VQRQAHRRB5757','DOAN THI THANH VAN','bill-payment-qr.png','2,000,000','Nhập số tiền'])assert.ok(section.includes(value),value);
- assert.ok(!section.includes('amount='));assert.ok(html.indexOf('checkout-bill-payment')>html.indexOf('checkout-bill-totals'));
- assert.ok(!render({...b,deposit:2500000}).includes('checkout-bill-payment'));
- assert.ok(!render({...b,status:'cancelled'}).includes('checkout-bill-payment'));
- assert.ok(!render({...b,paidAt:'2026-10-28T09:00:00Z'}).includes('checkout-bill-payment'));
+ const render=printable=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b,printable}));
+ assert.ok(!render(false).includes('checkout-bill-payment'));
+ const html=render(true),section=html.match(/<section class="checkout-bill-payment"[\s\S]*?<\/section>/)?.[0];assert.ok(section);
+ for(const value of ['MB - Ngân hàng Quân Đội','VQRQAHRRB5757','DOAN THI THANH VAN','bill-payment-qr.png','2,000,000','Số tiền thanh toán'])assert.ok(section.includes(value),value);
+ assert.ok(html.includes('Chưa thanh toán'));assert.ok(!section.includes('amount='));
 });
 
 const templateFlagsModule=await import(dataUrl(compile(fs.readFileSync('./template-flags.ts','utf8'))));
@@ -1135,4 +1150,43 @@ test('large dish catalogs initially render one batch while retaining the full av
  const dishes=Array.from({length:275},(_,i)=>({id:crypto.randomUUID(),name:'Món thử '+i,unit:'đĩa',price:50000}));
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(perfDishGrid.PosDishGrid,{dishes,menu:'',units:1,disabled:false,onAdd(){},onEdit(){},onFlag(){}}));
  assert.equal((html.match(/pos-product-tile/g)||[]).length,48);assert.match(html,/Xem thêm món \(227\)/);
+});
+
+test('catalog save and reload retain newly added dishes inside the fixed-price set',async()=>{
+ const id=crypto.randomUUID(),name='Lẩu 8 người – 1,500,000đ';
+ const original=menu.writeMenu([{name:'Gà',price:null,included:true,quantity:1,unit:'đĩa'}],{name,pricePerTable:1500000,people:8,quantity:1});
+ let response=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[],templates:[{id,name,menu:original}]}),db);assert.equal(response.status,200);
+ let catalog=await response.json();
+ const added={name:'Mực',price:200000,quantity:2,unit:'đĩa',note:'Thêm vào set'};
+ catalog.templates[0].menu=menu.writeMenu([...menu.readMenu(original),added],menu.readMenuSet(original));
+ response=await catalogApi.POST_CATALOG(req('POST',catalog),db);assert.equal(response.status,200);
+ const fresh=await(await catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog'),db)).json();
+ const saved=fresh.templates.find(t=>t.id===id),items=menu.readMenu(saved.menu);
+ assert.equal(items.length,2);assert.deepEqual(items[1],{...added,price:null,included:true});
+ assert.equal(menu.menuSum(saved.menu),1500000);assert.equal(menu.readMenuSet(saved.menu).people,8);
+ assert.equal((await catalogApi.POST_CATALOG(req('POST',catalog),db)).status,409);
+});
+
+test('only explicit open-order cancellation can cancel and no client may delete a booking',async()=>{
+ const b=booking({deposit:100000});await api.POST(req('POST',b),db);const current=(await(await get()).json()).bookings[0];
+ assert.equal((await api.POST(req('POST',{...current,status:'cancelled'}),db)).status,409);
+ assert.equal((await api.DELETE(req('DELETE',{id:b.id,version:1}),db)).status,409);
+ assert.equal((await(await get()).json()).bookings[0].status,'reserved');
+ const h=(await(await api.HISTORY(req('GET'),db)).json()).history.length;
+ assert.equal((await api.POST(req('POST',{...current,status:'cancelled',action:'cancel-open-order'}),db)).status,200);
+ const result=(await(await get()).json()).bookings[0];assert.equal(result.status,'cancelled');assert.equal(result.deposit,100000);
+ assert.equal((await(await api.HISTORY(req('GET'),db)).json()).history.length,h+1);
+ assert.equal((await api.POST(req('POST',booking({status:'cancelled',action:'cancel-open-order'})),db)).status,409);
+});
+
+const orderHistoryApi=await import(dataUrl(compile(fs.readFileSync('./order-history-api.ts','utf8'))));
+test('POS closed history includes paid and cancelled orders, excludes open orders and cancelled value',async()=>{
+ const paid=booking({tables:['S1-01']}),cancelled=booking({tables:['S1-02']}),open=booking({tables:['S1-03']});
+ for(const b of [paid,cancelled,open])await api.POST(req('POST',b),db);
+ await paymentsApi.PAY(req('POST',{id:paid.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db);
+ await api.POST(req('POST',{...cancelled,version:1,status:'cancelled',action:'cancel-open-order'}),db);
+ const query=status=>new Request('https://dpa.example/api/order-history?from=2026-10-25&to=2026-10-25&dateBy=bookingDate&status='+status);
+ const history=await(await orderHistoryApi.GET_ORDER_HISTORY(query('paid_cancelled'),db)).json();
+ assert.equal(history.count,2);assert.deepEqual(new Set(history.rows.map(r=>r.booking.id)),new Set([paid.id,cancelled.id]));assert.equal(history.total,1500000);
+ const onlyCancelled=await(await orderHistoryApi.GET_ORDER_HISTORY(query('cancelled'),db)).json();assert.equal(onlyCancelled.count,1);assert.equal(onlyCancelled.rows[0].booking.id,cancelled.id);assert.equal(onlyCancelled.rows[0].booking.menu,cancelled.menu);
 });
