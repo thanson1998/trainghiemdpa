@@ -8,9 +8,38 @@ function resolve(spec){if(loaded.has(spec))return loaded.get(spec);let source=fs
 const mod=await import(resolve('./telegram-reminders'));
 const at=s=>Date.parse('2026-11-06T'+s+':00+07:00');
 const booking={id:'one',date:'2026-11-06',start:'18:00',end:'21:00',name:'DPA',phone:'',tables:['N2-01'],people:10,platters:1,price:1000000,menu:'',note:'',status:'reserved',version:1};
-function db(){const sql=new DatabaseSync(':memory:');return {bookings:[booking],sql,prepare(q){let args=[];return {bind(...a){args=a;return this},async run(){return sql.prepare(q).run(...args)},async first(){return sql.prepare(q).get(...args)||null},async all(){return {results:sql.prepare(q).all(...args)}}}},async batch(stmts){sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};}
+function db(){const sql=new DatabaseSync(':memory:');let batchTail=Promise.resolve();return {bookings:[booking],sql,prepare(q){let args=[];return {bind(...a){args=a;return this},async run(){return sql.prepare(q).run(...args)},async first(){return sql.prepare(q).get(...args)||null},async all(){return {results:sql.prepare(q).all(...args)}}}},async batch(stmts){const previous=batchTail;let release;batchTail=new Promise(r=>release=r);await previous;try{sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}finally{release();}}};}
 const env=DB=>({DB,TELEGRAM_BOT_TOKEN:'123:test_only',TELEGRAM_CHAT_ID:'456',TELEGRAM_ENABLED:'true'});
 const ok=()=>Promise.resolve(Response.json({ok:true,result:{message_id:7}}));
+function paymentDb(withOld=false){
+ const DB=db();DB.sql.exec('CREATE TABLE booking_payments(booking_id TEXT PRIMARY KEY,booking_version INTEGER,total INTEGER,deposit INTEGER,received INTEGER,tendered INTEGER,method TEXT,snapshot TEXT,paid_at TEXT)');
+ const pay=(id='one',version=1,paidAt='2026-11-06T13:00:00.000Z',method='cash')=>DB.sql.prepare('INSERT INTO booking_payments VALUES(?,?,?,?,?,?,?,?,?)').run(id,version,1000000,200000,800000,method==='cash'?1000000:800000,method,JSON.stringify({...booking,id}),paidAt);
+ if(withOld)pay('old');DB.sql.exec(fs.readFileSync('0023_telegram_payment_events.sql','utf8'));return {DB,pay};
+}
+test('only committed new payments create durable events; reversal and repayment remain distinct',async()=>{
+ const {DB,pay}=paymentDb(true);assert.equal(DB.sql.prepare('SELECT COUNT(*) AS n FROM booking_telegram_payment_events').get().n,0);
+ DB.sql.exec('BEGIN');pay();DB.sql.exec('ROLLBACK');assert.equal(DB.sql.prepare('SELECT COUNT(*) AS n FROM booking_telegram_payment_events').get().n,0);
+ pay();assert.throws(()=>pay());assert.equal(DB.sql.prepare('SELECT COUNT(*) AS n FROM booking_telegram_payment_events').get().n,1);
+ DB.sql.exec("DELETE FROM booking_payments WHERE booking_id='one'");pay('one',3,'2026-11-06T13:05:00.000Z','transfer');
+ const messages=[];const send=async(u,o)=>{messages.push(JSON.parse(o.body));return ok();};await mod.processTelegramPayments(env(DB),at('20:06'),send);await mod.processTelegramPayments(env(DB),at('20:07'),send);
+ assert.equal(messages.length,2);assert(messages.every(m=>m.chat_id==='456'&&m.text.includes('THỰC THU LẦN NÀY: 800,000')));
+ assert(messages.some(m=>m.text.includes('Trả lại khách: 200,000')));assert(messages.some(m=>m.text.includes('Chuyển khoản')&&!m.text.includes('Tiền khách đưa')));
+ assert.equal(DB.sql.prepare("SELECT COUNT(*) AS n FROM booking_telegram_payment_events WHERE state='sent'").get().n,2);
+});
+test('payment notices preserve item quantities, prices, deposit, cash change and concurrent delivery claims',async()=>{
+ const {DB,pay}=paymentDb();pay();const p=JSON.parse(DB.sql.prepare('SELECT payment_snapshot FROM booking_telegram_payment_events').get().payment_snapshot);
+ p.booking.menu='DPA_MENU_V1:'+JSON.stringify([{name:'Gà hấp',quantity:2,price:300000,unit:'đĩa'},{name:'Trà',quantity:4,price:50000,unit:'cốc'}]);
+ const text=mod.telegramPaymentText(p);assert(text.includes('Gà hấp · 2 đĩa'));assert(text.includes('300,000'));assert(text.includes('600,000'));assert(text.includes('Đã đặt cọc: 200,000'));assert(text.includes('20:00'));assert(text.includes('06/11/2026'));
+ let calls=0;const send=async()=>{calls++;await new Promise(r=>setTimeout(r,1));return ok();};
+ await Promise.all([mod.processTelegramPayments(env(DB),at('20:00'),send),mod.processTelegramPayments(env(DB),at('20:00'),send)]);assert.equal(calls,1);
+});
+test('payment notifications retry confirmed rate limits from a frozen snapshot and never blindly repeat timeouts',async()=>{
+ const {DB,pay}=paymentDb();pay();let limited=true,requests=[];const send=async(u,o)=>{requests.push(o.body);return limited?Response.json({ok:false,error_code:429},{status:429}):ok();};
+ await mod.processTelegramPayments(env(DB),at('20:00'),send);DB.sql.exec('DELETE FROM booking_payments');limited=false;
+ await mod.processTelegramPayments(env(DB),at('20:01'),send);assert.equal(requests.length,2);assert.equal(requests[0],requests[1]);
+ const other=paymentDb();other.pay();let calls=0;const fail=async()=>{calls++;throw Error('unknown delivery');};await mod.processTelegramPayments(env(other.DB),at('20:00'),fail);await mod.processTelegramPayments(env(other.DB),at('20:01'),fail);
+ assert.equal(calls,1);assert.equal(other.DB.sql.prepare('SELECT state FROM booking_telegram_payment_events').get().state,'uncertain');
+});
 const checkUpdate=(id,when=at('20:00'),patch={})=>({update_id:id,message:{date:when/1000,text:'/check',from:{id:456,is_bot:false},chat:{id:456,type:'private'},...patch}});
 test('/check is private to the configured owner and rejects other commands or edited messages',()=>{
  assert(mod.isTelegramCheck(checkUpdate(1),'456'));assert(mod.isTelegramCheck(checkUpdate(2,undefined,{text:'/check@dpa_baocao_2026_bot'}),'456'));
