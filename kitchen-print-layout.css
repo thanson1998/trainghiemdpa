@@ -49,3 +49,9 @@
 
 /* Takeaway wording stays on one line at two thirds of its original 12.5pt size. */
 .menu-print-sheet .menu-print-location:not(.has-table-groups)>div>span{font-size:calc(25pt / 3)!important;line-height:1.3!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;letter-spacing:0!important;display:block!important}
+
+/* Set quantity shares the menu heading row, with the set name below. */
+.menu-print-sheet .menu-print-dishes>h3:has(.menu-print-set-quantity){display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.menu-print-sheet .menu-print-set-quantity{font-size:11pt;line-height:1.3;white-space:nowrap}
+.menu-print-sheet .menu-print-set-relocated{display:none!important}
+.menu-print-sheet .menu-print-set-caption{font-size:11pt;line-height:1.3;white-space:normal}
