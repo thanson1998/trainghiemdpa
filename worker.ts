@@ -1,4 +1,4 @@
-import {telegramStatus,processBookingTelegrams,type TelegramEnv} from './telegram-reminders';
+import {telegramStatus,processBookingTelegrams,processTelegramChecks,type TelegramEnv} from './telegram-reminders';
 import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,type EmailReminderEnv} from './email-reminders';
 import {GET_ORDER_HISTORY} from './order-history-api';
 import {GET_LAYOUT,SAVE_LAYOUT} from './table-layout-api';
@@ -12,7 +12,7 @@ import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
 interface Env extends EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
- async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));},
+ async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
   url.pathname=({'/api/market-connection':'/api/ads-connection','/api/market-feed':'/api/ads-live','/api/market-research':'/api/ads-research'} as Record<string,string>)[url.pathname]||url.pathname;
