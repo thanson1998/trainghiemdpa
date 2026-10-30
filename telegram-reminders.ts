@@ -40,9 +40,58 @@ export function telegramJobs(bookings:Booking[],now:number){
  return jobs;
 }
 export async function telegramStatus(env:TelegramEnv){
- const c=telegramConfig(env);let lastSentAt:string|null=null,uncertain=0;
+ const c=telegramConfig(env);let lastSentAt:string|null=null,uncertain=0,lastCommandAt:string|null=null,lastPollAt:string|null=null;
  try{lastSentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent'").first<{sent:string|null}>())?.sent??null;uncertain=(await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state='uncertain'").first<{n:number}>())?.n??0;}catch{}
- return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:2,reportScope:'pos_open_orders',intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+ try{lastCommandAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'command/%'").first<{sent:string|null}>())?.sent??null;lastPollAt=(await env.DB.prepare('SELECT last_poll_at FROM booking_telegram_poll WHERE id=1').first<{last_poll_at:string|null}>())?.last_poll_at??null;}catch{}
+ return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:3,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+}
+
+type TelegramUpdate={update_id:number;message?:{date?:number;text?:string;from?:{id:number;is_bot?:boolean};chat:{id:number;type:string}}};
+export function isTelegramCheck(update:TelegramUpdate,chatId:string){
+ const m=update.message;
+ return !!m&&m.chat?.type==='private'&&String(m.chat.id)===chatId&&String(m.from?.id)===chatId&&!m.from?.is_bot&&typeof m.text==='string'&&/^\/check(?:@dpa_baocao_2026_bot)?\s*$/i.test(m.text.trim());
+}
+export async function processTelegramChecks(env:TelegramEnv,now=Date.now(),send:typeof fetch=fetch){
+ const c=telegramConfig(env);if(!c.ready)return {sent:0,skipped:'not_configured'};
+ await env.DB.prepare(schema).run();
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS booking_telegram_poll(id INTEGER PRIMARY KEY CHECK(id=1),next_offset INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,last_poll_at TEXT)').run();
+ await env.DB.prepare('INSERT OR IGNORE INTO booking_telegram_poll(id) VALUES(1)').run();
+ const lease=now+120000;
+ const claim=await env.DB.prepare('UPDATE booking_telegram_poll SET lease_until=? WHERE id=1 AND lease_until<=? RETURNING next_offset').bind(lease,now).first<{next_offset:number}>();
+ if(!claim)return {sent:0,skipped:'poll_busy'};
+ try{
+  let updates:TelegramUpdate[]|null=null;
+  try{
+   const response=await send('https://api.telegram.org/bot'+c.token+'/getUpdates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offset:claim.next_offset,timeout:0,limit:30,allowed_updates:['message']}),signal:AbortSignal.timeout(10000)});
+   const body=await response.json() as {ok?:boolean;result?:TelegramUpdate[]};
+   if(response.ok&&body.ok&&Array.isArray(body.result))updates=body.result;
+  }catch{/* Keep the cursor and pending replies intact when Telegram is unavailable. */}
+  if(updates){
+   for(const update of updates){
+    if(!Number.isSafeInteger(update.update_id)||update.update_id<claim.next_offset)continue;
+    if(isTelegramCheck(update,c.chatId)){
+     const messageTime=Number(update.message?.date)*1000;
+     const stamp=Number.isFinite(messageTime)&&messageTime>0&&messageTime<=now+60000?messageTime:now;
+     const date=vietnamClock(stamp).date,prefix='command/'+date+'/'+update.update_id+'/'+c.chatId;
+     const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key LIKE ? LIMIT 1').bind(prefix+'/%').first();
+     if(!existing){
+      const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+date),env.DB);if(!response.ok)throw Error('TELEGRAM_BOOKINGS_UNAVAILABLE');
+      const data=await response.json() as {bookings:Booking[]};
+      const snapshotTime=date===vietnamClock(now).date?now:stamp;
+      const text='TRA CỨU /check\n'+telegramSummary(data.bookings,snapshotTime).text;
+      await env.DB.batch(telegramParts(text).map((part,i)=>env.DB.prepare("INSERT OR IGNORE INTO booking_telegram_jobs(job_key,payload,state) VALUES(?,?,'pending')").bind(prefix+'/'+String(i).padStart(4,'0'),JSON.stringify({chat_id:c.chatId,text:part,link_preview_options:{is_disabled:true}}))));
+     }
+    }
+    // Confirm an update only after its reply is durably queued.
+    await env.DB.prepare('UPDATE booking_telegram_poll SET next_offset=MAX(next_offset,?) WHERE id=1').bind(update.update_id+1).run();
+   }
+   await env.DB.prepare('UPDATE booking_telegram_poll SET last_poll_at=? WHERE id=1').bind(new Date(now).toISOString()).run();
+  }
+  const pending=await env.DB.prepare("SELECT job_key FROM booking_telegram_jobs WHERE job_key LIKE 'command/%' AND state IN ('pending','retry','sending') ORDER BY job_key LIMIT 100").all<{job_key:string}>();
+  const prefixes=[...new Set(pending.results.map(row=>row.job_key.slice(0,row.job_key.lastIndexOf('/'))))];let sent=0;
+  for(const prefix of prefixes.slice(0,5))sent+=await deliverTelegramPrefix(env,prefix,now,send);
+  return {sent};
+ }finally{await env.DB.prepare('UPDATE booking_telegram_poll SET lease_until=0 WHERE id=1 AND lease_until=?').bind(lease).run();}
 }
 export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),send:typeof fetch=fetch,test=false){
  const c=telegramConfig(env);if(!c.ready||(!test&&!c.enabled))return {sent:0,skipped:'not_configured'};
@@ -68,6 +117,13 @@ export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),sen
   // Atomic snapshot: concurrent ticks keep the same message parts and quantities.
   await env.DB.batch(parts.map((text,i)=>env.DB.prepare("INSERT OR IGNORE INTO booking_telegram_jobs(job_key,payload,state) VALUES(?,?,'pending')").bind(prefix+'/'+String(i).padStart(4,'0'),JSON.stringify({chat_id:c.chatId,text,link_preview_options:{is_disabled:true}}))));
  }
+ sent+=await deliverTelegramPrefix(env,prefix,now,send);
+ }
+ return {sent};
+}
+
+async function deliverTelegramPrefix(env:TelegramEnv,prefix:string,now:number,send:typeof fetch){
+ const c=telegramConfig(env);let sent=0;
  // Telegram has no idempotency key. A timed-out delivery must not be retried blindly.
  await env.DB.prepare("UPDATE booking_telegram_jobs SET state='uncertain',error_code='DELIVERY_UNCONFIRMED' WHERE state='sending' AND lease_until<=?").bind(now).run();
  const rows=await env.DB.prepare("SELECT job_key,state FROM booking_telegram_jobs WHERE job_key LIKE ? AND state<>'sent' ORDER BY job_key LIMIT 2").bind(prefix+'/%').all<{job_key:string;state:string}>();
@@ -85,6 +141,5 @@ export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),sen
    const definitive=body.ok===false&&response.status>=400&&response.status<500;await env.DB.prepare('UPDATE booking_telegram_jobs SET state=?,error_code=? WHERE job_key=?').bind(definitive?'error':'uncertain',definitive?'TELEGRAM_REJECTED':'DELIVERY_UNCONFIRMED',row.job_key).run();break;
   }
  }
- }
- return {sent};
+ return sent;
 }
