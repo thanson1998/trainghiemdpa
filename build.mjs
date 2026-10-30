@@ -12,10 +12,11 @@ html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.cs
 html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-12"/><script defer src="./kitchen-print-layout.js?v=20261030-4"></script></head>');
 html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261030-2"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261030-16"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
+html=html.replace('</head>','<script defer src="./checkout-bill-print.js?v=20261030-1"></script></head>');
 // Hashed JS, CSS and artwork can be cached independently across visits.
 // Keep the same relative asset paths for GitHub Pages and the Worker.
 fs.cpSync('dist/assets','assets',{recursive:true});
 fs.writeFileSync('index.html',html);
 fs.writeFileSync('dist/index.html',html);
-for(const file of ['bill-payment-qr.png','config.js','favicon.svg','pos-layout-fix.css','pos-menu-overview.js','pos-menu-overview.css','admin-space.css','receipt-alignment.css','kitchen-print-layout.css','kitchen-print-layout.js','booking-time-defaults.js','pos-ticket-edit.css','pos-ticket-edit.js'])fs.copyFileSync(file,'dist/'+file);
+for(const file of ['bill-payment-qr.png','config.js','favicon.svg','pos-layout-fix.css','pos-menu-overview.js','pos-menu-overview.css','admin-space.css','receipt-alignment.css','kitchen-print-layout.css','kitchen-print-layout.js','booking-time-defaults.js','pos-ticket-edit.css','pos-ticket-edit.js','checkout-bill-print.js'])fs.copyFileSync(file,'dist/'+file);
 console.log('GitHub Pages index.html and Cloudflare dist prepared.');
