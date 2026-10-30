@@ -1,11 +1,17 @@
 // Progressive enhancement for older published clients. Original form controls
 // stay in React's tree; the compact controls forward edits through their events.
 (()=>{
- const cache=new WeakMap();let frame=0;
+ const cache=new WeakMap(),toolbarCache=new WeakMap();let frame=0;
  const caption=label=>Array.from(label.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim();
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(()=>{frame=0;sync();});};
  function sync(){
   document.querySelectorAll('.pos-cart').forEach(cart=>{
+   if(!cart.querySelector('.pos-header-service-tools:not([data-compat-toolbar])')){
+    let bar=toolbarCache.get(cart);
+    if(!bar){bar=document.createElement('fieldset');bar.className='pos-header-service-tools';bar.dataset.compatToolbar='true';bar.buttons=new Map();cart.querySelector('.pos-cart-head')?.appendChild(bar);toolbarCache.set(cart,bar);}
+    const originals=Array.from(cart.querySelectorAll('.pos-identity-row button,.pos-cart-view-actions .pos-layout-reset')).filter(button=>['Tại quán','Mang về','Làm mới menu','Đặt lại khung'].includes(button.textContent.trim()));
+    for(const original of originals){const name=original.textContent.trim();let button=bar.buttons.get(name);if(!button){button=document.createElement('button');button.type='button';button.className='secondary-btn';button.textContent=name;button.addEventListener('click',()=>button.source?.click());bar.buttons.set(name,button);bar.appendChild(button);}button.source=original;const disabled=original.matches(':disabled');if(button.disabled!==disabled)button.disabled=disabled;const pressed=original.getAttribute('aria-pressed');if(pressed!==null&&button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);if(!original.classList.contains('pos-original-service-action'))original.classList.add('pos-original-service-action');}
+   }
    cart.querySelectorAll('.pos-cart-head button').forEach(button=>{if(['Chọn bàn','Tại quán / chọn bàn'].includes(button.textContent.trim())&&!button.classList.contains('pos-hidden-table-picker'))button.classList.add('pos-hidden-table-picker');});
    const details=cart.querySelector('.pos-details'),meta=cart.querySelector('.pos-ticket-meta'),more=cart.querySelector('.pos-add-inline'),customer=cart.querySelector('.pos-customer');
    if(!details||!meta||!more||!customer)return;
@@ -64,6 +70,6 @@
    });arrange(state.tools,tools);
   });
  }
- new MutationObserver(records=>{if(records.some(record=>record.target instanceof Element&&record.target.closest('.pos-cart')||Array.from(record.addedNodes).some(node=>node instanceof Element&&(node.matches('.pos-cart')||node.querySelector('.pos-cart')))))schedule();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','selected']});
+ new MutationObserver(records=>{if(records.some(record=>record.target instanceof Element&&record.target.closest('.pos-cart')||Array.from(record.addedNodes).some(node=>node instanceof Element&&(node.matches('.pos-cart')||node.querySelector('.pos-cart')))))schedule();}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','selected','aria-pressed']});
  schedule();
 })();
