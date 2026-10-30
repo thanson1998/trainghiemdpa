@@ -11,13 +11,35 @@ const booking={id:'one',date:'2026-11-06',start:'18:00',end:'21:00',name:'DPA',p
 function db(){const sql=new DatabaseSync(':memory:');return {bookings:[booking],sql,prepare(q){let args=[];return {bind(...a){args=a;return this},async run(){return sql.prepare(q).run(...args)},async first(){return sql.prepare(q).get(...args)||null},async all(){return {results:sql.prepare(q).all(...args)}}}},async batch(stmts){sql.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};}
 const env=DB=>({DB,TELEGRAM_BOT_TOKEN:'123:test_only',TELEGRAM_CHAT_ID:'456',TELEGRAM_ENABLED:'true'});
 const ok=()=>Promise.resolve(Response.json({ok:true,result:{message_id:7}}));
-test('Vietnam schedule, opt-in and daily journal prevent duplicate reports',async()=>{
+test('four-hour Vietnam slots, opt-in and journal prevent duplicate reports',async()=>{
  const DB=db(),e=env(DB);let calls=0;const send=(...args)=>{calls++;return ok();};
- await mod.processBookingTelegrams(e,at('05:59'),send);assert.equal(calls,0);
- await mod.processBookingTelegrams(e,at('06:00'),send);assert.equal(calls,1);
- await mod.processBookingTelegrams(e,at('22:00'),send);assert.equal(calls,1);
- const s=await (await mod.telegramStatus(e)).json();assert.equal(s.dailyTime,'06:00');assert(!JSON.stringify(s).includes('test_only'));assert(!JSON.stringify(s).includes('456'));
- await mod.processBookingTelegrams({...e,TELEGRAM_ENABLED:'false'},at('06:00'),send);assert.equal(calls,1);
+ await mod.processBookingTelegrams(e,at('04:00'),send);assert.equal(calls,1);
+ await mod.processBookingTelegrams(e,at('07:59'),send);assert.equal(calls,1);
+ await mod.processBookingTelegrams(e,at('08:00'),send);assert.equal(calls,2);
+ const s=await (await mod.telegramStatus(e)).json();assert.equal(s.intervalHours,4);assert.equal(s.beforeMinutes,120);assert.deepEqual(s.reportTimes,['00:00','04:00','08:00','12:00','16:00','20:00']);assert(!JSON.stringify(s).includes('test_only'));assert(!JSON.stringify(s).includes('456'));
+ await mod.processBookingTelegrams({...e,TELEGRAM_ENABLED:'false'},at('12:00'),send);assert.equal(calls,2);
+});
+test('arrival reminders are once per booking time, handle midnight and exclude inactive orders',async()=>{
+ const DB=db(),e=env(DB),sent=[];const send=async(u,o)=>{sent.push(JSON.parse(o.body).text);return ok();};
+ await mod.processBookingTelegrams(e,at('15:59'),send);assert.equal(sent.filter(t=>t.startsWith('NH?C')).length,0);
+ await mod.processBookingTelegrams(e,at('16:00'),send);assert.equal(sent.filter(t=>t.startsWith('NH?C')).length,1);
+ await mod.processBookingTelegrams(e,at('16:01'),send);assert.equal(sent.filter(t=>t.startsWith('NH?C')).length,1);
+ DB.bookings=[{...booking,start:'19:00'}];await mod.processBookingTelegrams(e,at('17:00'),send);assert.equal(sent.filter(t=>t.startsWith('NH?C')).length,2);
+ const excluded=['cancelled','arrived','completed'].map((status,i)=>({...booking,id:'inactive'+i,status}));excluded.push({...booking,id:'paid',paidAt:'yes'},{...booking,id:'takeaway',serviceType:'takeaway'});
+ assert.equal(mod.telegramJobs(excluded,at('16:00')).length,1);
+ assert.equal(mod.telegramJobs([booking],at('18:00')).length,1);
+ DB.bookings=[{...booking,id:'night',date:'2026-11-07',start:'01:00'}];
+ await mod.processBookingTelegrams(e,at('23:00'),send);await mod.processBookingTelegrams(e,Date.parse('2026-11-07T00:01:00+07:00'),send);
+ assert.equal(sent.filter(t=>t.startsWith('NH?C')).length,3);
+ assert(sent.find(t=>t.startsWith('NH?C')&&t.includes('01:00')));
+});
+test('cancelled pending arrival is not retried; short-notice booking is reminded immediately',async()=>{
+ const DB=db(),e=env(DB);let calls=0;const send=async()=>{calls++;return Response.json({ok:false,error_code:429},{status:429});};
+ await mod.processBookingTelegrams(e,at('16:00'),send);const before=calls;
+ DB.bookings=[{...booking,status:'cancelled'}];await mod.processBookingTelegrams(e,at('16:01'),send);
+ assert.equal(DB.sql.prepare("SELECT attempts FROM booking_telegram_jobs WHERE job_key LIKE 'arrival/%'").get().attempts,1);
+ assert.equal(mod.telegramJobs([booking],at('17:30')).filter(j=>j.key.startsWith('arrival/')).length,1);
+ assert(calls>=before);
 });
 test('rate limit retries keep snapshot; unknown outcomes never resend blindly',async()=>{
  const DB=db(),e=env(DB),requests=[];let limited=true;
