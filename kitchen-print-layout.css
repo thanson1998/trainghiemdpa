@@ -55,3 +55,9 @@
 .menu-print-sheet .menu-print-set-quantity{font-size:11pt;line-height:1.3;white-space:nowrap}
 .menu-print-sheet .menu-print-set-relocated{display:none!important}
 .menu-print-sheet .menu-print-set-caption{font-size:11pt;line-height:1.3;white-space:normal}
+
+/* Takeaway tickets show only a centered service time in this block. */
+.menu-print-sheet .menu-print-location:not(.has-table-groups){min-height:0!important;padding:8px 0}
+.menu-print-sheet .menu-print-location:not(.has-table-groups)>h3,.menu-print-sheet .menu-print-location:not(.has-table-groups)>div{display:none!important}
+.menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time{position:static!important;display:block!important;width:100%!important;margin:0!important;text-align:center}
+.menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time dt,.menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time dd{text-align:center}
