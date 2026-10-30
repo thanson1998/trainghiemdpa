@@ -15,7 +15,7 @@
  .pos-workbench .pos-cart.pos-cart-refined .pos-quantity input{flex:1 1 0;width:28px!important;min-width:0!important;padding-left:1px!important;padding-right:1px!important;appearance:textfield}
  .pos-workbench .pos-cart.pos-cart-refined .pos-quantity input::-webkit-inner-spin-button,.pos-workbench .pos-cart.pos-cart-refined .pos-quantity input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
  .pos-workbench .pos-cart.pos-cart-refined .pos-item-controls>input{width:100%;min-width:0;padding:3px!important;text-align:right}
- .pos-workbench .pos-cart.pos-cart-refined .pos-item-controls>strong{grid-column:auto!important;min-width:0;white-space:normal!important;overflow-wrap:anywhere;text-align:right;font-variant-numeric:tabular-nums}
+ .pos-workbench .pos-cart.pos-cart-refined .pos-item-controls>strong{grid-column:auto!important;width:auto!important;max-width:100%;box-sizing:border-box;min-width:0;white-space:normal!important;overflow-wrap:anywhere;text-align:right;font-variant-numeric:tabular-nums}
  .pos-workbench .pos-cart.pos-cart-refined .pos-cart-item,.pos-workbench .pos-cart.pos-cart-refined .pos-cart-columns{min-width:353px}
  .pos-workbench .pos-cart.pos-cart-refined .pos-inline-order-tools{margin-top:8px;margin-bottom:4px}
 }
