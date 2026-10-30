@@ -1,0 +1,41 @@
+name: Verify booking time and printed tables
+on:
+  push:
+    paths:
+      - 'booking-time-defaults.js'
+      - 'kitchen-print-layout.js'
+      - 'print-menu.tsx'
+      - '0022_hotpot_1420000.sql'
+      - '.github/workflows/verify-booking-time.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify form and print assets on both public hosts
+        run: |
+          node --input-type=module <<'JS'
+          const hosts=['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/'];
+          for(let attempt=0;attempt<35;attempt++){
+            try{
+              for(const host of hosts){
+                const r=await fetch(host+'?layout=20261030-3',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+                const html=await r.text();
+                if(!r.ok||!html.includes('booking-time-defaults.js?v=20261030-1')||!html.includes('kitchen-print-layout.css?v=20261030-3')||!html.includes('kitchen-print-layout.js?v=20261030-3'))throw Error('Updated form and print layout not ready');
+                for(const [path,marker] of [['booking-time-defaults.js?v=20261030-1','h*60+m+180'],['kitchen-print-layout.js?v=20261030-3','menu-print-table-lines'],['kitchen-print-layout.css?v=20261030-3','31mm']]){
+                  const asset=await fetch(host+path,{signal:AbortSignal.timeout(15000)});
+                  if(!asset.ok||!(await asset.text()).includes(marker))throw Error('Updated asset not ready: '+path);
+                }
+              }
+              const response=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+              const catalog=await response.json();const template=catalog.templates.find(t=>t.id==='1f2cc767-6bcd-421f-8cbd-eaf1139a7c95'||t.name==='Lẩu 10 người – 1,420,000đ');
+              if(!template)throw Error('New hotpot menu is not ready');
+              const menu=JSON.parse(template.menu.slice(12));
+              const expected=[['Gà',1],['Tôm',10],['Cá chép',1],['Gầu bò',1],['Diềm tim',1],['Đậu, rau, nấm',1],['Trứng',10]];
+              if(menu.set.pricePerTable!==1420000||menu.set.people!==10||JSON.stringify(menu.items.map(i=>[i.name,i.quantity]))!==JSON.stringify(expected))throw Error('New hotpot details do not match');
+              console.log('Verified: automatic end time, simplified time labels and paired printed table rows on both hosts.');break;
+            }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
+          }
+          JS

@@ -28,3 +28,14 @@
 /* Normal-weight text requested on the kitchen ticket. */
 .menu-print-sheet .menu-print-dishes li>p,.menu-print-sheet .menu-print-dishes li>p *,.menu-print-sheet .dish-print-included,.menu-print-sheet .menu-print-footer,.menu-print-sheet .menu-print-total+div,.menu-print-sheet .menu-print-total+div *{font-weight:400!important}
 .menu-print-sheet .menu-print-footer{font-size:9pt;line-height:1.3;white-space:nowrap;overflow-wrap:normal;word-break:normal}
+
+/* Table codes use the full paper width, in pairs, below the zone and time. */
+.menu-print-location.has-table-groups{min-height:0}
+.menu-print-location.has-table-groups>h3,.menu-print-location.has-table-groups>div:not(.menu-print-grouped-locations){display:none!important}
+.menu-print-location.has-table-groups>.menu-print-grouped-locations{display:block!important;width:100%;margin:0}
+.menu-print-grouped-zone+ .menu-print-grouped-zone{margin-top:8px}
+.menu-print-location .menu-print-grouped-zone>strong{display:block;margin:0 0 4px;font-size:10pt;line-height:1.4;overflow-wrap:anywhere}
+.menu-print-location .menu-print-grouped-zone:first-child>strong{box-sizing:border-box;width:calc(100% - 31mm);min-height:52px}
+.menu-print-location .menu-print-table-lines>span{display:block;font-size:11.5pt;line-height:1.4;white-space:normal;word-break:normal;overflow-wrap:anywhere;text-align:left}
+.menu-print-location.has-table-groups>.menu-print-service-time{width:29mm}
+.menu-print-location.has-table-groups .menu-print-service-time dd{font-size:11pt}

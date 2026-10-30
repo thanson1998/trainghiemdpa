@@ -9,12 +9,13 @@ html=html.replace('</head>','<link rel="stylesheet" href="./pos-layout-fix.css?v
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-menu-overview.css?v=20261028-rows2"/><script defer src="./pos-menu-overview.js?v=20261028-perf1"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20261026-3"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-2"/><script defer src="./kitchen-print-layout.js?v=20261029-1"></script></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-3"/><script defer src="./kitchen-print-layout.js?v=20261030-3"></script></head>');
+html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261030-1"></script></head>');
 // Hashed JS, CSS and artwork can be cached independently across visits.
 // Keep the same relative asset paths for GitHub Pages and the Worker.
 fs.cpSync('dist/assets','assets',{recursive:true});
 fs.writeFileSync('index.html',html);
 fs.writeFileSync('dist/index.html',html);
-for(const file of ['bill-payment-qr.png','config.js','favicon.svg','pos-layout-fix.css','pos-menu-overview.js','pos-menu-overview.css','admin-space.css','receipt-alignment.css','kitchen-print-layout.css','kitchen-print-layout.js'])fs.copyFileSync(file,'dist/'+file);
+for(const file of ['bill-payment-qr.png','config.js','favicon.svg','pos-layout-fix.css','pos-menu-overview.js','pos-menu-overview.css','admin-space.css','receipt-alignment.css','kitchen-print-layout.css','kitchen-print-layout.js','booking-time-defaults.js'])fs.copyFileSync(file,'dist/'+file);
 console.log('GitHub Pages index.html and Cloudflare dist prepared.');
 

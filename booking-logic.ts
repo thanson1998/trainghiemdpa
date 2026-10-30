@@ -1,7 +1,12 @@
 import {isTakeaway,orderUnits,bookingTotal,type Booking} from './model';
 import {pricePerSelectedTable,readMenuSet,setMenuQuantity,menuSetQuantity} from './menu';
+import {automaticBookingEnd} from './time-input-value';
 export function updateBookingDraft(draft:Booking,key:keyof Booking,value:unknown):Booking{
  const next={...draft,[key]:value} as Booking;
+ if(key==='start'&&typeof value==='string'){
+  const end=automaticBookingEnd(value);
+  if(end)next.end=end;
+ }
  if(key==='serviceType'&&isTakeaway(next)&&!isTakeaway(draft)){
   if(readMenuSet(draft.menu)&&orderUnits(draft)>0)next.menu=setMenuQuantity(draft.menu,menuSetQuantity(draft.menu,orderUnits(draft)),orderUnits(draft));
   next.tables=[];

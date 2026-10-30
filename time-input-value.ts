@@ -10,3 +10,11 @@ export function normalizeTimeInput(value:string,finish=false):string{
  if(Number(hours)>23||Number(minutes)>59)return value;
  return hours.padStart(2,'0')+':'+minutes;
 }
+
+// Reservations currently occupy a time range within one service date.
+export function automaticBookingEnd(start:string):string|undefined{
+ if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(start))return;
+ const [hours,minutes]=start.split(':').map(Number);
+ const end=Math.min(23*60+59,hours*60+minutes+180);
+ return String(Math.floor(end/60)).padStart(2,'0')+':'+String(end%60).padStart(2,'0');
+}
