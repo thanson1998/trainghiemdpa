@@ -44,7 +44,7 @@ export async function telegramStatus(env:TelegramEnv){
  try{lastSentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent'").first<{sent:string|null}>())?.sent??null;uncertain=(await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state='uncertain'").first<{n:number}>())?.n??0;}catch{}
  try{lastCommandAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'command/%'").first<{sent:string|null}>())?.sent??null;lastPollAt=(await env.DB.prepare('SELECT last_poll_at FROM booking_telegram_poll WHERE id=1').first<{last_poll_at:string|null}>())?.last_poll_at??null;}catch{}
  try{await env.DB.prepare('SELECT event_key FROM booking_telegram_payment_events LIMIT 0').all();paymentNotificationsReady=true;lastPaymentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'payment/%'").first<{sent:string|null}>())?.sent??null;}catch{}
- return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:4,paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:5,paymentQueueLookup:'key_range',paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
 }
 
 export type TelegramPayment={booking:Booking;total:number;deposit:number;received:number;tendered:number;method:'cash'|'transfer';paidAt:string};
@@ -59,7 +59,7 @@ export async function processTelegramPayments(env:TelegramEnv,now=Date.now(),sen
  const events=await env.DB.prepare("SELECT event_key,payment_snapshot FROM booking_telegram_payment_events WHERE state IN ('pending','queued') ORDER BY created_at,event_key LIMIT 5").all<{event_key:string;payment_snapshot:string}>();let sent=0;
  for(const event of events.results){
   const id=Array.from(new TextEncoder().encode(event.event_key),byte=>byte.toString(16).padStart(2,'0')).join(''),prefix='payment/'+id+'/'+c.chatId;
-  const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key LIKE ? LIMIT 1').bind(prefix+'/%').first();
+  const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key>=? AND job_key<? LIMIT 1').bind(prefix+'/',prefix+'0').first();
   if(!existing){
    const payment=JSON.parse(event.payment_snapshot) as TelegramPayment;
    const parts=telegramParts(telegramPaymentText(payment));
@@ -67,7 +67,7 @@ export async function processTelegramPayments(env:TelegramEnv,now=Date.now(),sen
   }
   await env.DB.prepare("UPDATE booking_telegram_payment_events SET state='queued' WHERE event_key=? AND state='pending'").bind(event.event_key).run();
   sent+=await deliverTelegramPrefix(env,prefix,now,send);
-  const rows=await env.DB.prepare('SELECT state FROM booking_telegram_jobs WHERE job_key LIKE ?').bind(prefix+'/%').all<{state:string}>();
+  const rows=await env.DB.prepare('SELECT state FROM booking_telegram_jobs WHERE job_key>=? AND job_key<?').bind(prefix+'/',prefix+'0').all<{state:string}>();
   const states=rows.results.map(row=>row.state),state=states.some(s=>s==='uncertain')?'uncertain':states.some(s=>s==='error')?'error':states.length&&states.every(s=>s==='sent')?'sent':'queued';
   await env.DB.prepare('UPDATE booking_telegram_payment_events SET state=? WHERE event_key=?').bind(state,event.event_key).run();
  }
@@ -101,7 +101,7 @@ export async function processTelegramChecks(env:TelegramEnv,now=Date.now(),send:
      const messageTime=Number(update.message?.date)*1000;
      const stamp=Number.isFinite(messageTime)&&messageTime>0&&messageTime<=now+60000?messageTime:now;
      const date=vietnamClock(stamp).date,prefix='command/'+date+'/'+update.update_id+'/'+c.chatId;
-     const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key LIKE ? LIMIT 1').bind(prefix+'/%').first();
+     const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key>=? AND job_key<? LIMIT 1').bind(prefix+'/',prefix+'0').first();
      if(!existing){
       const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+date),env.DB);if(!response.ok)throw Error('TELEGRAM_BOOKINGS_UNAVAILABLE');
       const data=await response.json() as {bookings:Booking[]};
@@ -138,7 +138,7 @@ export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),sen
  for(const job of jobs){
  if(sent>=10)break;
  const prefix=job.key+'/'+c.chatId;
- const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key LIKE ? LIMIT 1').bind(prefix+'/%').first();
+ const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key>=? AND job_key<? LIMIT 1').bind(prefix+'/',prefix+'0').first();
  if(!existing){
   if(test){const n=await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE job_key LIKE ? AND job_key LIKE '%/0000'").bind('test/'+clock.date+'/%').first<{n:number}>();if((n?.n??0)>=5)return {sent:0,skipped:'test_limit'};}
   const parts=telegramParts(job.text);
@@ -154,7 +154,7 @@ async function deliverTelegramPrefix(env:TelegramEnv,prefix:string,now:number,se
  const c=telegramConfig(env);let sent=0;
  // Telegram has no idempotency key. A timed-out delivery must not be retried blindly.
  await env.DB.prepare("UPDATE booking_telegram_jobs SET state='uncertain',error_code='DELIVERY_UNCONFIRMED' WHERE state='sending' AND lease_until<=?").bind(now).run();
- const rows=await env.DB.prepare("SELECT job_key,state FROM booking_telegram_jobs WHERE job_key LIKE ? AND state<>'sent' ORDER BY job_key LIMIT 2").bind(prefix+'/%').all<{job_key:string;state:string}>();
+ const rows=await env.DB.prepare("SELECT job_key,state FROM booking_telegram_jobs WHERE job_key>=? AND job_key<? AND state<>'sent' ORDER BY job_key LIMIT 2").bind(prefix+'/',prefix+'0').all<{job_key:string;state:string}>();
  for(const row of rows.results){
   if(!['pending','retry'].includes(row.state))break;
   const claim=await env.DB.prepare("UPDATE booking_telegram_jobs SET state='sending',attempts=attempts+1,lease_until=? WHERE job_key=? AND state IN ('pending','retry') AND next_attempt<=? AND attempts<8 RETURNING payload,attempts").bind(now+120000,row.job_key,now).first<{payload:string;attempts:number}>();if(!claim)break;
