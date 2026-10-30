@@ -6,6 +6,7 @@
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(()=>{frame=0;sync();});};
  function sync(){
   document.querySelectorAll('.pos-cart').forEach(cart=>{
+   cart.querySelectorAll('.pos-customer>label').forEach(label=>{for(const node of label.childNodes)if(node.nodeType===3&&node.textContent.trim()==='Số khách')node.textContent=node.textContent.replace('Số khách','Khách');});
    if(!cart.querySelector('.pos-header-service-tools:not([data-compat-toolbar])')){
     let bar=toolbarCache.get(cart);
     if(!bar){bar=document.createElement('fieldset');bar.className='pos-header-service-tools';bar.dataset.compatToolbar='true';bar.buttons=new Map();cart.querySelector('.pos-cart-head')?.appendChild(bar);toolbarCache.set(cart,bar);}
