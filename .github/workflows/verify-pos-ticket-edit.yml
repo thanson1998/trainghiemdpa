@@ -42,12 +42,17 @@ jobs:
               const context=await browser.newContext({locale:'vi-VN',timezoneId:'Asia/Ho_Chi_Minh',viewport:{width:1440,height:1000}});
               const page=await context.newPage();await page.goto(host,{waitUntil:'domcontentloaded'});
               const dates=page.locator('.pos-inline-schedule');await dates.waitFor({timeout:30000});
+              const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>i.value),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>l.querySelector('input')?.value)}))}));
               assert.equal(await dates.count(),1);assert(await dates.locator('input[type=date]').isEditable());
               await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('1130');
               await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='14:30');
+              await state('after-start');
               await dates.getByLabel('Giờ kết thúc POS',{exact:true}).fill('15:30');
+              await state('after-manual-input');
               await dates.getByLabel('Giờ kết thúc POS',{exact:true}).press('Tab');
-              assert.equal(await dates.getByLabel('Giờ kết thúc POS',{exact:true}).inputValue(),'15:30');
+              await state('after-manual-blur');
+              await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='15:30');
+              await state('manual-committed');
               await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('18:00');
               await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='21:00');
               assert.equal(await page.getByRole('button',{name:'Chọn thêm món',exact:true}).count(),0);
