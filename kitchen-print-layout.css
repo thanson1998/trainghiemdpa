@@ -61,3 +61,6 @@
 .menu-print-sheet .menu-print-location:not(.has-table-groups)>h3,.menu-print-sheet .menu-print-location:not(.has-table-groups)>div{display:none!important}
 .menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time{position:static!important;display:block!important;width:100%!important;margin:0!important;text-align:center}
 .menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time dt,.menu-print-sheet .menu-print-location:not(.has-table-groups)>.menu-print-service-time dd{text-align:center}
+
+/* Omit the per-table price row on dine-in kitchen tickets. */
+.menu-print-sheet:has(.menu-print-location.has-table-groups) .menu-print-price>div:first-child{display:none!important}
