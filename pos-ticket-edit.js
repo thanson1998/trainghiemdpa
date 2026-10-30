@@ -17,7 +17,8 @@
     const dates=document.createElement('fieldset');dates.className='pos-inline-schedule';meta.appendChild(dates);
     const pricing=document.createElement('fieldset');pricing.className='pos-inline-pricing';more.before(pricing);
     const tools=document.createElement('div');tools.className='pos-inline-order-tools';more.before(tools);
-    state={dates,pricing,tools,pairs:new Map(),buttons:new Map()};cache.set(cart,state);
+    const mode=document.createElement('fieldset');mode.className='pos-header-price-mode';cart.querySelector('.pos-cart-view-actions')?.appendChild(mode);
+    state={dates,pricing,tools,mode,pairs:new Map(),buttons:new Map()};cache.set(cart,state);
     meta.querySelector('span')?.classList.add('pos-legacy-schedule-text');
     cart.classList.add('pos-cart-refined');cart.dataset.posEditorUpgraded='true';
    }
@@ -54,7 +55,8 @@
    const phone=cloneField('phone',find('Số điện thoại'),'Điện thoại','Số điện thoại POS');
    if(phone&&phone.parentElement!==customer){phone.className='pos-ticket-phone';customer.appendChild(phone);}
    const agreed=labels.find(label=>caption(label).startsWith('Giá đã chốt /'));
-   arrange(state.pricing,[cloneField('mode',find('Cách tính giá'),'Cách tính giá','Cách tính giá POS'),cloneField('agreed',agreed,agreed?caption(agreed):'Giá đã chốt / bàn','Giá chốt POS mỗi bàn'),cloneField('deposit',find('Đã cọc'),'Đã cọc','Tiền cọc POS'),cloneField('status',find('Trạng thái'),'Trạng thái','Trạng thái POS')]);
+   arrange(state.mode,[cloneField('mode',find('Cách tính giá'),'Cách tính giá','Cách tính giá POS')]);
+   arrange(state.pricing,[cloneField('agreed',agreed,agreed?caption(agreed):'Giá đã chốt / bàn','Giá chốt POS mỗi bàn'),cloneField('deposit',find('Đã cọc'),'Đã cọc','Tiền cọc POS'),cloneField('status',find('Trạng thái'),'Trạng thái','Trạng thái POS')]);
    const tools=Array.from(details.querySelectorAll('button')).map(original=>{
     const name=original.textContent.trim();let button=state.buttons.get(name);
     if(!button){button=document.createElement('button');button.type='button';button.className='text-btn';button.textContent=name;button.addEventListener('click',()=>button.source?.click());state.buttons.set(name,button);}

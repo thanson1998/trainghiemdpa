@@ -22,3 +22,8 @@
 .pos-cart.pos-cart-refined .pos-cart-body fieldset>.pos-inline-order-tools{order:12}
 .pos-cart .pos-hidden-table-picker{display:none!important}
 @media(max-width:380px){.pos-cart.pos-cart-refined .pos-inline-pricing{grid-template-columns:minmax(0,1fr)}}
+
+.pos-cart .pos-expand-cart{display:none!important}
+.pos-cart.pos-cart-refined .pos-cart-view-actions .pos-header-price-mode{display:block;flex:0 1 175px;width:175px;min-width:135px;margin:0;padding:0;border:0}
+.pos-cart.pos-cart-refined .pos-header-price-mode label{display:flex;flex-direction:column;gap:2px;margin:0;font-size:10px;font-weight:600;color:#365747}
+.pos-cart.pos-cart-refined .pos-header-price-mode select{box-sizing:border-box;width:100%;min-width:0;height:29px;min-height:29px;margin:0;padding:4px 6px;font-size:11px;background:#fff;border:1px solid #ccd9cf;border-radius:5px}
