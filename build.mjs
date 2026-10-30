@@ -11,7 +11,7 @@ html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20
 html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261030-6"/><script defer src="./kitchen-print-layout.js?v=20261030-3"></script></head>');
 html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261030-2"></script></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261030-13"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261030-14"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
 // Hashed JS, CSS and artwork can be cached independently across visits.
 // Keep the same relative asset paths for GitHub Pages and the Worker.
 fs.cpSync('dist/assets','assets',{recursive:true});
