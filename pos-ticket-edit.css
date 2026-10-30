@@ -26,3 +26,12 @@
 .pos-cart[data-pos-editor-upgraded] .pos-ticket-meta>.pos-legacy-schedule-text,.pos-cart[data-pos-editor-upgraded] .pos-details,.pos-cart[data-pos-editor-upgraded] .pos-add-inline,.pos-cart .pos-hidden-table-picker,.pos-cart .pos-expand-cart,.pos-cart .pos-original-service-action,.pos-cart .pos-item-extras,.pos-cart .pos-item-note-summary,.pos-workbench .pos-cart .pos-order-note{display:none!important}
 @media(max-width:480px){.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) 65px 108px!important}.pos-cart.pos-cart-refined .pos-customer>label:first-child{grid-column:auto}.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools{max-width:185px}}
 @media(max-width:360px){.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-customer .pos-customer{grid-template-columns:minmax(0,1fr) 60px!important}.pos-cart.pos-cart-refined .pos-ticket-phone,.pos-cart.pos-cart-refined .pos-customer>label:last-child{grid-column:1/-1;max-width:150px}}
+
+/* One horizontal service toolbar beneath the ticket heading. */
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head{position:relative}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head>div:first-child{grid-column:1/-1;grid-row:1;padding-right:92px;box-sizing:border-box}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools{grid-column:1/-1;grid-row:2;position:static;display:flex;flex-wrap:nowrap;justify-content:flex-start;align-items:center;gap:5px;width:100%;max-width:none;min-width:0;box-sizing:border-box;overflow-x:auto;scrollbar-width:thin}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools .order-service-choice,.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools .order-service-choice>[role=group]{display:contents!important}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools button{flex:0 0 auto}
+.pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-header-service-tools .pos-layout-reset{position:absolute;right:9px;top:7px}
+.pos-cart .pos-header-service-tools button[hidden]{display:none!important}
