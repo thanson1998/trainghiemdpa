@@ -1,4 +1,4 @@
-import {telegramStatus,processBookingTelegrams,processTelegramChecks,type TelegramEnv} from './telegram-reminders';
+import {telegramStatus,processBookingTelegrams,processTelegramChecks,processTelegramPayments,type TelegramEnv} from './telegram-reminders';
 import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,type EmailReminderEnv} from './email-reminders';
 import {GET_ORDER_HISTORY} from './order-history-api';
 import {GET_LAYOUT,SAVE_LAYOUT} from './table-layout-api';
@@ -12,7 +12,7 @@ import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
 interface Env extends EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
- async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));},
+ async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
   url.pathname=({'/api/market-connection':'/api/ads-connection','/api/market-feed':'/api/ads-live','/api/market-research':'/api/ads-research'} as Record<string,string>)[url.pathname]||url.pathname;
@@ -56,7 +56,7 @@ export default {
    const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
   const extra:Record<string,Record<string,typeof GET>>={'/api/order-history':{GET:GET_ORDER_HISTORY},'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
-  if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
+  if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});if(url.pathname==='/api/payments'&&request.method==='POST'&&response.ok&&ctx)ctx.waitUntil(processTelegramPayments(env).catch(()=>console.error('Telegram payment notice deferred to cron')));const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/import-text'){const response=request.method==='POST'?await IMPORT(request,env):Response.json({error:'Ch? h? tr? POST.'},{status:405,headers:{Allow:'POST, OPTIONS'}});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   const routes:Record<string,((request:Request,db:D1Database)=>Promise<Response>)|undefined>=url.pathname==='/api/bookings/move'?{POST:MOVE}:url.pathname==='/api/catalog'?{GET:GET_CATALOG,POST:POST_CATALOG}:{GET,POST,DELETE};
   const action=routes[request.method];
