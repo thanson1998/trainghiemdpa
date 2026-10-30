@@ -1,6 +1,21 @@
 // Compatibility for previously published bundles; keep React-owned nodes intact.
 (()=>{
  const update=()=>document.querySelectorAll('.menu-print-sheet').forEach(sheet=>{
+  const dishes=sheet.querySelector('.menu-print-dishes'),heading=dishes?.querySelector('h3'),set=dishes?.querySelector('.menu-print-set-name');
+  const quantity=set?.textContent.match(/(\d+)\s*set\s*$/i);
+  if(heading&&set&&quantity){
+   let badge=heading.querySelector('.menu-print-set-quantity');
+   if(!badge){badge=document.createElement('span');badge.className='menu-print-set-quantity';heading.appendChild(badge);}
+   const text='S\u1ed1 set: '+quantity[1];if(badge.textContent!==text)badge.textContent=text;
+   let caption=dishes.querySelector('.menu-print-set-caption');
+   if(!caption){caption=document.createElement('p');caption.className='menu-print-set-caption';set.after(caption);}
+   const name=set.textContent.slice(0,quantity.index).replace(/[\s\u00b7\u2022]+$/u,'');
+   if(caption.textContent!==name)caption.textContent=name;
+   if(!set.classList.contains('menu-print-set-relocated'))set.classList.add('menu-print-set-relocated');
+  }else{
+   dishes?.querySelector('.menu-print-set-quantity')?.remove();dishes?.querySelector('.menu-print-set-caption')?.remove();
+   set?.classList.remove('menu-print-set-relocated');
+  }
   const original=sheet.querySelector('.menu-print-facts>div:nth-child(2)');
   const location=sheet.querySelector('.menu-print-location');
   if(!original||!location)return;
