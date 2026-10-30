@@ -24,3 +24,7 @@
 .menu-print-sheet .menu-print-dishes .dish-print-price{flex:0 0 auto;font-size:10pt;line-height:1.3;white-space:nowrap}
 .menu-print-sheet .menu-print-set-name{font-size:11pt;line-height:1.3;white-space:normal}
 .menu-print-sheet .menu-print-dishes .dish-print-note{font-size:10pt;line-height:1.3;white-space:pre-wrap}
+
+/* Normal-weight text requested on the kitchen ticket. */
+.menu-print-sheet .menu-print-dishes li>p,.menu-print-sheet .menu-print-dishes li>p *,.menu-print-sheet .dish-print-included,.menu-print-sheet .menu-print-footer,.menu-print-sheet .menu-print-total+div,.menu-print-sheet .menu-print-total+div *{font-weight:400!important}
+.menu-print-sheet .menu-print-footer{font-size:9pt;line-height:1.3;white-space:nowrap;overflow-wrap:normal;word-break:normal}
