@@ -1,6 +1,7 @@
 import {GET as getBookings} from './api';
-import {dueEmailJobs,reminderContent,vietnamClock,type EmailReminderEnv} from './email-reminders';
-import type {Booking} from './model';
+import {vietnamClock,type EmailReminderEnv} from './email-reminders';
+import {guestCount,orderLocation,type Booking} from './model';
+import {readMenuSet,menuText} from './menu';
 export interface TelegramEnv extends EmailReminderEnv {TELEGRAM_BOT_TOKEN?:string;TELEGRAM_CHAT_ID?:string;TELEGRAM_ENABLED?:string}
 const schema=`CREATE TABLE IF NOT EXISTS booking_telegram_jobs(job_key TEXT PRIMARY KEY,payload TEXT NOT NULL,state TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,sent_at TEXT,message_id TEXT,error_code TEXT)`;
 export function telegramConfig(env:TelegramEnv){
@@ -13,22 +14,35 @@ export function telegramParts(text:string,limit=3500){
  if(rest)parts.push(rest);return parts;
 }
 export const reportTimes=['00:00','04:00','08:00','12:00','16:00','20:00'];
+const statusLabel={reserved:'Đã đặt',arrived:'Đang phục vụ',completed:'Hoàn tất, chưa thanh toán',cancelled:'Đã hủy'};
+function telegramBookingDetails(b:Booking){
+ return [b.orderCode||b.id,`${b.start}–${b.end} | ${orderLocation(b)}`,'Trạng thái: '+statusLabel[b.status],`Khách: ${b.name} | ${guestCount(b)} người`,...(b.phone?['Điện thoại: '+b.phone]:[]),...(readMenuSet(b.menu)?.name?['Set đặt: '+readMenuSet(b.menu)!.name]:[]),'Thực đơn:\n'+(menuText(b.menu)||'Chưa cập nhật'),...(b.note?['Ghi chú: '+b.note]:[])].join('\n');
+}
+export function telegramSummary(bookings:Booking[],now:number){
+ const clock=vietnamClock(now);
+ // Match POS open orders, including serving and completed-but-unpaid orders.
+ const open=bookings.filter(b=>b.date===clock.date&&b.status!=='cancelled'&&!b.paidAt).sort((a,b)=>a.start.localeCompare(b.start)||a.id.localeCompare(b.id));
+ const count=(status:Booking['status'])=>open.filter(b=>b.status===status).length;
+ const tables=new Set(open.filter(b=>b.serviceType!=='takeaway').flatMap(b=>b.tables)).size;
+ const text=[`DPA · ${clock.date.split('-').reverse().join('/')} · Cập nhật ${clock.time} (giờ Việt Nam)`,`Đơn đang mở: ${open.length} | Bàn: ${tables}`,`Đã đặt: ${count('reserved')} | Đang phục vụ: ${count('arrived')} | Hoàn tất chưa thanh toán: ${count('completed')}`,`Mang về: ${open.filter(b=>b.serviceType==='takeaway').length}`,'',open.length?open.map(telegramBookingDetails).join('\n\n--------------------\n\n'):'Hiện không có đơn đang mở chưa thanh toán trong ngày.','','Dữ liệu tại thời điểm gửi. Kiểm tra website để xem cập nhật mới nhất:','https://thanson1998.github.io/trainghiemdpa/'].join('\n');
+ return {text,openCount:open.length,tableCount:tables};
+}
 export function telegramJobs(bookings:Booking[],now:number){
  const clock=vietnamClock(now),slot=reportTimes[Math.floor(Number(clock.time.slice(0,2))/4)];
- const summary=dueEmailJobs(bookings,now,{dailyTime:'00:00',beforeMinutes:0})[0];
- const jobs=[{key:'interval/'+clock.date+'/'+slot.replace(':',''),text:'BAO CAO D?T BAN - '+slot+'\n'+reminderContent(summary).text}];
+ const summary=telegramSummary(bookings,now);
+ const jobs=[{key:'interval/v2/'+clock.date+'/'+slot.replace(':',''),text:'BÁO CÁO ĐƠN ĐANG MỞ — '+slot+'\n'+summary.text}];
  for(const b of bookings){
   const start=Date.parse(b.date+'T'+b.start+':00+07:00');
   if(b.status!=='reserved'||b.paidAt||b.serviceType==='takeaway'||!Number.isFinite(start)||now<start-7200000||now>=start)continue;
   const id=Array.from(new TextEncoder().encode(b.id),byte=>byte.toString(16).padStart(2,'0')).join('');
-  jobs.push({key:'arrival/'+b.date+'/'+id+'/'+b.start.replace(':',''),text:'NH?C L?CH D?T BAN - TRU?C GI? D?N 2 TI?NG\n'+reminderContent({key:'arrival',kind:'daily',date:b.date,bookings:[b]}).text});
+  jobs.push({key:'arrival/'+b.date+'/'+id+'/'+b.start.replace(':',''),text:'NHẮC LỊCH ĐẶT BÀN — TRƯỚC GIỜ ĐẾN 2 TIẾNG\nNgày '+b.date.split('-').reverse().join('/')+' (giờ Việt Nam)\n'+telegramBookingDetails(b)});
  }
  return jobs;
 }
 export async function telegramStatus(env:TelegramEnv){
  const c=telegramConfig(env);let lastSentAt:string|null=null,uncertain=0;
  try{lastSentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent'").first<{sent:string|null}>())?.sent??null;uncertain=(await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state='uncertain'").first<{n:number}>())?.n??0;}catch{}
- return Response.json({configured:c.ready,enabled:c.enabled,intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:2,reportScope:'pos_open_orders',intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
 }
 export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),send:typeof fetch=fetch,test=false){
  const c=telegramConfig(env);if(!c.ready||(!test&&!c.enabled))return {sent:0,skipped:'not_configured'};
@@ -40,7 +54,7 @@ export async function processBookingTelegrams(env:TelegramEnv,now=Date.now(),sen
   const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+date),env.DB);if(!response.ok)throw Error('TELEGRAM_BOOKINGS_UNAVAILABLE');
   const data=await response.json() as {bookings:Booking[]};bookings.push(...data.bookings.filter(b=>b.date===date));
  }
- const jobs=test?[{key:'test/'+clock.date+'/'+clock.time.replace(':',''),text:reminderContent({...dueEmailJobs(bookings,now,{dailyTime:'00:00',beforeMinutes:0})[0],kind:'test'}).text}]:telegramJobs(bookings,now);
+ const jobs=test?[{key:'test/'+clock.date+'/'+clock.time.replace(':',''),text:'[GỬI THỬ]\n'+telegramSummary(bookings,now).text}]:telegramJobs(bookings,now);
  let sent=0;
  // Booking reminders take priority over the periodic summary.
  jobs.sort((a,b)=>Number(b.key.startsWith('arrival/'))-Number(a.key.startsWith('arrival/')));
