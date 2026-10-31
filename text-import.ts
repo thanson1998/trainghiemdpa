@@ -70,10 +70,10 @@ export async function prepareNaturalImport(raw:unknown,context:ImportContext,db:
 
 export interface ImportEnv {DB:D1Database;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export const geminiModel='gemini-3.1-flash-lite';
-export async function extractWithGemini(text:string,env:ImportEnv,fetcher:typeof fetch=fetch,configuredZones:Zone[]=zones):Promise<{response:unknown}>{
+export async function extractWithGemini(text:string,env:ImportEnv,fetcher:typeof fetch=fetch,configuredZones:Zone[]=zones,task?:{prompt:string;schema:unknown}):Promise<{response:unknown}>{
  const model=env.GEMINI_MODEL?.trim()||geminiModel;
  if(!/^gemini-[a-z0-9.-]+$/.test(model))throw new Error('GEMINI_MODEL_INVALID');
- const requestBody={system_instruction:{parts:[{text:naturalPrompt(new Date(),configuredZones)}]},contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0.1,maxOutputTokens:4096,responseFormat:{text:{mimeType:'APPLICATION_JSON',schema:importJsonSchema}}}};
+ const requestBody={system_instruction:{parts:[{text:task?.prompt??naturalPrompt(new Date(),configuredZones)}]},contents:[{role:'user',parts:[{text}]}],generationConfig:{temperature:0.1,maxOutputTokens:4096,responseFormat:{text:{mimeType:'APPLICATION_JSON',schema:task?.schema??importJsonSchema}}}};
  const url='https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent';
  const requestOptions={method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY!.trim()}};
  let response=await fetcher(url,{
@@ -84,7 +84,7 @@ export async function extractWithGemini(text:string,env:ImportEnv,fetcher:typeof
   let message='';try{const data=await response.clone().json() as {error?:{message?:string}};message=data.error?.message??'';}catch{/* Invalid error bodies are handled below. */}
   if(/unknown (?:name|field).*response_?format|response_?format.*not supported/i.test(message)){
    const {responseFormat,...config}=requestBody.generationConfig;
-   response=await fetcher(url,{...requestOptions,signal:AbortSignal.timeout(45000),body:JSON.stringify({...requestBody,generationConfig:{...config,responseMimeType:'application/json',responseJsonSchema:importJsonSchema}})});
+   response=await fetcher(url,{...requestOptions,signal:AbortSignal.timeout(45000),body:JSON.stringify({...requestBody,generationConfig:{...config,responseMimeType:'application/json',responseJsonSchema:task?.schema??importJsonSchema}})});
   }
  }
  // Do not surface provider response bodies: they can contain credentials or user data.
