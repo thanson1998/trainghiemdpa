@@ -142,3 +142,37 @@ test('periodic reports use Vietnam 06:00–22:00 hours, include 22:00 and stay q
  const next=Date.parse('2026-11-07T06:00:00+07:00');await mod.processBookingTelegrams(env(DB),next,send);await mod.processBookingTelegrams(env(DB),next+60000,send);assert.equal(calls.length,2);assert(calls[1].includes('06:00'));
  const status=await(await mod.telegramStatus(env(DB))).json();assert.deepEqual(status.reportWindow,{from:'06:00',to:'22:00'});
 });
+
+const revenue=await import(resolve('./telegram-revenue'));
+test('/doanhthu accepts only the configured private owner and exact command syntax',()=>{
+ for(const text of ['/doanhthu',' /DOANHTHU ','/doanhthu@dpa_baocao_2026_bot'])assert.equal(mod.telegramCommand(checkUpdate(400,undefined,{text}),'456'),'doanhthu');
+ for(const patch of [{text:'/doanhthu later'},{text:'/doanhthu@another_bot'},{text:'doanhthu'},{text:'/doanhthu',chat:{id:999,type:'private'}},{text:'/doanhthu',chat:{id:456,type:'group'}},{text:'/doanhthu',from:{id:999}},{text:'/doanhthu',from:{id:456,is_bot:true}}])assert.equal(mod.telegramCommand(checkUpdate(401,undefined,patch),'456'),null);
+ assert.equal(mod.telegramCommand({update_id:402,edited_message:checkUpdate(402,undefined,{text:'/doanhthu'}).message},'456'),null);
+});
+test('monthly revenue separates paid revenue, unpaid value, cancellations and actual dine-in guest visits',()=>{
+ const row=(id,patch={},paymentTotal)=>({booking:{...booking,id,...patch},...(paymentTotal!==undefined?{paymentTotal}:{})});
+ const paid=row('paid',{date:'2026-11-01',status:'completed',tables:['N1-01','N1-02'],people:10,price:999,deposit:500000},2000000);
+ const rows=[paid,row('takeaway',{serviceType:'takeaway',tables:[],status:'completed',people:99},300000),row('cancel',{status:'cancelled',people:100,price:9000000}),row('serving',{status:'arrived',people:4,price:200000}),row('reserved',{people:50,price:100000}),row('reopened',{status:'completed',people:5,price:500000}),row('previous',{date:'2026-10-31'},9999999),row('tomorrow',{date:'2026-11-07'},9999999),row('nextmonth',{date:'2026-12-01'},9999999),paid];
+ const report=revenue.monthlyRevenueSummary(rows,at('20:00'));
+ assert.equal(report.totalOrders,6);assert.equal(report.cancelledOrders,1);assert.equal(report.paidOrders,2);assert.equal(report.unpaidOrders,3);assert.equal(report.guests,29);assert.equal(report.revenue,2300000);assert.equal(report.unpaidValue,800000);assert.equal(report.nonCancelledValue,3100000);assert.equal(report.highest.booking.id,'paid');assert.equal(report.lowest.booking.id,'takeaway');assert.match(report.text,/2,300,000/);assert.match(report.text,/01\/11\/2026/);assert.equal(report.from,'2026-11-01');assert.equal(report.to,'2026-11-06');
+});
+test('empty, all-cancelled, free orders and Vietnamese month boundaries have stable revenue statistics',()=>{
+ let report=revenue.monthlyRevenueSummary([],at('20:00'));assert.equal(report.revenue,0);assert.equal(report.guests,0);assert.match(report.text,/Chưa có đơn đã thanh toán/);assert(!report.text.includes('NaN'));
+ report=revenue.monthlyRevenueSummary([{booking:{...booking,status:'cancelled'},paymentTotal:1000000}],at('20:00'));assert.equal(report.totalOrders,1);assert.equal(report.cancelledOrders,1);assert.equal(report.revenue,0);assert.equal(report.paidOrders,0);
+ report=revenue.monthlyRevenueSummary([{booking:{...booking,status:'completed',totalPeople:7},paymentTotal:0}],at('20:00'));assert.equal(report.paidOrders,1);assert.equal(report.guests,7);assert.equal(report.lowest.paymentTotal,0);
+ report=revenue.monthlyRevenueSummary([{booking:{...booking,date:'2026-11-01',status:'completed'},paymentTotal:100}],Date.parse('2026-10-31T17:00:00Z'));assert.equal(report.from,'2026-11-01');assert.equal(report.to,'2026-11-01');assert.equal(report.revenue,100);
+});
+test('/doanhthu reads the month once, durably queues a private report and retries its frozen snapshot',async()=>{
+ const DB=db(),original=DB.prepare.bind(DB);let reads=0,range,amount=1200000,updates=[checkUpdate(500,at('20:00'),{text:'/doanhthu'})],limited=true,replies=[];
+ DB.prepare=q=>q.includes('p.total AS payment_total')?{bind(...args){range=args;return this},async all(){reads++;return {results:[{id:'paid-one',date:'2026-11-02',start:'18:00',end:'21:00',name:'DPA',phone:'',table_ids:'["N2-01"]',people:10,total_people:12,platters:1,price:1200000,menu:'',note:'',status:'completed',version:2,payment_total:amount,paid_at:'2026-11-02T13:00:00Z'}]}}}:original(q);
+ const send=async(url,opts)=>{if(url.endsWith('/getUpdates'))return Response.json({ok:true,result:updates});replies.push(JSON.parse(opts.body));return limited?Response.json({ok:false,error_code:429},{status:429}):ok();};
+ await mod.processTelegramChecks(env(DB),at('20:00'),send);assert.equal(reads,1);assert.deepEqual(range,['2026-11-01','2026-11-06']);assert.match(replies[0].text,/TRA CỨU \/doanhthu/);assert.match(replies[0].text,/1,200,000/);assert.match(replies[0].text,/Khách ghé quán: 12/);assert.equal(replies[0].chat_id,'456');
+ amount=9000000;limited=false;await mod.processTelegramChecks(env(DB),at('20:01'),send);assert.equal(reads,1);assert.equal(replies.length,2);assert.deepEqual(replies[0],replies[1]);await mod.processTelegramChecks(env(DB),at('20:02'),send);assert.equal(replies.length,2);
+ updates=[checkUpdate(501,at('20:03'),{text:'/check'})];DB.bookings=[];await mod.processTelegramChecks(env(DB),at('20:03'),send);assert.equal(replies.length,3);assert.match(replies[2].text,/TRA CỨU \/check/);assert.equal(DB.sql.prepare('SELECT next_offset FROM booking_telegram_poll').get().next_offset,502);
+ const status=await(await mod.telegramStatus(env(DB))).json();assert.deepEqual(status.commands,['/check','/doanhthu']);
+});
+test('a failed revenue read never acknowledges or loses the Telegram command',async()=>{
+ const DB=db(),original=DB.prepare.bind(DB),send=async url=>url.endsWith('/getUpdates')?Response.json({ok:true,result:[checkUpdate(510,undefined,{text:'/doanhthu'})]}):ok();
+ DB.prepare=q=>q.includes('p.total AS payment_total')?{bind(){return this},async all(){throw Error('unavailable')}}:original(q);
+ await assert.rejects(()=>mod.processTelegramChecks(env(DB),at('20:00'),send),/unavailable/);assert.equal(DB.sql.prepare('SELECT next_offset FROM booking_telegram_poll').get().next_offset,0);assert.equal(DB.sql.prepare('SELECT lease_until FROM booking_telegram_poll').get().lease_until,0);assert.equal(DB.sql.prepare('SELECT COUNT(*) n FROM booking_telegram_jobs').get().n,0);
+});

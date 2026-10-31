@@ -1262,3 +1262,16 @@ test('email payment event migration never backfills old receipts and captures on
  assert.equal((await pay(next)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,1);
  sqlite.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,1);
 });
+
+const telegramRevenue=await import(dataUrl(compile(fs.readFileSync('./telegram-revenue.ts','utf8'))));
+test('monthly revenue uses current successful payment records and excludes reversals, cancelled and future orders',async()=>{
+ const paid=booking({tables:['N1-01','N1-02'],totalPeople:13,deposit:250000,status:'arrived'}),cancelled=booking({tables:['N1-03']}),open=booking({tables:['N1-04'],status:'arrived',people:4,totalPeople:4,price:500000}),future=booking({tables:['N1-05'],date:'2026-11-01'});
+ for(const b of [paid,cancelled,open,future])assert.equal((await api.POST(req('POST',b),db)).status,200);
+ assert.equal((await api.POST(req('POST',{...cancelled,version:1,status:'cancelled',action:'cancel-open-order'}),db)).status,200);
+ let response=await paymentsApi.PAY(req('POST',{id:paid.id,version:1,total:3000000,deposit:250000,tendered:2750000,method:'cash'}),db);assert.equal(response.status,200);const payment=(await response.json()).payment;
+ const now=Date.parse('2026-10-31T23:59:00+07:00');let report=await telegramRevenue.readMonthlyRevenue(db,now);assert.equal(report.totalOrders,3);assert.equal(report.cancelledOrders,1);assert.equal(report.guests,17);assert.equal(report.revenue,3000000);assert.equal(report.unpaidValue,500000);
+ response=await paymentsApi.REVERSE_PAYMENT(req('POST',{id:paid.id,version:2,paidAt:payment.paidAt,reason:'Kiểm tra hoàn và thu lại'}),db);assert.equal(response.status,200);const reopened=(await response.json()).booking;
+ report=await telegramRevenue.readMonthlyRevenue(db,now);assert.equal(report.revenue,0);assert.equal(report.unpaidValue,3500000);assert.equal(report.paidOrders,0);
+ assert.equal((await paymentsApi.PAY(req('POST',{id:paid.id,version:reopened.version,total:3000000,deposit:250000,tendered:2750000,method:'cash'}),db)).status,200);
+ report=await telegramRevenue.readMonthlyRevenue(db,now);assert.equal(report.revenue,3000000);assert.equal(report.paidOrders,1);assert.equal(report.totalOrders,3);assert.equal(report.cancelledOrders,1);
+});

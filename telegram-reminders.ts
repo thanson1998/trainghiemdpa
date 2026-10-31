@@ -1,3 +1,4 @@
+import {readMonthlyRevenue} from './telegram-revenue';
 import {reportTimes,telegramSummary,telegramJobs,telegramPaymentText,type TelegramPayment} from './order-notifications';
 export {reportTimes,telegramReportSlot,telegramSummary,telegramJobs,telegramPaymentText,type TelegramPayment} from './order-notifications';
 import {readTableLayout} from './table-layout-api';
@@ -21,7 +22,7 @@ export async function telegramStatus(env:TelegramEnv){
  try{lastSentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent'").first<{sent:string|null}>())?.sent??null;uncertain=(await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state='uncertain'").first<{n:number}>())?.n??0;}catch{}
  try{lastCommandAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'command/%'").first<{sent:string|null}>())?.sent??null;lastPollAt=(await env.DB.prepare('SELECT last_poll_at FROM booking_telegram_poll WHERE id=1').first<{last_poll_at:string|null}>())?.last_poll_at??null;}catch{}
  try{await env.DB.prepare('SELECT event_key FROM booking_telegram_payment_events LIMIT 0').all();paymentNotificationsReady=true;lastPaymentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'payment/%'").first<{sent:string|null}>())?.sent??null;}catch{}
- return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:6,paymentQueueLookup:'key_range',paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,reportWindow:{from:reportTimes[0],to:reportTimes[reportTimes.length-1]},beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:6,paymentQueueLookup:'key_range',paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check','/doanhthu'],revenueReportScope:'month_to_date_service_date',revenueExcludesCancelled:true,commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,reportWindow:{from:reportTimes[0],to:reportTimes[reportTimes.length-1]},beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
 }
 
 async function loadTelegramTableLabels(env:TelegramEnv){
@@ -50,10 +51,11 @@ export async function processTelegramPayments(env:TelegramEnv,now=Date.now(),sen
 }
 
 type TelegramUpdate={update_id:number;message?:{date?:number;text?:string;from?:{id:number;is_bot?:boolean};chat:{id:number;type:string}}};
-export function isTelegramCheck(update:TelegramUpdate,chatId:string){
- const m=update.message;
- return !!m&&m.chat?.type==='private'&&String(m.chat.id)===chatId&&String(m.from?.id)===chatId&&!m.from?.is_bot&&typeof m.text==='string'&&/^\/check(?:@dpa_baocao_2026_bot)?\s*$/i.test(m.text.trim());
+export function telegramCommand(update:TelegramUpdate,chatId:string):'check'|'doanhthu'|null{
+ const m=update.message;if(!m||m.chat?.type!=='private'||String(m.chat.id)!==chatId||String(m.from?.id)!==chatId||m.from?.is_bot||typeof m.text!=='string')return null;
+ const match=m.text.trim().match(/^\/(check|doanhthu)(?:@dpa_baocao_2026_bot)?\s*$/i);return match?match[1].toLowerCase() as 'check'|'doanhthu':null;
 }
+export function isTelegramCheck(update:TelegramUpdate,chatId:string){return telegramCommand(update,chatId)==='check';}
 export async function processTelegramChecks(env:TelegramEnv,now=Date.now(),send:typeof fetch=fetch){
  const c=telegramConfig(env);if(!c.ready)return {sent:0,skipped:'not_configured'};
  await env.DB.prepare(schema).run();
@@ -72,16 +74,17 @@ export async function processTelegramChecks(env:TelegramEnv,now=Date.now(),send:
   if(updates){
    for(const update of updates){
     if(!Number.isSafeInteger(update.update_id)||update.update_id<claim.next_offset)continue;
-    if(isTelegramCheck(update,c.chatId)){
+    const command=telegramCommand(update,c.chatId);
+    if(command){
      const messageTime=Number(update.message?.date)*1000;
      const stamp=Number.isFinite(messageTime)&&messageTime>0&&messageTime<=now+60000?messageTime:now;
      const date=vietnamClock(stamp).date,prefix='command/'+date+'/'+update.update_id+'/'+c.chatId;
      const existing=await env.DB.prepare('SELECT job_key FROM booking_telegram_jobs WHERE job_key>=? AND job_key<? LIMIT 1').bind(prefix+'/',prefix+'0').first();
      if(!existing){
-      const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+date),env.DB);if(!response.ok)throw Error('TELEGRAM_BOOKINGS_UNAVAILABLE');
-      const data=await response.json() as {bookings:Booking[]};
-      const snapshotTime=date===vietnamClock(now).date?now:stamp;
-      const text='TRA CỨU /check\n'+telegramSummary(data.bookings,snapshotTime).text;
+      await loadTelegramTableLabels(env);
+      const snapshotTime=date===vietnamClock(now).date?now:stamp;let text:string;
+      if(command==='doanhthu')text='TRA CỨU /doanhthu\n'+(await readMonthlyRevenue(env.DB,snapshotTime)).text;
+      else{const response=await getBookings(new Request('https://dpa.internal/api/bookings?date='+date),env.DB);if(!response.ok)throw Error('TELEGRAM_BOOKINGS_UNAVAILABLE');const data=await response.json() as {bookings:Booking[]};text='TRA CỨU /check\n'+telegramSummary(data.bookings,snapshotTime).text;}
       await env.DB.batch(telegramParts(text).map((part,i)=>env.DB.prepare("INSERT OR IGNORE INTO booking_telegram_jobs(job_key,payload,state) VALUES(?,?,'pending')").bind(prefix+'/'+String(i).padStart(4,'0'),JSON.stringify({chat_id:c.chatId,text:part,link_preview_options:{is_disabled:true}}))));
      }
     }
