@@ -11,3 +11,11 @@ HTML, JavaScript, CSS và ảnh tách thành tài nguyên có mã băm. Mã lưu
 Cron chỉ xếp thêm tối đa 15 ảnh mỗi lượt và tạo tối đa 3 ảnh; giữ nguyên giới hạn lượt/ngày. Thư viện hiển thị tiến độ ảnh ngay trong giao diện. Tạo ảnh chạy trên máy chủ và không chặn bán hàng.
 
 Workflow DPA web health chỉ đọc số lượng ảnh, dung lượng và thời gian phản hồi của trang/catalog/ảnh mẫu; không truy vấn đơn hàng hoặc ghi nhận thanh toán. Workflow chờ bản cập nhật rồi xác nhận ảnh thật có byte JPEG, kiểm tra tài nguyên tách riêng và thử tải lại ảnh để kiểm tra cache. Thời gian đo từ runner không đại diện trực tiếp cho mạng tại nhà hàng.
+
+## Rà soát 31/10/2026
+
+Mẫu đo mạng từ môi trường kiểm tra: HTML 181 ms, JS chính 302 ms, catalog 339 ms (~95,876 byte JSON chưa nén), sơ đồ 200 ms. Không phải số đo mạng tại nhà hàng.
+
+Bản tối ưu tách Email, Lịch sử, Tổng quan và Thư viện thành các mô-đun tải khi mở; JavaScript đầu vào giảm từ 462,605 xuống khoảng 430,750 byte (gzip 133.13 xuống 126.33 KB). Thư viện dựng 48 thẻ đầu và bổ sung khi cuộn; bộ dữ liệu mẫu 275 món có 4,866 phần tử DOM trước và 1,020 sau. Khi chuyển lại vào thư viện trong kiểm tra cục bộ sau khi mã đã tải, thời gian tới lượt vẽ thứ hai giảm từ 165 xuống 80 ms. Đây là phép đo chẩn đoán, không phải INP hay cam kết tốc độ trên mọi thiết bị.
+
+Catalog hỗ trợ tham số revision tùy chọn, mã SHA-256 bao gồm nội dung món/set và tiến độ ảnh. Poll giữ nguyên mỗi 3 giây, trả JSON nhỏ khi không đổi; cập nhật giá hoặc ảnh ở cùng phiên bản vẫn trả toàn bộ dữ liệu mới. Phiên bản trình duyệt cũ tiếp tục dùng API như trước.

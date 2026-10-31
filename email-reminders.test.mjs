@@ -3,87 +3,93 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 import {DatabaseSync} from 'node:sqlite';
-const loaded=new Map();
-const asUrl=code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(import.meta.url),loaded=new Map(),asUrl=code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 function compile(source){return ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText.replace(/from ['"]([^'"]+)['"]/g,(_,spec)=>'from '+JSON.stringify(resolve(spec)));}
-function resolve(spec){if(loaded.has(spec))return loaded.get(spec);let source=fs.readFileSync(spec+'.ts','utf8');if(spec==='./api')source='export async function GET(req,db){return Response.json({bookings:db.bookings});}';const url=asUrl(compile(source));loaded.set(spec,url);return url;}
-const mod=await import(resolve('./email-reminders'));
-const menu=await import(resolve('./menu'));
+function resolve(spec){if(!spec.startsWith('./'))return pathToFileURL(require.resolve(spec)).href;if(loaded.has(spec))return loaded.get(spec);let source=fs.readFileSync(spec+'.ts','utf8');if(spec==='./api')source='export async function GET(req,db){const date=new URL(req.url).searchParams.get("date");return Response.json({bookings:db.bookings.filter(b=>b.date===date)});}';const url=asUrl(compile(source));loaded.set(spec,url);return url;}
+const mod=await import(resolve('./email-reminders')),reports=await import(resolve('./order-notifications')),menu=await import(resolve('./menu'));
 const at=s=>Date.parse(s+'+07:00');
-const config={dailyTime:'08:00',beforeMinutes:120};
-const b=(patch={})=>({id:'booking-1',date:'2026-11-06',start:'18:00',end:'21:00',name:'Khách DPA',phone:'',tables:['S1-05'],people:10,platters:1,price:1000000,menu:menu.writeMenu([{name:'Xôi',price:null,included:true}],{name:'Mẹt xôi gà',pricePerTable:1000000}),note:'',status:'reserved',version:1,...patch});
-function db(){const sql=new DatabaseSync(':memory:');return {bookings:[b()],prepare(q){let args=[];return {bind(...a){args=a;return this},async run(){return sql.prepare(q).run(...args)},async first(){return sql.prepare(q).get(...args)||null}}},sql};}
+const b=(patch={})=>({id:'booking-1',orderCode:'DPA-06112026-01',date:'2026-11-06',start:'18:00',end:'21:00',name:'Khách DPA',phone:'',tables:['S1-05'],people:10,platters:1,price:1000000,menu:menu.writeMenu([{name:'Xôi',price:null,included:true}],{name:'Mẹt xôi gà',pricePerTable:1000000}),note:'',status:'reserved',version:1,...patch});
+function db(){const sql=new DatabaseSync(':memory:');sql.exec("CREATE TABLE booking_payments(booking_id TEXT,booking_version INTEGER,snapshot TEXT,total INTEGER,deposit INTEGER,received INTEGER,tendered INTEGER,method TEXT,paid_at TEXT)");sql.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));return {bookings:[b()],prepare(q){const s=sql.prepare(q);const bound=(args=[])=>({bind(...a){return bound(a)},async run(){return {meta:{changes:s.run(...args).changes}}},async first(){return s.get(...args)||null},async all(){return {results:s.all(...args)}}});return bound();},sql};}
 const env=DB=>({DB,RESEND_API_KEY:'test-only-key',BOOKING_EMAIL_TO:'owner@example.com',BOOKING_EMAIL_FROM:'DPA <sender@example.com>',BOOKING_EMAIL_ENABLED:'true'});
-test('daily-only at 06:00 Vietnam time, including empty days, without any arrival reminders',()=>{
- assert.deepEqual(mod.vietnamClock(Date.parse('2026-11-05T17:30:00Z')),{date:'2026-11-06',time:'00:30'});
- const six={dailyTime:'06:00',beforeMinutes:0};
- assert.equal(mod.dueEmailJobs([b()],at('2026-11-06T05:59:00'),six).length,0);
- for(const time of ['06:00','08:00','16:00','18:00'])assert.deepEqual(mod.dueEmailJobs([b()],at('2026-11-06T'+time+':00'),six).map(j=>j.kind),['daily']);
- const excluded=[b({status:'cancelled'}),b({paidAt:'paid'}),b({status:'arrived'}),b({serviceType:'takeaway'}),b({date:'2026-11-07'})];
- assert.equal(mod.dueEmailJobs(excluded,at('2026-11-06T06:00:00'),six)[0].bookings.length,0);
- assert.match(mod.reminderContent(mod.dueEmailJobs([],at('2026-11-06T06:00:00'),six)[0]).text,/Hôm nay chưa có bàn đặt/);
- const c=mod.reminderConfig({...env(db()),BOOKING_EMAIL_DAILY_TIME:'08:00',BOOKING_EMAIL_BEFORE_MINUTES:'120'});assert.equal(c.dailyTime,'06:00');assert.equal(c.beforeMinutes,0);
-});
-test('mail includes the named set, table, quantities and escapes user HTML',()=>{
- const content=mod.reminderContent({kind:'daily',date:'2026-11-06',key:'daily/test',bookings:[b({name:'<img onerror=alert(1)>',note:'A & B'})]});
- assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/S1-05/);assert.match(content.text,/10 người/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
-});
-test('configuration is opt-in, validates recipients and does not expose a secret',async()=>{
- const DB=db();let calls=0;await mod.processBookingEmails({...env(DB),BOOKING_EMAIL_ENABLED:'false'},at('2026-11-06T08:00:00'),async()=>{calls++});assert.equal(calls,0);
- assert.equal(mod.reminderConfig({...env(DB),BOOKING_EMAIL_TO:'bad\r\naddress'}).ready,false);
- const status=await(await mod.emailReminderStatus(env(DB))).json();assert.equal(status.recipient,'ow***@example.com');assert.ok(!JSON.stringify(status).includes('test-only-key'));
-});
-test('persistent journal prevents duplicate mail, preserves payload for retries and retries failures',async()=>{
- const DB=db(),requests=[];let fail=true;const send=async(url,options)=>{requests.push(options);return fail?new Response('',{status:503}):Response.json({id:'provider-1'});};
- await mod.processBookingEmails(env(DB),at('2026-11-06T08:00:00'),send);assert.equal(requests.length,1);
- await mod.processBookingEmails(env(DB),at('2026-11-06T08:01:00'),send);assert.equal(requests.length,1);
- fail=false;DB.bookings=[b({note:'Edited after retry'})];await mod.processBookingEmails(env(DB),at('2026-11-06T08:03:00'),send);assert.equal(requests.length,2);assert.equal(requests[0].body,requests[1].body);assert.equal(requests[0].headers['Idempotency-Key'],requests[1].headers['Idempotency-Key']);
- await mod.processBookingEmails(env(DB),at('2026-11-06T08:04:00'),send);assert.equal(requests.length,2);assert.equal(DB.sql.prepare('SELECT state FROM booking_email_jobs').get().state,'sent');
-});
-test('concurrent cron ticks claim only one daily delivery; later arrival times do not trigger mail',async()=>{
- const DB=db();let calls=0;const send=async()=>{calls++;return Response.json({id:'provider-'+calls})};
- await Promise.all([mod.processBookingEmails(env(DB),at('2026-11-06T06:00:00'),send),mod.processBookingEmails(env(DB),at('2026-11-06T06:00:00'),send)]);assert.equal(calls,1);
- DB.bookings=Array.from({length:5},(_,i)=>b({id:'row-'+i}));await mod.processBookingEmails(env(DB),at('2026-11-06T16:00:00'),send);assert.equal(calls,1);
-});
 const request=body=>new Request('https://dpa.internal/api/email-reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-test('shared schedule persists time and enable state with optimistic concurrency',async()=>{
- const DB=db(),e=env(DB);assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'06:00');
- let r=await mod.saveEmailSchedule(request({enabled:true,dailyTime:'07:30',version:0}),e);assert.equal(r.status,200);let state=await r.json();assert.equal(state.dailyTime,'07:30');assert.equal(state.version,1);assert.equal(state.beforeMinutes,0);
- r=await mod.saveEmailSchedule(request({enabled:false,dailyTime:'09:00',version:0}),e);assert.equal(r.status,409);
- r=await mod.saveEmailSchedule(request({enabled:false,dailyTime:'07:30',version:1}),e);assert.equal(r.status,200);state=await r.json();assert.equal(state.enabled,false);assert.equal(state.nextSendAt,null);
- let calls=0;await mod.processBookingEmails(e,at('2026-11-06T10:00:00'),async()=>{calls++;return Response.json({id:'x'})});assert.equal(calls,0);
- assert.equal((await mod.loadEmailSchedule({...e,BOOKING_EMAIL_ENABLED:'true',BOOKING_EMAIL_DAILY_TIME:'08:00'})).enabled,false);
- r=await mod.saveEmailSchedule(request({enabled:true,dailyTime:'06:00',version:2}),e);assert.equal(r.status,200);
- await mod.processBookingEmails(e,at('2026-11-06T05:59:00'),async()=>{calls++;return Response.json({id:'x'})});assert.equal(calls,0);
- await mod.processBookingEmails(e,at('2026-11-06T06:00:00'),async()=>{calls++;return Response.json({id:'x'})});assert.equal(calls,1);
+const sender=calls=>async(url,options)=>{calls.push({url,...options,payload:JSON.parse(options.body)});return Response.json({id:'provider-'+calls.length});};
+function payment(DB,version=1,paidAt='2026-11-06T12:00:00Z'){const booking=b({status:'completed'});DB.sql.prepare('INSERT INTO booking_payments VALUES(?,?,?,?,?,?,?,?,?)').run(booking.id,version,JSON.stringify(booking),1000000,200000,800000,1000000,'cash',paidAt);}
+test('same five report times as Telegram and same open POS scope',()=>{
+ assert.deepEqual(mod.vietnamClock(Date.parse('2026-11-05T17:30:00Z')),{date:'2026-11-06',time:'00:30'});
+ for(const time of ['05:59','06:00','09:59','10:00','14:00','18:00','22:00','22:01','23:59']){
+ const now=at('2026-11-06T'+time+':00'),bookings=[b({status:'arrived'}),b({id:'completed',status:'completed'}),b({id:'takeaway',serviceType:'takeaway',tables:[]}),b({id:'cancel',status:'cancelled'}),b({id:'paid',paidAt:'paid'})];
+ assert.deepEqual(mod.dueEmailJobs(bookings,now).map(x=>x.text),reports.telegramJobs(bookings,now).map(x=>x.text));
+ }
+ const jobs=mod.dueEmailJobs([b({status:'arrived'})],at('2026-11-06T10:00:00'));
+ assert.match(jobs[0].text,/Đang phục vụ: 1/);assert.equal(mod.dueEmailJobs([],at('2026-11-06T23:00:00')).length,0);
+ assert.equal(mod.reminderConfig(env(db())).beforeMinutes,120);
 });
-test('settings reject malformed hours, unsupported credential fields, missing versions and conflicting writes',async()=>{
- const DB=db(),e=env(DB);
- for(const body of [{enabled:true,dailyTime:'24:00',version:0},{enabled:true,dailyTime:'6:00',version:0},{enabled:'true',dailyTime:'06:00',version:0},{enabled:true,dailyTime:'06:00'},{enabled:true,dailyTime:'06:00',version:0,to:'other@example.com'}])assert.equal((await mod.saveEmailSchedule(request(body),e)).status,400);
- const results=await Promise.all([mod.saveEmailSchedule(request({enabled:true,dailyTime:'06:00',version:0}),e),mod.saveEmailSchedule(request({enabled:false,dailyTime:'10:00',version:0}),e)]);assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+test('email safely includes full shared content and escapes user text',()=>{
+ const booking=b({name:'<img onerror=alert(1)>',note:'A & B'});
+ const text=reports.telegramSummary([booking],at('2026-11-06T10:00:00')).text;
+ const content=mod.reminderContent({kind:'interval',date:booking.date,key:'test',bookings:[],text});
+ assert.equal(content.text,text);assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/Bàn 05/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
 });
-test('next run uses Vietnam time and persisted settings survive repeat migration',async()=>{
- assert.equal(mod.nextDailySend('06:00',at('2026-11-06T05:59:00')),new Date(at('2026-11-06T06:00:00')).toISOString());
- assert.equal(mod.nextDailySend('06:00',at('2026-11-06T06:01:00')),new Date(at('2026-11-07T06:00:00')).toISOString());
- assert.equal(mod.nextDailySend('10:00',at('2026-11-06T08:00:00'),new Date(at('2026-11-06T06:00:00')).toISOString()),new Date(at('2026-11-07T10:00:00')).toISOString());
- const DB=db(),e=env(DB);const sql=fs.readFileSync('0019_email_schedule.sql','utf8');DB.sql.exec(sql);assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'06:00');
- await mod.saveEmailSchedule(request({enabled:false,dailyTime:'05:30',version:1}),e);DB.sql.exec(sql);assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'05:30');assert.equal((await mod.loadEmailSchedule(e)).enabled,false);
+test('arrival notices cross midnight, exclude serving, paid and takeaway and deduplicate',async()=>{
+ const DB=db(),calls=[];DB.bookings=[b({date:'2026-11-07',start:'00:30',end:'02:00'})];
+ const now=at('2026-11-06T22:30:00');assert.equal((await mod.processBookingEmails(env(DB),now,sender(calls))).sent,1);
+ assert.match(calls[0].payload.subject,/07\/11\/2026/);assert.match(calls[0].payload.text,/TRƯỚC GIỜ ĐẾN 2 TIẾNG/);
+ await mod.processBookingEmails(env(DB),now+60000,sender(calls));assert.equal(calls.length,1);
+ for(const patch of [{status:'arrived'},{paidAt:'paid'},{serviceType:'takeaway'}])assert.equal(mod.dueEmailJobs([b(patch)],at('2026-11-06T16:00:00')).filter(x=>x.kind==='arrival').length,0);
+});
+test('journal retries preserve exact payload, provider idempotency key and do not resend after success',async()=>{
+ const DB=db(),calls=[];let fail=true;
+ const send=async(url,options)=>{calls.push(options);return fail?new Response('',{status:503}):Response.json({id:'accepted'});};
+ await mod.processBookingEmails(env(DB),at('2026-11-06T06:00:00'),send);assert.equal(calls.length,1);
+ await mod.processBookingEmails(env(DB),at('2026-11-06T06:01:00'),send);assert.equal(calls.length,1);
+ fail=false;DB.bookings=[b({note:'edited'})];await mod.processBookingEmails(env(DB),at('2026-11-06T06:03:00'),send);
+ assert.equal(calls.length,2);assert.equal(calls[0].body,calls[1].body);assert.equal(calls[0].headers['Idempotency-Key'],calls[1].headers['Idempotency-Key']);
+ await mod.processBookingEmails(env(DB),at('2026-11-06T06:04:00'),send);assert.equal(calls.length,2);
+});
+test('concurrent ticks claim only one report and a new slot sends a new report',async()=>{
+ const DB=db(),calls=[],send=sender(calls),now=at('2026-11-06T06:00:00');
+ await Promise.all([mod.processBookingEmails(env(DB),now,send),mod.processBookingEmails(env(DB),now,send)]);assert.equal(calls.length,1);
+ await mod.processBookingEmails(env(DB),at('2026-11-06T10:00:00'),send);assert.equal(calls.length,2);
+});
+test('payment trigger queues only new payments, full receipt email is independent from Telegram and can send at night',async()=>{
+ const DB=db(),calls=[];assert.equal(DB.sql.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,0);payment(DB);
+ await mod.processEmailPayments(env(DB),at('2026-11-06T23:00:00'),sender(calls));assert.equal(calls.length,1);
+ for(const text of ['THANH TOÁN THÀNH CÔNG','Xôi','1,000,000','200,000','800,000','Tiền mặt','Trả lại khách: 200,000'])assert.ok(calls[0].payload.text.includes(text),text);
+ assert.deepEqual(calls[0].payload.to,['owner@example.com']);assert.equal(DB.sql.prepare('SELECT state FROM booking_email_payment_events').get().state,'sent');
+ await mod.processEmailPayments(env(DB),at('2026-11-06T23:01:00'),sender(calls));assert.equal(calls.length,1);
+ payment(DB,3,'2026-11-06T16:02:00Z');await mod.processEmailPayments(env(DB),at('2026-11-06T23:02:00'),sender(calls));assert.equal(calls.length,2);
+ DB.sql.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));assert.equal(DB.sql.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,2);
+});
+test('payment retry survives an interval change and repeated cron retains payment payload',async()=>{
+ const DB=db(),calls=[];payment(DB);let fail=true;const send=async(url,options)=>{calls.push(options);return fail?new Response('',{status:429}):Response.json({id:'okay'});};
+ await mod.processEmailPayments(env(DB),at('2026-11-06T21:59:00'),send);fail=false;
+ await mod.processBookingEmails(env(DB),at('2026-11-06T22:03:00'),send);assert.equal(calls.length,2);assert.equal(calls[0].body,calls[1].body);
+});
+test('schedule toggle persists with optimistic concurrency and status hides credentials',async()=>{
+ const DB=db(),e=env(DB);let response=await mod.saveEmailSchedule(request({enabled:false,dailyTime:'06:00',version:0}),e);assert.equal(response.status,200);let status=await response.json();assert.equal(status.enabled,false);assert.equal(status.nextSendAt,null);assert.equal(status.beforeMinutes,120);assert.deepEqual(status.reportTimes,['06:00','10:00','14:00','18:00','22:00']);assert.equal(status.recipient,'ow***@example.com');assert.ok(!JSON.stringify(status).includes(e.RESEND_API_KEY));
+ assert.equal((await mod.saveEmailSchedule(request({enabled:true,dailyTime:'06:00',version:0}),e)).status,409);
+ payment(DB);const calls=[];await mod.processBookingEmails(e,at('2026-11-06T10:00:00'),sender(calls));await mod.processEmailPayments(e,at('2026-11-06T10:00:00'),sender(calls));assert.equal(calls.length,0);
+ assert.equal((await mod.saveEmailSchedule(request({enabled:true,dailyTime:'06:00',version:1}),e)).status,200);
+ for(const body of [{enabled:true,dailyTime:'24:00',version:2},{enabled:true,dailyTime:'07:30',version:2},{enabled:true,dailyTime:'06:00'},{enabled:true,dailyTime:'06:00',version:2,to:'other@example.com'}])assert.equal((await mod.saveEmailSchedule(request(body),e)).status,400);
+ assert.equal(mod.reminderConfig({...e,BOOKING_EMAIL_TO:'bad\r\naddress'}).ready,false);
+});
+test('next report time respects the Vietnam day boundary',()=>{
+ assert.equal(mod.nextReportSend(at('2026-11-06T05:59:00')),new Date(at('2026-11-06T06:00:00')).toISOString());
+ assert.equal(mod.nextReportSend(at('2026-11-06T06:01:00')),new Date(at('2026-11-06T10:00:00')).toISOString());
+ assert.equal(mod.nextReportSend(at('2026-11-06T22:01:00')),new Date(at('2026-11-07T06:00:00')).toISOString());
+});
+test('manual report is separate, respects recipient and rate limits and works outside report hours',async()=>{
+ const DB=db(),e=env(DB),calls=[],send=sender(calls),req=()=>request({}),now=at('2026-11-06T05:00:00');
+ assert.equal((await mod.sendTestBookingEmail(req(),e,now,send)).status,200);assert.match(calls[0].payload.subject,/GỬI THỬ/);assert.deepEqual(calls[0].payload.to,['owner@example.com']);
+ assert.equal((await mod.sendTestBookingEmail(req(),e,now+20000,send)).status,429);assert.equal((await mod.sendTestBookingEmail(request({to:'other@example.com'}),e,now+60000,send)).status,400);
+ assert.equal((await(await mod.emailReminderStatus(e)).json()).lastSentAt,null);
+ await mod.processBookingEmails(e,at('2026-11-06T06:00:00'),send);assert.equal(calls.length,2);
 });
 
-test('manual test sends once, keeps the daily schedule and delivery independent, and rejects custom recipients',async()=>{
- const DB=db(),e=env(DB),calls=[];const send=async(url,options)=>{calls.push(JSON.parse(options.body));return Response.json({id:'test-'+calls.length})};
- const req=()=>new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
- const before=await mod.loadEmailSchedule(e);
- let r=await mod.sendTestBookingEmail(req(),e,at('2026-11-06T05:00:00'),send);assert.equal(r.status,200);assert.equal(calls.length,1);assert.deepEqual(calls[0].to,['owner@example.com']);assert.match(calls[0].subject,/GỬI THỬ/);
- assert.deepEqual(await mod.loadEmailSchedule(e),before);
- assert.equal((await(await mod.emailReminderStatus(e)).json()).lastSentAt,null);
- assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T05:00:20'),send)).status,429);assert.equal(calls.length,1);
- await mod.processBookingEmails(e,at('2026-11-06T06:00:00'),send);assert.equal(calls.length,2);assert.ok(!calls[1].subject.includes('GỬI THỬ'));
- const bad=new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',body:JSON.stringify({to:'stranger@example.com'})});assert.equal((await mod.sendTestBookingEmail(bad,e,at('2026-11-06T06:01:00'),send)).status,400);
- for(let i=1;i<=4;i++)assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T07:0'+i+':00'),send)).status,200);
- assert.equal((await mod.sendTestBookingEmail(req(),e,at('2026-11-06T07:06:00'),send)).status,429);assert.equal(calls.length,6);
-});
-test('manual provider failures report uncertainty without changing the schedule or leaking credentials',async()=>{
- const DB=db(),e=env(DB),req=new Request('https://dpa.internal/api/email-reminders/test',{method:'POST',body:'{}'});
- const r=await mod.sendTestBookingEmail(req,e,at('2026-11-06T05:00:00'),async()=>new Response('private-provider-message',{status:403}));assert.equal(r.status,502);const result=await r.json();assert.equal(result.code,'PROVIDER_HTTP_403');assert.ok(!JSON.stringify(result).includes('test-only-key'));assert.ok(!JSON.stringify(result).includes('private-provider-message'));assert.equal((await mod.loadEmailSchedule(e)).dailyTime,'06:00');
+test('failed periodic reports wait until the allowed report window and do not spill into the next day',async()=>{
+ const DB=db(),e=env(DB),calls=[];DB.bookings=[];const fail=async()=>{calls.push('failed');return new Response('',{status:503});};await mod.processBookingEmails(e,at('2026-11-06T22:00:00'),fail);assert.equal(calls.length,1);
+ await mod.processBookingEmails(e,at('2026-11-06T22:03:00'),sender(calls));assert.equal(calls.length,1);
+ await mod.processBookingEmails(e,at('2026-11-07T06:00:00'),sender(calls));assert.equal(calls.length,2);assert.match(calls[1].payload.subject,/07\/11\/2026/);
 });

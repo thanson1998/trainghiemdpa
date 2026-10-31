@@ -1241,3 +1241,24 @@ test('renaming an area and its tables persists labels without changing reservati
  assert.equal((await invalid(['vip a',' VIP A ','03','04','05','06'])).status,400);assert.equal((await invalid(['Only one'])).status,400);assert.equal((await invalid(['','02','03','04','05','06'])).status,400);assert.equal((await invalid(['x'.repeat(41),'02','03','04','05','06'])).status,400);
  assert.equal((await namingLayoutApi.readTableLayout(db)).version,saved.version);
 });
+
+test('catalog revision skips unchanged payloads but still detects price edits and image progress',async()=>{
+ const dish={id:crypto.randomUUID(),name:'Gà thử ảnh',unit:'đĩa',price:100000};
+ let response=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[dish],templates:[]}),db);assert.equal(response.status,200);
+ const read=revision=>catalogApi.GET_CATALOG(new Request('https://dpa.example/api/catalog?revision='+revision),db);
+ const first=await(await read('')).json();assert.match(first.revision,/^[a-f0-9]{64}$/);
+ const same=await(await read(first.revision)).json();assert.deepEqual(same,{unchanged:true,revision:first.revision});assert.ok(JSON.stringify(same).length<110);
+ sqlite.prepare('INSERT INTO dish_images(dish_id,name_key,status) VALUES(?,?,?)').run(dish.id,imageModel.imageNameKey(dish.name),'queued');
+ const progress=await(await read(first.revision)).json();assert.notEqual(progress.revision,first.revision);assert.equal(progress.version,first.version);assert.equal(progress.dishes[0].image.status,'queued');
+ response=await catalogApi.POST_CATALOG(req('POST',{version:progress.version,dishes:[{...dish,price:200000}],templates:[]}),db);assert.equal(response.status,200);
+ const changed=await(await read(progress.revision)).json();assert.notEqual(changed.revision,progress.revision);assert.equal(changed.dishes[0].price,200000);
+});
+
+test('email payment event migration never backfills old receipts and captures only successful new payments',async()=>{
+ const previous=booking({tables:['S1-01']}),next=booking({tables:['S1-02']});for(const b of [previous,next])assert.equal((await api.POST(req('POST',b),db)).status,200);
+ const pay=b=>paymentsApi.PAY(req('POST',{id:b.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db);
+ assert.equal((await pay(previous)).status,200);sqlite.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,0);
+ assert.equal((await pay(next)).status,200);const rows=sqlite.prepare('SELECT * FROM booking_email_payment_events').all();assert.equal(rows.length,1);assert.equal(JSON.parse(rows[0].payment_snapshot).booking.id,next.id);assert.equal(JSON.parse(rows[0].payment_snapshot).received,1500000);
+ assert.equal((await pay(next)).status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,1);
+ sqlite.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_email_payment_events').get().n,1);
+});

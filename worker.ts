@@ -1,5 +1,5 @@
 import {telegramStatus,processBookingTelegrams,processTelegramChecks,processTelegramPayments,type TelegramEnv} from './telegram-reminders';
-import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,type EmailReminderEnv} from './email-reminders';
+import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,processEmailPayments,type EmailReminderEnv} from './email-reminders';
 import {GET_ORDER_HISTORY} from './order-history-api';
 import {GET_LAYOUT,SAVE_LAYOUT} from './table-layout-api';
 import {GET_ADS_CONNECTION,CONNECT_ADS,GET_LIVE_ADS,SEARCH_LIVE_ADS} from './ads-live-api';
@@ -56,7 +56,7 @@ export default {
    const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
   const extra:Record<string,Record<string,typeof GET>>={'/api/order-history':{GET:GET_ORDER_HISTORY},'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
-  if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});if(url.pathname==='/api/payments'&&request.method==='POST'&&response.ok&&ctx)ctx.waitUntil(processTelegramPayments(env).catch(()=>console.error('Telegram payment notice deferred to cron')));const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
+  if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});if(url.pathname==='/api/payments'&&request.method==='POST'&&response.ok&&ctx){ctx.waitUntil(processTelegramPayments(env).catch(()=>console.error('Telegram payment notice deferred to cron')));ctx.waitUntil(processEmailPayments(env).catch(()=>console.error('Email payment notice deferred to cron')));}const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/import-text'){const response=request.method==='POST'?await IMPORT(request,env):Response.json({error:'Ch? h? tr? POST.'},{status:405,headers:{Allow:'POST, OPTIONS'}});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   const routes:Record<string,((request:Request,db:D1Database)=>Promise<Response>)|undefined>=url.pathname==='/api/bookings/move'?{POST:MOVE}:url.pathname==='/api/catalog'?{GET:GET_CATALOG,POST:POST_CATALOG}:{GET,POST,DELETE};
   const action=routes[request.method];
