@@ -8,6 +8,7 @@ const require=createRequire(import.meta.url),loaded=new Map();
 function resolve(spec){if(!spec.startsWith('./'))return pathToFileURL(require.resolve(spec)).href;if(loaded.has(spec))return loaded.get(spec);const file=[spec+'.ts',spec+'.tsx'].find(fs.existsSync);const output=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from ['"]([^'"]+)['"]/g,(_,s)=>'from '+JSON.stringify(resolve(s)));const url='data:text/javascript;base64,'+Buffer.from(output).toString('base64');loaded.set(spec,url);return url;}
 const api=await import(resolve('./catalog-ai')),model=await import(resolve('./catalog-ai-model')),menu=await import(resolve('./menu'));
 const names=['Gà hấp lá chanh','Chim câu quay','Lợn mán nướng','Tôm chiên xù','Vịt xào','Bò sốt tiêu + bánh mỳ','Sake chiên','Rau xào','Xa lát rau','Canh cua cà','Xôi vò / Cơm rang','Tráng miệng','Canh miến'];
+const naturalText='Xin thêm thực đơn gồm '+names.join(', ')+'. Giá trọn gói 2 triệu.';
 const text='Thực đơn mẫu:\n'+names.join(', ')+'\n2 triệu';
 const raw={kind:'template',name:null,price:2,items:names.map(name=>({name,price:999999,unit:'Đĩa',quantity:1})),warnings:[]};
 const empty=()=>({version:7,dishes:[],templates:[]});
@@ -38,19 +39,19 @@ test('template name collisions, invalid items and library limits are rejected wi
  assert.throws(()=>api.normalizeCatalogAi({...raw,items:[{name:'Gà',price:-100}]},text),/AI/);
 });
 test('Cloudflare extraction uses a catalog prompt, returns only a preview and never writes the database',async()=>{
- let dbCalls=0,aiCalls=0;const env={DB:{prepare(){dbCalls++;throw Error('no writes allowed')}},AI:{async run(_model,params){aiCalls++;assert.match(params.messages[0].content,/KHÔNG tạo đơn/);assert.deepEqual(params.response_format.json_schema,api.catalogAiSchema);return {response:JSON.stringify(raw)};}}};
- const r=await api.IMPORT_CATALOG(req({text}),env);assert.equal(r.status,200);const result=await r.json();assert.equal(result.draft.price,2000000);assert.equal(result.draft.items.length,13);assert.equal(aiCalls,1);assert.equal(dbCalls,0);assert.equal(result.provider,'cloudflare');
+ let dbCalls=0,aiCalls=0;const env={DB:{prepare(){dbCalls++;throw Error('no writes allowed')}},AI:{async run(_model,params){aiCalls++;assert.match(params.messages[0].content,/restaurant menu data/);assert.deepEqual(params.response_format.json_schema,api.catalogAiSchema);return {response:JSON.stringify({...raw,price:2000000})};}}};
+ const r=await api.IMPORT_CATALOG(req({text:naturalText}),env);assert.equal(r.status,200);const result=await r.json();assert.equal(result.draft.price,2000000);assert.equal(result.draft.items.length,13);assert.equal(aiCalls,1);assert.equal(dbCalls,0);assert.equal(result.provider,'cloudflare');
 });
 test('Gemini uses the existing connection with catalog-specific output schema and safely handles failures',async()=>{
  let aiCalls=0;const env={DB:{},GEMINI_API_KEY:'secret-not-for-output',AI:{async run(){aiCalls++;throw Error('wrong provider')}}};
- const r=await api.IMPORT_CATALOG(req({text}),env,async(_url,opts)=>{const data=JSON.parse(opts.body);assert.match(data.system_instruction.parts[0].text,/thư viện/);assert.deepEqual(data.generationConfig.responseFormat.text.schema,api.catalogAiSchema);return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(raw)}]}}]});});assert.equal(r.status,200);assert.equal((await r.json()).provider,'gemini');assert.equal(aiCalls,0);
- const failed=await api.IMPORT_CATALOG(req({text}),env,async()=>Response.json({error:{message:'API key not valid secret-not-for-output'}},{status:403}));assert.equal(failed.status,503);assert.ok(!(await failed.text()).includes('secret-not-for-output'));
+ const r=await api.IMPORT_CATALOG(req({text:naturalText}),env,async(_url,opts)=>{const data=JSON.parse(opts.body);assert.match(data.system_instruction.parts[0].text,/restaurant menu data/);assert.deepEqual(data.generationConfig.responseFormat.text.schema,api.catalogAiSchema);return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(raw)}]}}]});});assert.equal(r.status,200);assert.equal((await r.json()).provider,'gemini');assert.equal(aiCalls,0);
+ const failed=await api.IMPORT_CATALOG(req({text:'Thêm giúp tôi một món gà giá bốn trăm nghìn'}),env,async()=>Response.json({error:{message:'API key not valid secret-not-for-output'}},{status:403}));assert.equal(failed.status,503);assert.ok(!(await failed.text()).includes('secret-not-for-output'));
 });
 test('bad requests and invalid model replies never create catalog records',async()=>{
  let calls=0;const env={DB:{prepare(){throw Error('no database access')}},AI:{async run(){calls++;return {response:'not JSON'};}}};
  for(const input of [{text:''},{text:'x'.repeat(6001)},{text,kind:'booking'}])assert.equal((await api.IMPORT_CATALOG(req(input),env)).status,400);
  assert.equal((await api.IMPORT_CATALOG(req('{broken'),env)).status,400);assert.equal(calls,0);
- assert.equal((await api.IMPORT_CATALOG(req({text}),env)).status,503);assert.equal(calls,1);
+ assert.equal((await api.IMPORT_CATALOG(req({text:'Thêm giúp tôi một món gà giá bốn trăm nghìn'}),env)).status,503);assert.equal(calls,1);
  assert.equal((await api.IMPORT_CATALOG(req({text}),{DB:{}})).status,503);
 });
 
@@ -62,4 +63,11 @@ test('AI preview merges into the real catalog save, preserves older samples and 
  const before=await(await catalogApi.POST_CATALOG(req(old),db)).json();const merged=model.mergeAiCatalog(before,api.normalizeCatalogAi(raw,text));
  const saved=await catalogApi.POST_CATALOG(req(merged.catalog),db);assert.equal(saved.status,200);const after=await saved.json();assert.equal(after.templates.length,1);assert.deepEqual(after.dishes[0],before.dishes[0]);assert.equal(menu.readMenu(after.templates[0].menu).length,13);assert.equal(menu.menuSum(after.templates[0].menu),2000000);assert.equal(sql.prepare('SELECT COUNT(*) n FROM reservations').get().n,0);
  assert.equal((await catalogApi.POST_CATALOG(req(merged.catalog),db)).status,409);sql.close();
+});
+
+test('catalog AI accepts JSON with a preamble and preserves braces and escaped quotes inside dish names',()=>{
+ const data={...raw,items:[{name:'Món {đặc biệt} \"A\"',unit:'đĩa',price:null,quantity:1}]};assert.deepEqual(api.decodeCatalogAiResponse('Kết quả:\n'+JSON.stringify(data)+'\nXong'),{...data,tables:[]});assert.deepEqual(api.decodeCatalogAiResponse(JSON.stringify(JSON.stringify(raw))),{...raw,tables:[]});assert.throws(()=>api.decodeCatalogAiResponse('Kết quả: {\"items\": ['),/INCOMPLETE/);
+});
+test('a malformed AI result still reads the exact explicit menu list without inventing prices or splitting alternatives',async()=>{
+ const response=await api.IMPORT_CATALOG(req({text}),{DB:{prepare(){throw Error('no writes')}},AI:{async run(){return {response:'not JSON'};}}});assert.equal(response.status,200);const value=await response.json();assert.equal(value.method,'text_parser');assert.equal(value.draft.price,2000000);assert.deepEqual(value.draft.items.map(i=>i.name),names);assert.equal(api.structuredCatalogFallback('Món mẫu: Gà hấp 400k','dishes').items[0].price,400000);
 });
