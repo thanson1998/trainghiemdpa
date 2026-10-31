@@ -42,6 +42,13 @@
  .payment-receipt h2{text-align:center;font-size:19px;margin:4px 0}.payment-receipt h3{text-align:center;font-size:18px;margin:10px 0}.payment-receipt>p{font-size:14px;margin:7px 0}
  .payment-menu{border-top:1px dashed #999;border-bottom:1px dashed #999;margin:14px 0;padding:4px 0}.payment-menu p,.payment-totals p{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:6px 0;font-size:14px;line-height:1.4}.payment-menu p>span:last-child{max-width:43%;text-align:right;flex-shrink:0}.payment-menu small{display:none}.payment-totals{margin:12px 0;border-bottom:1px dashed #999;padding-bottom:6px}.payment-totals strong{font-size:17px}.payment-totals p>:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
  .single-sheet.payment-receipt{padding:3mm}.single-sheet.payment-receipt h2{font-size:17px}.single-sheet.payment-receipt h3{font-size:15px;margin:6px 0}.single-sheet.payment-receipt>p{font-size:12px;margin:4px 0}.single-sheet .payment-menu{margin:8px 0;padding:2px 0}.single-sheet .payment-menu p,.single-sheet .payment-totals p{font-size:12px;line-height:1.35;margin:4px 0}.single-sheet .payment-totals{margin:8px 0;padding-bottom:4px}.single-sheet .payment-totals strong{font-size:15px}
+
+/* Separate quantity/unit from dish names so every name starts at one column. */
+.payment-menu .payment-menu-item{display:grid;grid-template-columns:12mm minmax(0,1fr) max-content;column-gap:1.5mm;align-items:baseline}
+.payment-menu-item>.payment-item-quantity{min-width:0;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.payment-menu-item>.payment-item-name{min-width:0;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.payment-receipt .payment-menu .payment-menu-item>.payment-item-amount,.payment-menu .payment-menu-item>.payment-item-amount{max-width:none;min-width:0;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+
  @media print{html,body{width:80mm!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important}.checkout-bill-paper{margin:0!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
  `;
  const frames=win=>new Promise(resolve=>win.requestAnimationFrame(()=>win.requestAnimationFrame(resolve)));

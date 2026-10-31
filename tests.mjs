@@ -1275,3 +1275,9 @@ test('monthly revenue uses current successful payment records and excludes rever
  assert.equal((await paymentsApi.PAY(req('POST',{id:paid.id,version:reopened.version,total:3000000,deposit:250000,tendered:2750000,method:'cash'}),db)).status,200);
  report=await telegramRevenue.readMonthlyRevenue(db,now);assert.equal(report.revenue,3000000);assert.equal(report.paidOrders,1);assert.equal(report.totalOrders,3);assert.equal(report.cancelledOrders,1);
 });
+
+test('all units are lowercase across old menus, writes, custom units and catalog saves',async()=>{
+ for(const [input,expected] of [['Đĩa','đĩa'],['ĐĨA','đĩa'],[' BÁT ','bát'],['CHAI','chai'],['CA','ca'],['CỐC','cốc'],['Phần','đĩa'],['KG','kg'],['100ML','100ml'],['Suất','suất']])assert.equal(menu.normalizeUnit(input),expected);
+ const legacy='DPA_MENU_V1:'+JSON.stringify([{name:'Gà Hấp',price:100000,quantity:5,unit:'Đĩa'},{name:'Canh',price:100000,unit:'Bát'}]);assert.deepEqual(menu.readMenu(legacy).map(i=>i.unit),['đĩa','bát']);assert.equal(menu.readMenu(legacy)[0].name,'Gà Hấp');assert.ok(menu.writeMenu([{name:'Gà',price:100000,unit:'ĐĨA'}]).includes('đĩa'));
+ const dish={id:crypto.randomUUID(),name:'Món thử đơn vị',unit:'CHAI',price:100000};const r=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[dish],templates:[]}),db);assert.equal(r.status,200);assert.equal((await r.json()).dishes[0].unit,'chai');
+});

@@ -64,3 +64,6 @@
 
 /* Omit the per-table price row on dine-in kitchen tickets. */
 .menu-print-sheet:has(.menu-print-location.has-table-groups) .menu-print-price>div:first-child{display:none!important}
+
+/* Keep all kitchen dish names aligned after the quantity/unit column. */
+.menu-print-sheet .menu-print-dishes li{gap:1.5mm}.menu-print-sheet .menu-print-dishes li>.dish-print-count{flex:0 0 12mm;width:12mm;min-width:12mm;max-width:12mm;overflow-wrap:anywhere}

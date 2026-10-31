@@ -10,7 +10,7 @@ export function readMenuSet(value:string):MenuSet|undefined{
 export const menuSetQuantity=(value:string,tableCount=1)=>readMenuSet(value)?.quantity??tableCount;
 export const hasPricedMenu=(value:string)=>!!readMenuSet(value)||readMenu(value).some(item=>item.name.trim()&&item.price!==null);
 export const itemQuantity=(item:MenuItem)=>item.quantity??1;
-export const normalizeUnit=(unit?:string)=>!unit?.trim()||unit.trim().normalize('NFC').toLocaleLowerCase('vi')==='phần'?'đĩa':unit.trim();
+export const normalizeUnit=(unit?:string)=>!unit?.trim()||unit.trim().normalize('NFC').toLocaleLowerCase('vi')==='phần'?'đĩa':unit.trim().normalize('NFC').toLocaleLowerCase('vi');
 export const itemUnit=(item:MenuItem)=>normalizeUnit(item.unit);
 export const itemAmount=(item:MenuItem)=>Math.round((item.price??0)*itemQuantity(item));
 export function readMenu(value:string,tableCount=1,expandSet=true):MenuItem[]{

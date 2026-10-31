@@ -12,3 +12,9 @@
 .payments-panel .payment-tabs button{font-size:16px;line-height:1.4;font-weight:600;padding:10px 16px}
 
 .payment-reverse-button{min-height:34px;padding:6px 12px;border:1px solid #c69c55;border-radius:7px;background:#fff8e9;color:#79501f;font:600 12px/1.4 Arial,sans-serif;cursor:pointer}.payment-reverse-button:hover:not(:disabled){background:#ffefcd}.payment-reverse-button:focus-visible{outline:3px solid #b27c26;outline-offset:2px}.payment-reverse-button:disabled{opacity:.55;cursor:default}.payment-reverse-detail{display:block;margin-top:12px}.payment-reversal-dialog form{display:grid;gap:14px}.payment-reversal-dialog form p{margin:0}.payment-reversal-dialog label{display:grid;gap:8px;font-size:15px;font-weight:600}.payment-reversal-dialog textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bccbbb;border-radius:8px;font:16px/1.5 Arial,sans-serif;resize:vertical}.payment-reversal-dialog textarea:focus-visible{outline:2px solid #b27c26;outline-offset:2px}
+
+/* Separate quantity/unit from dish names so every name starts at one column. */
+.payment-menu .payment-menu-item{display:grid;grid-template-columns:12mm minmax(0,1fr) max-content;column-gap:1.5mm;align-items:baseline}
+.payment-menu-item>.payment-item-quantity{min-width:0;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.payment-menu-item>.payment-item-name{min-width:0;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.payment-receipt .payment-menu .payment-menu-item>.payment-item-amount,.payment-menu .payment-menu-item>.payment-item-amount{max-width:none;min-width:0;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
