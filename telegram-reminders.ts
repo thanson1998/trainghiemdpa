@@ -13,7 +13,12 @@ export function telegramParts(text:string,limit=3500){
  while(rest.length>limit){let end=rest.lastIndexOf('\n',limit);if(end<limit/2)end=limit;if(/[\uD800-\uDBFF]/.test(rest[end-1]))end--;parts.push(rest.slice(0,end));rest=rest.slice(end);if(rest.startsWith('\n'))rest=rest.slice(1);}
  if(rest)parts.push(rest);return parts;
 }
-export const reportTimes=['00:00','04:00','08:00','12:00','16:00','20:00'];
+export const reportTimes=['06:00','10:00','14:00','18:00','22:00'];
+export function telegramReportSlot(now:number){
+ const time=vietnamClock(now).time;
+ if(time<reportTimes[0]||time>reportTimes[reportTimes.length-1])return undefined;
+ return reportTimes.filter(slot=>slot<=time).at(-1);
+}
 const statusLabel={reserved:'Đã đặt',arrived:'Đang phục vụ',completed:'Hoàn tất, chưa thanh toán',cancelled:'Đã hủy'};
 function telegramBookingDetails(b:Booking){
  return [b.orderCode||b.id,`${b.start}–${b.end} | ${orderLocation(b)}`,'Trạng thái: '+statusLabel[b.status],`Khách: ${b.name} | ${guestCount(b)} người`,...(b.phone?['Điện thoại: '+b.phone]:[]),...(readMenuSet(b.menu)?.name?['Set đặt: '+readMenuSet(b.menu)!.name]:[]),'Thực đơn:\n'+(menuText(b.menu)||'Chưa cập nhật'),...(b.note?['Ghi chú: '+b.note]:[])].join('\n');
@@ -28,9 +33,9 @@ export function telegramSummary(bookings:Booking[],now:number){
  return {text,openCount:open.length,tableCount:tables};
 }
 export function telegramJobs(bookings:Booking[],now:number){
- const clock=vietnamClock(now),slot=reportTimes[Math.floor(Number(clock.time.slice(0,2))/4)];
+ const clock=vietnamClock(now),slot=telegramReportSlot(now);
  const summary=telegramSummary(bookings,now);
- const jobs=[{key:'interval/v2/'+clock.date+'/'+slot.replace(':',''),text:'BÁO CÁO ĐƠN ĐANG MỞ — '+slot+'\n'+summary.text}];
+ const jobs=slot?[{key:'interval/v3/'+clock.date+'/'+slot.replace(':',''),text:'BÁO CÁO ĐƠN ĐANG MỞ — '+slot+'\n'+summary.text}]:[];
  for(const b of bookings){
   const start=Date.parse(b.date+'T'+b.start+':00+07:00');
   if(b.status!=='reserved'||b.paidAt||b.serviceType==='takeaway'||!Number.isFinite(start)||now<start-7200000||now>=start)continue;
@@ -44,7 +49,7 @@ export async function telegramStatus(env:TelegramEnv){
  try{lastSentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent'").first<{sent:string|null}>())?.sent??null;uncertain=(await env.DB.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state='uncertain'").first<{n:number}>())?.n??0;}catch{}
  try{lastCommandAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'command/%'").first<{sent:string|null}>())?.sent??null;lastPollAt=(await env.DB.prepare('SELECT last_poll_at FROM booking_telegram_poll WHERE id=1').first<{last_poll_at:string|null}>())?.last_poll_at??null;}catch{}
  try{await env.DB.prepare('SELECT event_key FROM booking_telegram_payment_events LIMIT 0').all();paymentNotificationsReady=true;lastPaymentAt=(await env.DB.prepare("SELECT MAX(sent_at) AS sent FROM booking_telegram_jobs WHERE state='sent' AND job_key LIKE 'payment/%'").first<{sent:string|null}>())?.sent??null;}catch{}
- return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:5,paymentQueueLookup:'key_range',paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
+ return Response.json({configured:c.ready,enabled:c.enabled,reportVersion:6,paymentQueueLookup:'key_range',paymentNotificationsReady,paymentNotificationsEnabled:c.ready&&c.enabled&&paymentNotificationsReady,lastPaymentAt,reportScope:'pos_open_orders',commands:['/check'],commandPollSeconds:60,lastCommandAt,lastPollAt,intervalHours:4,reportTimes,reportWindow:{from:reportTimes[0],to:reportTimes[reportTimes.length-1]},beforeMinutes:120,timeZone:'Asia/Ho_Chi_Minh',lastSentAt,uncertain},{headers:{'Cache-Control':'no-store'}});
 }
 
 export type TelegramPayment={booking:Booking;total:number;deposit:number;received:number;tendered:number;method:'cash'|'transfer';paidAt:string};

@@ -87,10 +87,11 @@ test('serving orders match POS, distinguish orders from tables and never claim e
 });
 test('four-hour Vietnam slots, opt-in and journal prevent duplicate reports',async()=>{
  const DB=db(),e=env(DB);let calls=0;const send=(...args)=>{calls++;return ok();};
- await mod.processBookingTelegrams(e,at('04:00'),send);assert.equal(calls,1);
- await mod.processBookingTelegrams(e,at('07:59'),send);assert.equal(calls,1);
- await mod.processBookingTelegrams(e,at('08:00'),send);assert.equal(calls,2);
- const s=await (await mod.telegramStatus(e)).json();assert.equal(s.intervalHours,4);assert.equal(s.beforeMinutes,120);assert.deepEqual(s.reportTimes,['00:00','04:00','08:00','12:00','16:00','20:00']);assert(!JSON.stringify(s).includes('test_only'));assert(!JSON.stringify(s).includes('456'));
+ await mod.processBookingTelegrams(e,at('05:59'),send);assert.equal(calls,0);
+ await mod.processBookingTelegrams(e,at('06:00'),send);assert.equal(calls,1);
+ await mod.processBookingTelegrams(e,at('09:59'),send);assert.equal(calls,1);
+ await mod.processBookingTelegrams(e,at('10:00'),send);assert.equal(calls,2);
+ const s=await (await mod.telegramStatus(e)).json();assert.equal(s.intervalHours,4);assert.equal(s.beforeMinutes,120);assert.deepEqual(s.reportTimes,['06:00','10:00','14:00','18:00','22:00']);assert(!JSON.stringify(s).includes('test_only'));assert(!JSON.stringify(s).includes('456'));
  await mod.processBookingTelegrams({...e,TELEGRAM_ENABLED:'false'},at('12:00'),send);assert.equal(calls,2);
 });
 test('arrival reminders are once per booking time, handle midnight and exclude inactive orders',async()=>{
@@ -128,4 +129,13 @@ test('long reports preserve Unicode and every part resumes without repeating sen
  for(let i=0;i<10;i++)await mod.processBookingTelegrams(env(DB),at('06:'+String(i).padStart(2,'0')),send);
  assert(sent.length>2);assert.equal(DB.sql.prepare('SELECT COUNT(*) AS n FROM booking_telegram_jobs').get().n,sent.length);
  assert.equal(DB.sql.prepare("SELECT COUNT(*) AS n FROM booking_telegram_jobs WHERE state<>'sent'").get().n,0);
+});
+
+test('periodic reports use Vietnam 06:00–22:00 hours, include 22:00 and stay quiet overnight',async()=>{
+ for(const time of ['00:00','04:00','05:59','22:01','23:59']){assert.equal(mod.telegramReportSlot(at(time)),undefined);assert.equal(mod.telegramJobs([],at(time)).length,0);}
+ for(const [time,slot] of [['06:00','06:00'],['09:59','06:00'],['10:00','10:00'],['14:00','14:00'],['18:00','18:00'],['21:59','18:00'],['22:00','22:00']])assert.equal(mod.telegramReportSlot(at(time)),slot);
+ const DB=db();DB.bookings=[];const calls=[];const send=async(u,o)=>{calls.push(JSON.parse(o.body).text);return ok();};
+ await mod.processBookingTelegrams(env(DB),at('22:00'),send);await mod.processBookingTelegrams(env(DB),at('22:01'),send);await mod.processBookingTelegrams(env(DB),at('23:59'),send);assert.equal(calls.length,1);assert(calls[0].includes('22:00'));
+ const next=Date.parse('2026-11-07T06:00:00+07:00');await mod.processBookingTelegrams(env(DB),next,send);await mod.processBookingTelegrams(env(DB),next+60000,send);assert.equal(calls.length,2);assert(calls[1].includes('06:00'));
+ const status=await(await mod.telegramStatus(env(DB))).json();assert.deepEqual(status.reportWindow,{from:'06:00',to:'22:00'});
 });
