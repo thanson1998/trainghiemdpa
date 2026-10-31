@@ -1213,3 +1213,31 @@ test('bamboo area migration preserves existing areas, bookings and history and r
  sqlite.exec(migration);assert.equal(sqlite.prepare("SELECT version FROM table_layout WHERE id='dpa-shared'").get().version,next.version);
  assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),reservations);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
 });
+
+test('lower bamboo area migration preserves existing areas, bookings and history and runs only once',async()=>{
+ const b=booking();await api.POST(req('POST',b),db);
+ const row=sqlite.prepare("SELECT * FROM table_layout WHERE id='dpa-shared'").get();
+ const original=JSON.parse(row.data).filter(z=>z.id!=='NTD');original.push({id:'K1',title:'Sân Sau',sub:'Sân vườn',type:'patio',count:2,tables:['K1-01','K1-02']});
+ sqlite.prepare("UPDATE table_layout SET data=? WHERE id='dpa-shared'").run(JSON.stringify(original));
+ const reservations=JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),history=JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all());
+ const migration=fs.readFileSync('0025_bamboo_lower_tables.sql','utf8');sqlite.exec(migration);
+ const next=sqlite.prepare("SELECT * FROM table_layout WHERE id='dpa-shared'").get(),zones=JSON.parse(next.data);assert.deepEqual(zones.slice(0,-1),original);assert.equal(zones.at(-1).title,'Nhà Tre Dưới');assert.equal(zones.at(-1).tables.length,10);assert.equal(next.version,row.version+1);assert.deepEqual(zones.at(-1).tables,Array.from({length:10},(_,i)=>'NTD-'+String(i+1).padStart(2,'0')));assert.equal(numberingModel.tableNumber('NTD-10'),'10');assert.equal(numberingModel.customZone('NTD'),true);
+ sqlite.exec(migration);assert.equal(sqlite.prepare("SELECT version FROM table_layout WHERE id='dpa-shared'").get().version,next.version);
+ assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),reservations);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
+});
+
+const namingLayoutApi=await import(dataUrl(compile(fs.readFileSync('./table-layout-api.ts','utf8').replace("'./model'",JSON.stringify(modelUrl)))));
+test('renaming an area and its tables persists labels without changing reservations or history',async()=>{
+ const b=booking({tables:['N1-01']});await api.POST(req('POST',b),db);
+ const original=await namingLayoutApi.readTableLayout(db),before=JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),history=JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all());
+ const draft={version:original.version,zones:original.zones.map(z=>({id:z.id,title:z.id==='N1'?'Nhà gia đình':z.title,count:z.count,type:z.type,...(z.id==='N1'?{tableNames:['VIP A','02','03','04','05','06']}: {})}))};
+ let response=await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db);assert.equal(response.status,200,await response.clone().text());let saved=await response.json();
+ const renamed=saved.zones.find(z=>z.id==='N1');assert.deepEqual(renamed.tables,original.zones.find(z=>z.id==='N1').tables);assert.equal(renamed.tableNames['N1-01'],'VIP A');
+ const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));try{numberingModel.applyZones(saved.zones);assert.equal(numberingModel.tableNumber('N1-01'),'VIP A');assert.equal(numberingModel.orderLocation(b),'Nhà gia đình · Bàn VIP A');}finally{numberingModel.applyZones(previous);}
+ assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),before);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
+ assert.equal((await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db)).status,409);
+ response=await namingLayoutApi.SAVE_LAYOUT(req('POST',{version:saved.version,zones:saved.zones.map(({tableNames,...z})=>z)}),db);assert.equal(response.status,200);saved=await response.json();assert.equal(saved.zones.find(z=>z.id==='N1').tableNames['N1-01'],'VIP A');
+ const invalid=async names=>namingLayoutApi.SAVE_LAYOUT(req('POST',{version:saved.version,zones:saved.zones.map(z=>({id:z.id,title:z.title,count:z.count,type:z.type,...(z.id==='N1'?{tableNames:names}:{})}))}),db);
+ assert.equal((await invalid(['vip a',' VIP A ','03','04','05','06'])).status,400);assert.equal((await invalid(['Only one'])).status,400);assert.equal((await invalid(['','02','03','04','05','06'])).status,400);assert.equal((await invalid(['x'.repeat(41),'02','03','04','05','06'])).status,400);
+ assert.equal((await namingLayoutApi.readTableLayout(db)).version,saved.version);
+});

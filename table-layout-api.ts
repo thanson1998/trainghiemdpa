@@ -8,7 +8,7 @@ export async function readTableLayout(db:D1Database):Promise<TableLayout>{
  return {zones:JSON.parse(row.data),version:row.version};
 }
 export async function GET_LAYOUT(_req:Request,db:D1Database){try{return out(await readTableLayout(db));}catch{return out({error:'Chưa tải được cấu hình khu vực và bàn. Vui lòng tải lại.'},503);}}
-const schema=z.object({version:z.number().int().positive(),zones:z.array(z.object({id:z.string().max(30).optional(),title:z.string().trim().min(1).max(80),count:z.number().int().min(1).max(100),type:z.enum(['inside','outdoor','patio'])})).min(1).max(50)});
+const schema=z.object({version:z.number().int().positive(),zones:z.array(z.object({id:z.string().max(30).optional(),title:z.string().trim().min(1).max(80),count:z.number().int().min(1).max(100),type:z.enum(['inside','outdoor','patio']),tableNames:z.array(z.string().trim().min(1).max(40)).max(100).optional()})).min(1).max(50)});
 export async function SAVE_LAYOUT(req:Request,db:D1Database){
  try{
   const parsed=schema.safeParse(await req.json());if(!parsed.success)return out({error:'Nhập tên khu vực (tối đa 80 ký tự), từ 1–100 bàn/khu, tối đa 50 khu vực.'},400);
@@ -23,7 +23,14 @@ export async function SAVE_LAYOUT(req:Request,db:D1Database){
    if(ids.has(id))return out({error:'Khu vực bị lặp. Tải lại cấu hình.'},400);ids.add(id);
    const tables=(existing?.tables??[]).slice(0,draft.count);
    for(let index=tables.length;index<draft.count;index++)tables.push(defaultZones.find(z=>z.id===id)?.tables[index]??(id+'-'+String(index+1).padStart(2,'0')));
-   next.push({id,title:draft.title,count:draft.count,type:draft.type,sub:existing?.sub||(draft.type==='inside'?'Không gian trong nhà':draft.type==='patio'?'Sân vườn':'Ngoài trời'),tables});
+   if(draft.tableNames&&draft.tableNames.length!==draft.count)return out({error:'Điền đủ tên cho từng bàn trong khu vực.'},400);
+   const tableNames:Record<string,string>={},seenNames=new Set<string>();
+   for(let index=0;index<tables.length;index++){
+    const table=tables[index],number=table.match(/(?:^|-)(\d+)$/)?.[1];
+    const name=draft.tableNames?.[index]??existing?.tableNames?.[table]??(number?String(Number(number)).padStart(2,'0'):table);
+    const key=name.normalize('NFC').toLocaleLowerCase('vi');if(seenNames.has(key))return out({error:'Tên bàn không được trùng nhau trong cùng khu vực.'},400);seenNames.add(key);tableNames[table]=name;
+   }
+   next.push({id,title:draft.title,count:draft.count,type:draft.type,sub:existing?.sub||(draft.type==='inside'?'Không gian trong nhà':draft.type==='patio'?'Sân vườn':'Ngoài trời'),tables,tableNames});
   }
   if(current.zones.some(z=>!ids.has(z.id)))return out({error:'Không xóa khu vực hiện có. Bạn có thể đổi tên hoặc chỉnh số bàn.'},400);
   const all=next.flatMap(z=>z.tables);if(all.length>1000||new Set(all).size!==all.length)return out({error:'Tối đa 1,000 bàn và mã bàn không được trùng.'},400);
