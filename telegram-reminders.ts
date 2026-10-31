@@ -1,6 +1,7 @@
+import {readTableLayout} from './table-layout-api';
 import {GET as getBookings} from './api';
 import {vietnamClock,type EmailReminderEnv} from './email-reminders';
-import {guestCount,orderLocation,orderUnits,money,type Booking} from './model';
+import {applyZones,guestCount,orderLocation,orderUnits,money,type Booking} from './model';
 import {readMenuSet,menuText,readMenu,menuSetQuantity,itemQuantity,itemUnit,itemAmount} from './menu';
 export interface TelegramEnv extends EmailReminderEnv {TELEGRAM_BOT_TOKEN?:string;TELEGRAM_CHAT_ID?:string;TELEGRAM_ENABLED?:string}
 const schema=`CREATE TABLE IF NOT EXISTS booking_telegram_jobs(job_key TEXT PRIMARY KEY,payload TEXT NOT NULL,state TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,lease_until INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,sent_at TEXT,message_id TEXT,error_code TEXT)`;
@@ -58,8 +59,12 @@ export function telegramPaymentText(p:TelegramPayment){
  const items=readMenu(b.menu,units).filter(i=>i.name.trim()).map((item,i)=>`${i+1}. ${item.name} · ${itemQuantity(item)} ${itemUnit(item)}\n   ${item.included?'Trong set':item.price===null?'Theo giá đã chốt':money(item.price)+' × '+itemQuantity(item)+' = '+money(itemAmount(item))}`);
  return ['THANH TOÁN THÀNH CÔNG',`Lúc: ${clock.time} · ${clock.date.split('-').reverse().join('/')} (giờ Việt Nam)`,`Mã đơn: ${b.orderCode||b.id}`,orderLocation(b),`Khách: ${b.name} | ${guestCount(b)} người`,...(b.phone?['Điện thoại: '+b.phone]:[]),`Ngày phục vụ: ${b.date.split('-').reverse().join('/')} · ${b.start}–${b.end}`,'','CHI TIẾT ĐƠN',...(set?[`${set.name} · ${menuSetQuantity(b.menu,units)} set × ${money(set.pricePerTable)} = ${money(set.pricePerTable*menuSetQuantity(b.menu,units))}`]:[]),...(items.length?items:['Chưa có danh sách món. Thanh toán theo giá đã lưu.']),...(b.note?['Ghi chú: '+b.note]:[]),'',`Tổng hóa đơn: ${money(p.total)}`,`Đã đặt cọc: ${money(p.deposit)}`,`THỰC THU LẦN NÀY: ${money(p.received)}`,'Phương thức: '+(p.method==='cash'?'Tiền mặt':'Chuyển khoản'),...(p.method==='cash'?[`Tiền khách đưa: ${money(p.tendered)}`,`Trả lại khách: ${money(p.tendered-p.received)}`]:[]),'Còn phải thu: '+money(0),'','Đây là giao dịch thanh toán đã được ghi nhận trên POS.'].join('\n');
 }
+async function loadTelegramTableLabels(env:TelegramEnv){
+ try{applyZones((await readTableLayout(env.DB)).zones);}catch{/* Use default area names if the shared layout is temporarily unavailable. */}
+}
 export async function processTelegramPayments(env:TelegramEnv,now=Date.now(),send:typeof fetch=fetch){
  const c=telegramConfig(env);if(!c.ready||!c.enabled)return {sent:0,skipped:'not_configured'};
+ await loadTelegramTableLabels(env);
  await env.DB.prepare(schema).run();
  const events=await env.DB.prepare("SELECT event_key,payment_snapshot FROM booking_telegram_payment_events WHERE state IN ('pending','queued') ORDER BY created_at,event_key LIMIT 5").all<{event_key:string;payment_snapshot:string}>();let sent=0;
  for(const event of events.results){

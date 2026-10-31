@@ -105,7 +105,7 @@ const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10
 test('checkout bill shows dishes, units and set quantities while retaining agreed total, deposit and unpaid balance',()=>{
  const b=booking({orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b})),text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['DPA-25102026-01','S1-01, S1-02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
+ for(const expected of ['DPA-25102026-01','Sân nhà 1 · Bàn 01, 02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
  assert.match(html,/<b>2<\/b> đĩa/);assert.match(html,/<b>3<\/b> chai/);assert.ok(!text.includes('4 đĩa'));
 });
 
@@ -496,7 +496,7 @@ test('orders overview excludes cancelled value and counts menu quantities once p
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
  const text=html.replace(/<[^>]+>/g,'');
  assert.ok(text.includes('200,000'));assert.ok(text.includes('50,000'));assert.ok(text.includes('150,000'));
- assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('S1-07, S1-08'));assert.ok(text.includes('Đã cọc một phần'));
+ assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('Sân nhà 1 · Bàn 07, 08'));assert.ok(text.includes('Đã cọc một phần'));
 });
 test('anonymous clients share bookings and price is per table',async()=>{
  const b=booking({tables:['S1-01','S1-02']});assert.equal((await api.POST(req('POST',b),db)).status,200);
@@ -1189,4 +1189,27 @@ test('POS closed history includes paid and cancelled orders, excludes open order
  const history=await(await orderHistoryApi.GET_ORDER_HISTORY(query('paid_cancelled'),db)).json();
  assert.equal(history.count,2);assert.deepEqual(new Set(history.rows.map(r=>r.booking.id)),new Set([paid.id,cancelled.id]));assert.equal(history.total,1500000);
  const onlyCancelled=await(await orderHistoryApi.GET_ORDER_HISTORY(query('cancelled'),db)).json();assert.equal(onlyCancelled.count,1);assert.equal(onlyCancelled.rows[0].booking.id,cancelled.id);assert.equal(onlyCancelled.rows[0].booking.menu,cancelled.menu);
+});
+
+const numberingModel=await import(modelUrl);
+test('number-only labels preserve unique storage IDs and distinguish areas with the same table number',()=>{
+ const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));
+ try{numberingModel.applyZones([...numberingModel.defaultZones,{id:'K1',title:'Sân Sau',sub:'Sân vườn',type:'patio',count:2,tables:['K1-01','K1-02']}]);
+ for(const [id,label] of [['N1-01','01'],['S3-09','09'],['NTC-06','06'],['K1-01','01'],['7','07'],['20','20']])assert.equal(numberingModel.tableNumber(id),label);
+ const tables=['N1-01','N2-01','NTC-01','K1-01'],copy=[...tables];const label=numberingModel.orderLocation({tables});
+ for(const area of ['Trong nhà 1','Trong nhà 2','Nhà Tre Cao','Sân Sau'])assert.ok(label.includes(area));
+ assert.ok(!/N1-|N2-|NTC-|K1-/.test(label));assert.deepEqual(tables,copy);assert.equal(new Set(numberingModel.tableIds).size,numberingModel.tableIds.length);
+ assert.deepEqual(numberingModel.defaultZones.find(z=>z.id==='NTC').tables,['NTC-01','NTC-02','NTC-03','NTC-04','NTC-05','NTC-06']);
+ }finally{numberingModel.applyZones(previous);}
+});
+test('bamboo area migration preserves existing areas, bookings and history and runs only once',async()=>{
+ const b=booking();await api.POST(req('POST',b),db);
+ const row=sqlite.prepare("SELECT * FROM table_layout WHERE id='dpa-shared'").get();
+ const original=JSON.parse(row.data).filter(z=>z.id!=='NTC');original.push({id:'K1',title:'Sân Sau',sub:'Sân vườn',type:'patio',count:2,tables:['K1-01','K1-02']});
+ sqlite.prepare("UPDATE table_layout SET data=? WHERE id='dpa-shared'").run(JSON.stringify(original));
+ const reservations=JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),history=JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all());
+ const migration=fs.readFileSync('0024_bamboo_high_tables.sql','utf8');sqlite.exec(migration);
+ const next=sqlite.prepare("SELECT * FROM table_layout WHERE id='dpa-shared'").get(),zones=JSON.parse(next.data);assert.deepEqual(zones.slice(0,-1),original);assert.equal(zones.at(-1).title,'Nhà Tre Cao');assert.equal(zones.at(-1).tables.length,6);assert.equal(next.version,row.version+1);
+ sqlite.exec(migration);assert.equal(sqlite.prepare("SELECT version FROM table_layout WHERE id='dpa-shared'").get().version,next.version);
+ assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),reservations);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
 });

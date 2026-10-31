@@ -1,4 +1,4 @@
-import {orderUnits,isTakeaway,orderLocation,guestCount,type Booking} from './model';
+import {tableLocation,orderUnits,isTakeaway,orderLocation,guestCount,type Booking} from './model';
 import {readMenu,itemQuantity,itemUnit,type MenuItem} from './menu';
 type Change={name:string;unit:string;quantity:number;note?:string};
 const key=(item:MenuItem)=>[item.name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi'),itemUnit(item).toLocaleLowerCase('vi'),!!item.included,(item.note??'').trim()].join('|');
@@ -10,7 +10,7 @@ export function kitchenDelta(previous:Booking,current:Booking){
   if(old&&next&&old.price!==next.price)notes.push('Đổi đơn giá '+next.name+'; số lượng cần làm thêm chỉ tính ở mục THÊM.');
  }
  if(isTakeaway(previous)!==isTakeaway(current))notes.push('Đổi hình thức: '+orderLocation(previous)+' → '+orderLocation(current));
- else if([...previous.tables].sort().join('|')!==[...current.tables].sort().join('|'))notes.push('Chuyển bàn: '+previous.tables.join(', ')+' → '+current.tables.join(', '));
+ else if([...previous.tables].sort().join('|')!==[...current.tables].sort().join('|'))notes.push('Chuyển bàn: '+tableLocation(previous.tables)+' → '+tableLocation(current.tables));
  if(previous.date!==current.date||previous.start!==current.start||previous.end!==current.end)notes.push('Thời gian cũ: '+previous.date.split('-').reverse().join('/')+' '+previous.start+'–'+previous.end+'. Thời gian mới ghi trên phiếu.');
  if(previous.note!==current.note)notes.push('Ghi chú phục vụ đã thay đổi. Hãy đọc ghi chú mới trên phiếu.');
  if(guestCount(previous)!==guestCount(current))notes.push('Số khách đã thay đổi; xem tổng số khách mới trên phiếu.');

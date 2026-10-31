@@ -1,5 +1,5 @@
 import {readTableLayout} from './table-layout-api';
-import {tableIds,zones,type Zone,type Booking} from './model';
+import {tableNumber,tableIds,zones,type Zone,type Booking} from './model';
 import {z} from 'zod';
 import {writeMenu,validMenu,menuSum,pricePerSelectedTable,type MenuItem} from './menu';
 
@@ -65,7 +65,7 @@ export async function prepareNaturalImport(raw:unknown,context:ImportContext,db:
  const busy=new Set(results.flatMap(r=>JSON.parse(r.table_ids) as string[]));const zone=(context.zones??zones).find(z=>z.id===data.zone);if(!zone){result.warnings.push('Khu vực chưa có trong sơ đồ. Chọn lại khu vực trong phiếu.');return result;}
  const free=zone.tables.filter(t=>!busy.has(t));
  if(free.length<data.tableCount){result.warnings.push(zone.title+' không đủ '+data.tableCount+' bàn trống trong giờ này. Hãy đổi khu hoặc giờ trong phiếu.');return result;}
- const tables=free.slice(0,data.tableCount);result=normalizeImport({...data,tables},context);result.warnings.unshift('Gợi ý '+data.tableCount+' bàn trống tại '+zone.title+': '+tables.join(', ')+'. Bạn có thể đổi trước khi lưu.');return result;
+ const tables=free.slice(0,data.tableCount);result=normalizeImport({...data,tables},context);result.warnings.unshift('Gợi ý '+data.tableCount+' bàn trống tại '+zone.title+': '+tables.map(tableNumber).join(', ')+'. Bạn có thể đổi trước khi lưu.');return result;
 }
 
 export interface ImportEnv {DB:D1Database;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
