@@ -14,7 +14,7 @@ export function trailingMenuPrice(text:string):number|null{
  return Number.isSafeInteger(number)&&number>=0&&number<=100000000?number:null;
 }
 export function normalizeCatalogAi(raw:unknown,text:string,requested:'auto'|'template'|'dishes'='auto'):CatalogAiDraft{
- const parsed=extraction.safeParse(raw);if(!parsed.success)throw Error('AI chưa đọc đủ tên món hoặc giá hợp lệ. Hãy thử ghi mỗi món một dòng.');
+ const parsed=extraction.safeParse(raw);if(!parsed.success)throw Object.assign(Error('AI chưa đọc đủ tên món hoặc giá hợp lệ. Hãy thử ghi mỗi món một dòng.'),{fields:parsed.error.issues.map(issue=>issue.path.join('.')+':'+issue.code).slice(0,12)});
  const d=parsed.data,kind=requested==='auto'?d.kind:requested,warnings=[...(d.warnings??[])];let price=kind==='template'?(trailingMenuPrice(text)??d.price??null):null;
  const items=d.items.map(i=>({name:i.name.trim(),price:kind==='template'&&price!==null?null:i.price??null,quantity:i.quantity??1,unit:normalizeUnit(i.unit??undefined)}));
  if(items.some(i=>!validMenu(writeMenu([i]))))throw Error('Số lượng hoặc giá món chưa hợp lệ.');
@@ -34,5 +34,5 @@ export async function IMPORT_CATALOG(request:Request,env:ImportEnv,fetcher:typeo
   if(provider==='gemini'){stage='gemini';result=await extractWithGemini(input.text,env,fetcher,[],{prompt,schema:catalogAiSchema});}
   else{stage='ai';const params={messages:[{role:'system',content:prompt},{role:'user',content:input.text}],max_tokens:4096,temperature:0};try{result=await env.AI!.run(importModel,{...params,response_format:{type:'json_schema',json_schema:catalogAiSchema}}) as {response?:unknown};}catch(error){if(importFailure('ai',error).code!=='AI_RESPONSE_FORMAT')throw error;result=await env.AI!.run(importModel,params) as {response?:unknown};}}
   stage='normalize';const draft=normalizeCatalogAi(decodeImportResponse(result.response),input.text,kind);return Response.json({draft,provider,model:provider==='gemini'?(env.GEMINI_MODEL?.trim()||geminiModel):importModel},{headers:{'Cache-Control':'no-store'}});
- }catch(error){const failure=importFailure(stage,error);return Response.json({error:stage==='normalize'?'AI chưa đọc đúng danh sách món. Hãy kiểm tra nội dung và thử lại.':failure.error,code:failure.code},{status:503});}
+ }catch(error){const failure=importFailure(stage,error);return Response.json({...stage==='normalize'&&error&&typeof error==='object'&&'fields' in error?{fields:(error as {fields:unknown}).fields}:{},error:stage==='normalize'?'AI chưa đọc đúng danh sách món. Hãy kiểm tra nội dung và thử lại.':failure.error,code:failure.code},{status:503});}
 }
