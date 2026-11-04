@@ -19,6 +19,7 @@ const booking={date:'2026-10-30',start:'11:30',end:'14:30',serviceType:'dine-in'
 const render=(component,b=booking,disabled=false)=>renderToStaticMarkup(React.createElement(component,{booking:b,disabled,onChange:()=>{}}));
 test('date and both service times render as editable, labeled controls',()=>{
  const html=render(PosScheduleFields);
+ assert(!html.includes('<datalist'));assert(!/\slist=/.test(html));
  for(const label of ['Ngày phục vụ POS','Giờ bắt đầu POS','Giờ kết thúc POS'])assert(html.includes(label));
  assert(html.includes('type="date"'));assert(html.includes('value="11:30"'));assert(html.includes('value="14:30"'));
  assert(!html.includes('24h'));assert(!html.includes('disabled=""'));
