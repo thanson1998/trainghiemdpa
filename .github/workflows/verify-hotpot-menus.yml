@@ -1,4 +1,4 @@
-name: Verify requested hotpot menus
+name: Verify private menu catalog
 on:
   push:
     paths:
@@ -11,23 +11,14 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Wait for both menu updates in the live catalog
+      - name: Confirm the catalog requires owner login
         run: |
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          const expected=[{price:2000000,people:12,items:['Gà','Chim','Bò hoa','Tôm','Mực','Diềm tim']},{price:1500000,people:8,items:['Gà','Cá','Tôm','Bò','Diềm tim','Sườn sụn']}];
-          for(let attempt=0;attempt<35;attempt++){
-            try{
-              const r=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              assert(r.ok);const catalog=await r.json();
-              for(const e of expected){
-                const matches=catalog.templates.filter(t=>t.menu.startsWith('DPA_MENU_V2:')).map(t=>({...t,parsed:JSON.parse(t.menu.slice(12))})).filter(t=>t.parsed.set?.pricePerTable===e.price&&(!e.people||t.parsed.set.people===e.people)&&t.name.toLowerCase().includes('lẩu'));
-                assert(matches.length>0,'Requested menu is not ready');
-                for(const t of matches){assert.deepEqual(t.parsed.items.map(i=>i.name),e.items);assert(t.parsed.items.every(i=>i.included===true&&i.price===null));}
-              }
-              console.log('Verified live: Lẩu 12 người 2,000,000đ and Lẩu 1,500,000đ, six requested items each.');break;
-            }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
+          for(let attempt=0;attempt<30;attempt++){
+            const r=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            if(r.status===401&&r.headers.get('X-DPA-Ops')==='owner-auth-v1'){const body=await r.json();if(Object.keys(body).some(key=>key!=='error'))throw Error('Anonymous catalog response exposes fields');console.log('Private catalog is protected; menu contents are covered by local regression tests.');break;}
+            if(attempt===29)throw Error('Private catalog is not ready');await new Promise(resolve=>setTimeout(resolve,6000));
           }
           JS

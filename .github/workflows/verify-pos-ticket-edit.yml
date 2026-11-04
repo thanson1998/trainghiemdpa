@@ -36,7 +36,7 @@ jobs:
         run: |
           npm install --no-save --ignore-scripts playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Exercise editable fields without saving or sending any order
+      - name: Verify the anonymous login screen without credentials or live writes
         run: |
           node --input-type=module <<'JS'
           import {chromium} from 'playwright';
@@ -44,69 +44,16 @@ jobs:
           const browser=await chromium.launch({headless:true});
           try{
             for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
-              const context=await browser.newContext({locale:'vi-VN',timezoneId:'Asia/Ho_Chi_Minh',viewport:{width:1440,height:1000}});
-              const page=await context.newPage();page.on('pageerror',error=>console.log('Page error',host,error.message));await page.goto(host+'?layout='+process.env.GITHUB_SHA,{waitUntil:'domcontentloaded'});
-              const toolbar=page.locator('.pos-header-service-tools');await toolbar.waitFor();for(const name of ['Tại quán','Mang về','Làm mới menu'])assert.equal(await toolbar.getByRole('button',{name,exact:true}).count(),1);assert.equal(await page.locator('.pos-item-extras:visible,.pos-item-note-summary:visible').count(),0);
-              const dates=page.locator('.pos-inline-schedule');await dates.waitFor({timeout:30000});
-              const state=async(stage)=>console.log(JSON.stringify({host,stage,...await page.evaluate(()=>({visible:[...document.querySelectorAll('.pos-inline-schedule input')].map(i=>({value:i.value,type:i.type})),original:[...document.querySelectorAll('.pos-details .pos-fields>label')].filter(l=>/Bắt đầu|Kết thúc/.test(l.firstChild?.textContent??'')).map(l=>({value:l.querySelector('input')?.value,type:l.querySelector('input')?.type}))}))}));
-              assert.equal(await dates.count(),1);assert(await dates.locator('input[type=date]').isEditable());
-              await page.evaluate(()=>{window.timeEvents=[];for(const name of ['input','change','focusout'])document.addEventListener(name,e=>{if(e.target instanceof HTMLInputElement&&/Giờ bắt đầu|Giờ kết thúc/.test(e.target.getAttribute('aria-label')??''))window.timeEvents.push({event:name,value:e.target.value,trusted:e.isTrusted});},true);});
-              await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('1130');
-              console.log('Time input events',JSON.stringify(await page.evaluate(()=>window.timeEvents)));
-              await state('immediate-start-input');
-              await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='14:30');
-              await state('after-start');
-              await dates.getByLabel('Giờ kết thúc POS',{exact:true}).fill('15:30');
-              await state('after-manual-input');
-              await dates.getByLabel('Giờ kết thúc POS',{exact:true}).press('Tab');
-              await state('after-manual-blur');
-              await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='15:30');
-              await state('manual-committed');
-              await dates.getByLabel('Giờ bắt đầu POS',{exact:true}).fill('18:00');
-              await page.waitForFunction(()=>document.querySelector('.pos-inline-schedule input[aria-label="Giờ kết thúc POS"]')?.value==='21:00');
-              assert.equal(await page.getByRole('button',{name:'Chọn thêm món',exact:true}).count(),0);
-              assert.equal(await page.getByText('Giá · giờ · tùy chọn',{exact:true}).isVisible(),false);
-              const pricing=page.locator('.pos-inline-pricing');
-              assert.equal(await page.getByRole('button',{name:/^(Mở rộng phiếu|Thu gọn phiếu)$/}).count(),0);
-              assert.equal(await page.locator('.pos-cart-view-actions').getByLabel('Cách tính giá POS',{exact:true}).count(),1);
-              assert.equal(await page.getByRole('button',{name:/^(Chọn bàn|Tại quán \/ chọn bàn)$/}).count(),0);
-              await page.getByLabel('Cách tính giá POS',{exact:true}).selectOption('agreed');
-              const checkHeader=async()=>{
-                const actions=await Promise.all(['Tại quán','Mang về','Làm mới menu'].map(name=>toolbar.getByRole('button',{name,exact:true}).boundingBox()));
-                assert(actions.every(Boolean));assert(Math.max(...actions.map(b=>b.y))-Math.min(...actions.map(b=>b.y))<3,'service buttons stay on one horizontal row');
-                const boxes=await Promise.all(['Cách tính giá POS','Tiền cọc POS','Trạng thái POS'].map(label=>page.locator('.pos-header-price-mode').getByLabel(label,{exact:true}).boundingBox()));
-                assert(boxes.every(Boolean));assert(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<3,'header fields share a row');
-                const lower=await dates.locator('input').all(),pair=await dates.locator('.pos-end-table-pair').boundingBox();
-                assert.equal(lower.length,4);assert(pair);
-                const end=await lower[2].boundingBox(),table=await dates.getByLabel('Số Bàn',{exact:true}).boundingBox();assert(end&&table);
-                for(let i=0;i<3;i++){
-                  const control=await lower[i].boundingBox(),column=i===2?pair:control;assert(control&&column);
-                  assert(Math.abs(boxes[i].x-column.x)<2,'header and schedule columns align');
-                  assert(Math.abs(boxes[i].width-column.width)<2,'header and whole schedule column widths match');
-                  assert(Math.abs(boxes[i].height-control.height)<2,'control heights match');assert(boxes[i].width<=151,'short fields stay compact');
-                }
-                assert(Math.abs(end.width-table.width)<2,'end time and table number equally share their column');
-                assert(Math.abs(end.y-table.y)<2,'end time and table number controls align');
-                assert(table.x>=end.x+end.width,'table number is beside end time');
-                assert(Math.abs(table.x+table.width-(pair.x+pair.width))<2,'pair fills the schedule column');
-                assert.equal(await dates.locator('datalist,input[list]').count(),0,'table number remains a manual input');
-                if(page.viewportSize().width>800){
-                  const customer=await page.locator('.pos-customer>label:first-child input').boundingBox(),guests=await page.getByLabel('Số khách POS',{exact:true}).boundingBox(),phone=await page.getByLabel('Số điện thoại POS',{exact:true}).boundingBox();
-                  assert(customer&&guests&&phone);assert(Math.abs(customer.width-boxes[2].width)<2,'customer and status widths match');assert(Math.abs(customer.y-boxes[2].y)<2,'customer beside status');assert(customer.x>=boxes[2].x+boxes[2].width,'customer to the right of status');assert(Math.abs(guests.y-end.y)<2&&Math.abs(phone.y-end.y)<2,'guests and phone share end-time row');
-                }
-                assert.equal(await page.locator('.pos-cart-head h2').evaluate(e=>getComputedStyle(e).fontSize),'19px');assert.equal(await page.locator('.pos-cart-head>div:first-child>span').evaluate(e=>getComputedStyle(e).fontSize),'13px');
-              };
-              await checkHeader();
-              const checkLayout=async()=>{assert.equal(await page.locator('.pos-order-note:visible').count(),0);assert.equal(await page.getByText('Ghi chú cho bếp',{exact:true}).isVisible(),false);};
-              await checkLayout();await page.setViewportSize({width:390,height:900});await page.locator('.pos-mobile-switch').getByRole('button',{name:/^Phiếu/}).click();await checkLayout();await checkHeader();await page.setViewportSize({width:1440,height:1000});
-              await page.getByLabel('Cách tính giá POS',{exact:true}).selectOption('agreed');
-              const amount=pricing.getByLabel('Giá chốt POS mỗi bàn',{exact:true});await amount.waitFor();await amount.fill('1500000');await amount.press('Tab');
-              await page.waitForFunction(()=>document.querySelector('.pos-inline-pricing input[aria-label="Giá chốt POS mỗi bàn"]')?.value.replace(/\D/g,'')==='1500000');
-              await page.getByLabel('Cách tính giá POS',{exact:true}).selectOption('auto');
-              await page.waitForFunction(()=>!document.querySelector('.pos-inline-pricing input[aria-label="Giá chốt POS mỗi bàn"]'));
-              assert.equal(await dates.count(),1);await page.getByRole('button',{name:'Khôi phục nháp',exact:true}).click();const recovery=page.getByRole('dialog',{name:'Chọn bản nháp khôi phục',exact:true});await recovery.waitFor();await recovery.getByRole('button',{name:'Đóng',exact:true}).click();await recovery.waitFor({state:'hidden'});await context.close();
+              const context=await browser.newContext({locale:'vi-VN',timezoneId:'Asia/Ho_Chi_Minh',viewport:{width:1440,height:1000}}),page=await context.newPage();
+              const errors=[];page.on('pageerror',error=>errors.push(error.message));
+              await page.goto(host+'?login='+process.env.GITHUB_SHA,{waitUntil:'domcontentloaded'});
+              const login=page.locator('.owner-login-card');await login.waitFor({timeout:30000});
+              await page.waitForFunction(()=>!document.querySelector('.owner-login-card h1')?.textContent.includes('Đang kết nối'));
+              assert.equal(await page.locator('.app-shell,.pos-panel').count(),0,'private screens must stay unmounted');
+              assert.equal(await login.locator('h1').count(),1);assert.equal(await login.locator('button').count()>0,true);
+              for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'login must fit the viewport');}
+              assert.deepEqual(errors,[]);await context.close();
             }
-            console.log('Verified editable dates/times, +3h end, manual end, relocated pricing and removed old controls on both hosts. No orders saved or sent.');
+            console.log('Verified owner login wall on both hosts at desktop and phone widths. No live sign-in or business writes.');
           }finally{await browser.close();}
           JS
-

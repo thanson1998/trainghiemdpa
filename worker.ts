@@ -1,3 +1,4 @@
+import {ownerAuthRoute,requireOwner,type OwnerAuthEnv} from './owner-auth';
 import {processAutomaticShift} from './automatic-shift';
 import {GET_BACKUPS,CREATE_BACKUP,RESTORE_BACKUP_ORDER} from './backups-api';
 import {IMPORT_CATALOG} from './catalog-ai';
@@ -13,7 +14,7 @@ import {GET_DISH_IMAGE,REQUEST_DISH_IMAGE,processDishImages,DISH_IMAGE_STATUS} f
 import {IMPORT,geminiModel,importModel} from './text-import';
 import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
-interface Env extends EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
+interface Env extends OwnerAuthEnv,EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
  async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processAutomaticShift(env.DB).catch(()=>console.error('Automatic noon shift or backup deferred to next cron')));ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
@@ -22,10 +23,19 @@ export default {
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
   const allowed=env.ALLOWED_ORIGIN||'https://thanson1998.github.io';
-  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'catalog-newest-v1'});
-  if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
+  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'owner-auth-v1'});
+  if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type, Authorization');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Ngu?n truy c?p kh�ng du?c c?u h�nh.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+  // Public illustrations contain no customer data. Every business endpoint is owner-only.
+  const publicImage=request.method==='GET'&&/^\/api\/dish-images\/[-\da-f]{36}$/i.test(url.pathname);
+  if(url.pathname.startsWith('/api/auth/')){
+   const response=await ownerAuthRoute(request,env),result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
+  }
+  if(!publicImage){
+   try{if(!await requireOwner(request,env))return Response.json({error:'Vui lòng đăng nhập tài khoản Chủ quán.'},{status:401,headers});}
+   catch{return Response.json({error:'Chưa kiểm tra được quyền truy cập. Vui lòng thử lại.'},{status:503,headers});}
+  }
   if(url.pathname==='/api/telegram-reminders'){const response=request.method==='GET'?await telegramStatus(env):Response.json({error:'Method not allowed'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/email-reminders/test'){const response=request.method!=='POST'?Response.json({error:'Ch? h? tr? POST.'},{status:405}):!request.headers.get('Content-Type')?.toLowerCase().includes('application/json')?Response.json({error:'Y�u c?u ph?i c� d?nh d?ng JSON.'},{status:415}):await sendTestBookingEmail(request,env);const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/email-reminders'){if(request.method==='POST'&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Y�u c?u ph?i c� d?nh d?ng JSON.'},{status:415,headers});const response=request.method==='GET'?await emailReminderStatus(env):request.method==='POST'?await saveEmailSchedule(request,env):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}

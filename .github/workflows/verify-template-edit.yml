@@ -20,7 +20,7 @@ jobs:
           for(let attempt=0;attempt<35;attempt++){
             try{
               const r=await fetch(base+'/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              if(!r.ok||r.headers.get('X-DPA-Template-Edit')!=='included-additions-v1')throw Error('Template fix is not deployed yet');
+              if(r.status!==401||r.headers.get('X-DPA-Ops')!=='owner-auth-v1')throw Error('Template fix is not deployed yet');
               const manifest=await fetch('https://raw.githubusercontent.com/'+process.env.GITHUB_REPOSITORY+'/'+process.env.GITHUB_SHA+'/index.html',{cache:'no-store',signal:AbortSignal.timeout(15000)});
               if(!manifest.ok)throw Error('Current build manifest is not available');
               const expected=await manifest.text(),stylesheet=expected.match(/href="(\.\/kitchen-print-layout\.css[^"]*)"/)?.[1];

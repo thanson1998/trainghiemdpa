@@ -2,6 +2,9 @@
   "name": "trainghiemdpa",
   "main": "worker.ts",
   "compatibility_date": "2026-10-21",
+  "vars": {
+    "DPA_GOOGLE_CLIENT_ID": "749352962932-n89f8v8q2qhtk66o8nq5vks2di5ed4ad.apps.googleusercontent.com"
+  },
   "triggers": {"crons": ["* * * * *"]},
   "assets": {
     "directory": "./dist",

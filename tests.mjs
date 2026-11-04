@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {test,beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -70,7 +71,11 @@ const toolsApiUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-tools-api.ts',i
 const adsModelUrl=dataUrl(compile(fs.readFileSync('ads-model.ts','utf8')));const adsApiUrl=dataUrl(compile(fs.readFileSync('ads-api.ts','utf8').replace("'./ads-model'",JSON.stringify(adsModelUrl)).replace("'zod'",JSON.stringify(pathToFileURL(require.resolve('zod')).href))));const adsApi=await import(adsApiUrl);const adsModel=await import(adsModelUrl);
 const proposalUrl=dataUrl(compile(fs.readFileSync('market-proposal.ts','utf8')));const proposalModel=await import(proposalUrl);
 const liveModelUrl=dataUrl(compile(fs.readFileSync('ads-live-model.ts','utf8')));const liveApiUrl=dataUrl(compile(fs.readFileSync('ads-live-api.ts','utf8').replace("'./ads-live-model'",JSON.stringify(liveModelUrl))));const liveApi=await import(liveApiUrl);
-const worker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./ads-live-api'",JSON.stringify(liveApiUrl)).replace("'./ads-api'",JSON.stringify(adsApiUrl)).replace("'./pos-tools-api'",JSON.stringify(toolsApiUrl)).replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+const rawWorker=await import(dataUrl(compile(fs.readFileSync(new URL('./worker.ts',import.meta.url),'utf8').replace("'./ads-live-api'",JSON.stringify(liveApiUrl)).replace("'./ads-api'",JSON.stringify(adsApiUrl)).replace("'./pos-tools-api'",JSON.stringify(toolsApiUrl)).replace("'./dish-images-api'",JSON.stringify(imagesUrl)).replace("'./payments-api'",JSON.stringify(paymentsUrl)).replace("'./text-import'",JSON.stringify(importUrl)).replace("'./api'",JSON.stringify(dataUrl(compile(source)))).replace("'./catalog-api'",JSON.stringify(dataUrl(compile(catalogSource)))))));
+// Existing business-route tests run as a signed-in local fixture. owner-auth.test.mjs
+// separately exercises the real unauthenticated boundary and credential lifecycle.
+const fixtureToken='a'.repeat(64),fixtureHash=createHash('sha256').update(fixtureToken).digest('hex');
+const worker={default:{...rawWorker.default,fetch(request,env,ctx){const headers=new Headers(request.headers);headers.set('Authorization','Bearer '+fixtureToken);return rawWorker.default.fetch(new Request(request,{headers}),env,ctx);}}};
 const kitchenUrl=dataUrl(compile(fs.readFileSync(new URL('./kitchen-delta.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const kitchen=await import(kitchenUrl);
 const bookingLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./booking-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl))));const bookingLogic=await import(bookingLogicUrl);
 const posLogicUrl=dataUrl(compile(fs.readFileSync(new URL('./pos-logic.ts',import.meta.url),'utf8').replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'./booking-logic'",JSON.stringify(bookingLogicUrl))));const posLogic=await import(posLogicUrl);
@@ -98,6 +103,9 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync('0028_shift_backups.sql','utf8'));
  sqlite.exec(fs.readFileSync('0029_automatic_noon_shifts.sql','utf8'));
  sqlite.exec(fs.readFileSync('0030_backup_retry_jobs.sql','utf8'));
+ sqlite.exec(fs.readFileSync('0031_owner_auth.sql','utf8'));
+ sqlite.prepare('INSERT INTO owner_account(id,username,password_hash,version,updated_at) VALUES(1,?,?,1,?)').run('fixture-owner','not-a-real-password-hash',new Date().toISOString());
+ sqlite.prepare('INSERT INTO owner_sessions VALUES(?,1,?,?)').run(fixtureHash,Math.floor(Date.now()/1000)+3600,Math.floor(Date.now()/1000));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });

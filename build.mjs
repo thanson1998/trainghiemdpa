@@ -2,7 +2,7 @@ import {build} from 'vite';
 import fs from 'node:fs';
 await build();
 let html=fs.readFileSync('dist/source.html','utf8');
-html=html.replace('</head>','<meta name="dpa-release" content="catalog-newest-v1"/></head>');
+html=html.replace('</head>','<meta name="dpa-release" content="owner-auth-v1"/></head>');
 html=html.replace(/<link rel="icon"[^>]*>/,'<link rel="icon" href="./favicon.svg"/>');
 // Load ticket layout safeguards last, identically on Pages and the Worker.
 html=html.replace('</head>','<link rel="preconnect" href="https://trainghiemdpa.thanson198.workers.dev" crossorigin/><link rel="dns-prefetch" href="https://trainghiemdpa.thanson198.workers.dev"/></head>');

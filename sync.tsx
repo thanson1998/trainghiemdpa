@@ -1,3 +1,4 @@
+import {ownerToken,clearOwnerSession} from './auth-session';
 import {coalescedRead,invalidatePendingReads} from './request-pool';
 import {useState} from 'react';
 import {notifyLiveSync} from './live-sync';
@@ -10,12 +11,15 @@ let override='';
 try{const incoming=new URL(location.href).searchParams.get('api');if(incoming){override=validOrigin(incoming);localStorage.setItem(settingKey,override)}else override=localStorage.getItem(settingKey)||''}catch{ /* Settings remain available if browser storage is disabled. */ }
 const configured=resolveApiBase([override,window.DPA_CONFIG?.apiBase]);
 const apiBase=configured||(isPages?'':location.origin);
+export function apiOrigin(){return apiBase;}
 export function dishImageUrl(path:string){return apiBase&&/^\/api\/dish-images\/[-\da-f]{36}\?v=\d+$/i.test(path)?apiBase+path:'';}
 export async function apiRequest(path:string,options:RequestInit={}){
  if(!apiBase)throw new Error('Chưa kết nối đồng bộ. Mở tab Lịch sử → “Kết nối dữ liệu” và nhập đường dẫn máy chủ DPA đã triển khai.');
+ const token=ownerToken(apiBase),headers=new Headers(options.headers);if(token)headers.set('Authorization','Bearer '+token);
  let response:Response;
- try{const request=()=>fetch(apiBase+path,{...options,credentials:'omit' as const,signal:options.signal??AbortSignal.timeout(15000)});response=(options.method??'GET').toUpperCase()==='GET'&&!options.signal&&!options.headers?await coalescedRead(apiBase+path+'|'+(options.cache??''),request):await request();}catch{throw new Error('Mất kết nối máy chủ. Kiểm tra Internet rồi thử lại; thông tin đang nhập vẫn được giữ.');}
+ try{const request=()=>fetch(apiBase+path,{...options,headers,credentials:'omit' as const,signal:options.signal??AbortSignal.timeout(15000)});response=(options.method??'GET').toUpperCase()==='GET'&&!options.signal&&!options.headers?await coalescedRead(apiBase+path+'|'+token+'|'+(options.cache??''),request):await request();}catch{throw new Error('Mất kết nối máy chủ. Kiểm tra Internet rồi thử lại; thông tin đang nhập vẫn được giữ.');}
  if(!response.headers.get('content-type')?.includes('application/json'))throw new Error('Máy chủ chưa sẵn sàng. Kiểm tra đường dẫn trong tab Lịch sử → “Kết nối dữ liệu”.');
+ if(response.status===401&&token)clearOwnerSession(token);
  if(response.ok&&!['GET','HEAD'].includes((options.method??'GET').toUpperCase())){invalidatePendingReads();notifyLiveSync();}
  return response;
 }
