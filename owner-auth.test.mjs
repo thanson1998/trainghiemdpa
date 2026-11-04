@@ -129,10 +129,19 @@ async function googleToken(nonce,patch={}){
  const signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',rsa.privateKey,new TextEncoder().encode(header+'.'+payload));
  return header+'.'+payload+'.'+Buffer.from(signature).toString('base64url');
 }
-async function googleKeys(url){assert.equal(url,'https://www.googleapis.com/oauth2/v3/certs');return Response.json({keys:[googleJwk]},{headers:{'Cache-Control':'public,max-age=300'}});}
+async function googleKeys(url,init){assert.equal(init?.redirect,'manual','Google key requests must use a Workers-supported mode without following redirects');assert.equal(url,'https://www.googleapis.com/oauth2/v3/certs');return Response.json({keys:[googleJwk]},{headers:{'Cache-Control':'public,max-age=300'}});}
 const googleEnv=env=>({...env,DPA_GOOGLE_CLIENT_ID:googleClientId,DPA_OWNER_EMAIL:googleEmail});
 async function challenge(env){const r=await call(env,'/api/auth/google/challenge',{});assert.equal(r.status,200);return r.json();}
 
+test('Google key retrieval rejects redirects without following them on Workers',async()=>{
+ let requests=0;
+ const result=await google.checkGoogleOwnerKeys(async(url,init)=>{
+  requests++;assert.equal(url,'https://www.googleapis.com/oauth2/v3/certs');
+  assert.equal(init?.redirect,'manual');
+  return new Response(null,{status:302,headers:{Location:'https://untrusted.invalid/keys'}});
+ });
+ assert.equal(requests,1);assert.deepEqual(result,{ok:false,code:'GOOGLE_CERTS_UNAVAILABLE'});
+});
 test('Google verification rejects wrong audience, issuer, unverified/disallowed email, nonce, expiry and forged signatures',async()=>{
  const nonce='a'.repeat(64),nonceHash=createHash('sha256').update(nonce).digest('hex'),config={clientId:googleClientId,email:googleEmail};
  const good=await googleToken(nonce);assert.deepEqual(await google.verifyGoogleOwnerToken(good,config,nonceHash,googleKeys),{sub:'test-google-owner-sub',email:googleEmail});
