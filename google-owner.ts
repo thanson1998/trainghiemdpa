@@ -15,7 +15,9 @@ function json(value:string){return JSON.parse(new TextDecoder().decode(bytes(val
 const hex=(bytes:Uint8Array)=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 async function digest(value:string){return hex(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(value))));}
 async function keys(fetcher:typeof fetch){
- const response=await fetcher('https://www.googleapis.com/oauth2/v3/certs',{signal:AbortSignal.timeout(10000),redirect:'error'});
+ // Workers rejects redirect:'error' before sending a request. Manual mode
+ // keeps the pinned Google endpoint and rejects redirects via the status check.
+ const response=await fetcher('https://www.googleapis.com/oauth2/v3/certs',{signal:AbortSignal.timeout(10000),redirect:'manual'});
  if(!response.ok)throw Error('Google certificates unavailable');
  const data=await response.json() as {keys:GoogleJwk[]};
  if(!Array.isArray(data.keys)||data.keys.length>10)throw Error('Invalid Google certificate response');
