@@ -2,7 +2,7 @@ import {validSalesRange,utcSalesRange,monthRange} from './sales-date';
 import {bookingTotal,type Booking} from './model';
 import {z} from 'zod';
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
-export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway' as const}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version};}
+export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway' as const}:{}),...(r.table_label?{tableLabel:r.table_label}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version};}
 export async function GET_PAYMENTS(req:Request,db:D1Database){
  const p=new URL(req.url).searchParams,month=p.get('month');
  const range=p.has('from')||p.has('to')?{from:p.get('from')||'',to:p.get('to')||''}:month&&/^\d{4}-(0[1-9]|1[0-2])$/.test(month)?monthRange(month):null;
@@ -53,6 +53,6 @@ export async function REVERSE_PAYMENT(req:Request,db:D1Database){
   if(!result.meta.changes)return out({error:'Chưa thể hoàn tác: đơn đã thay đổi/đã được hoàn tác, hoặc bàn đã có đơn khác trùng giờ. Tải lại để kiểm tra; nếu trùng bàn, chuyển đơn đang sử dụng sang bàn khác trước.'},409);
   const {results}=await db.prepare('SELECT * FROM reservations WHERE id=? AND user_id=?').bind(b.id,'dpa-shared').all<any>();
   return out({ok:true,booking:paymentBooking(results[0])});
- }catch{return out({error:'Chưa xác nhận được hoàn tác thanh toán. Tải lại danh sách để kiểm tra trước khi thử lại.'},503);}
+ }catch(error){if(String(error).includes('PORTABLE_TABLE_NUMBER_IN_USE'))return out({error:'Số bàn khách mang theo đã được dùng cho đơn khác trùng giờ. Đổi số bàn của đơn đó trước khi hoàn tác.'},409);return out({error:'Chưa xác nhận được hoàn tác thanh toán. Tải lại danh sách để kiểm tra trước khi thử lại.'},503);}
 }
 

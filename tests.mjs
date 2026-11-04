@@ -94,6 +94,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync('0015_ads_research.sql','utf8'));
  sqlite.exec(fs.readFileSync('0016_ads_connection.sql','utf8'));
  sqlite.exec(fs.readFileSync('0017_table_layout.sql','utf8'));
+ sqlite.exec(fs.readFileSync('0027_portable_table_numbers.sql','utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
@@ -103,9 +104,9 @@ const req=(method,data)=>new Request('https://dpa.example/api/bookings',{method,
 const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10-25'),db);
 
 test('checkout bill shows dishes, units and set quantities while retaining agreed total, deposit and unpaid balance',()=>{
- const b=booking({orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
+ const b=booking({tableLabel:'42',orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b})),text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['DPA-25102026-01','Sân nhà 1 · Bàn 01, 02','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
+ for(const expected of ['DPA-25102026-01','Bàn 42 · Sân nhà 1','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
  assert.match(html,/<b>2<\/b> đĩa/);assert.match(html,/<b>3<\/b> chai/);assert.ok(!text.includes('4 đĩa'));
 });
 
@@ -492,11 +493,11 @@ test('order-code migration numbers existing bookings once without changing booki
 test('orders overview excludes cancelled value and counts menu quantities once per booking',async()=>{
  const source=fs.readFileSync(new URL('./orders-dashboard.tsx',import.meta.url),'utf8').replace("'./booking-cards'",JSON.stringify(cardsUrl)).replaceAll("'./model'",JSON.stringify(modelUrl)).replace("'./menu'",JSON.stringify(menuUrl)).replace("'react'",JSON.stringify(pathToFileURL(require.resolve('react')).href)).replace("'lucide-react'",JSON.stringify(pathToFileURL(require.resolve('lucide-react')).href));
  const {OrdersDashboard}=await import(dataUrl(compile(source).replace('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))));
- const rows=[booking({price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
+ const rows=[booking({tableLabel:'30',price:100000,tables:['S1-07','S1-08'],deposit:50000,menu:menu.writeMenu([{name:'Món minh họa',quantity:3,price:100000}])}),booking({status:'cancelled',price:9999999,deposit:99999,menu:'Món đã hủy'})];
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
  const text=html.replace(/<[^>]+>/g,'');
  assert.ok(text.includes('200,000'));assert.ok(text.includes('50,000'));assert.ok(text.includes('150,000'));
- assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('Sân nhà 1 · Bàn 07, 08'));assert.ok(text.includes('Đã cọc một phần'));
+ assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('Bàn 30 · Sân nhà 1'));assert.ok(text.includes('Đã cọc một phần'));
 });
 test('anonymous clients share bookings and price is per table',async()=>{
  const b=booking({tables:['S1-01','S1-02']});assert.equal((await api.POST(req('POST',b),db)).status,200);
@@ -540,10 +541,10 @@ test('front-cashier tables 20, 19 and 18 support bookings and overlap protection
 });
 test('menu print includes table locations, guests, dishes and correct per-table and total amounts',()=>{
  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
- const b=booking({tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
+ const b=booking({tableLabel:'45',tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
  const text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['Chị Hương','Trước quầy','Bàn 18, Bàn 19','Bàn 20','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
+ for(const expected of ['Chị Hương','Trước quầy','Bàn 45','3 vị trí đã chọn','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
  assert.ok(!text.includes('mâm'),'Receipt must omit platter counts');
  assert.ok(!html.includes('<script>alert(1)</script>'));
 });
@@ -1233,7 +1234,7 @@ test('renaming an area and its tables persists labels without changing reservati
  const draft={version:original.version,zones:original.zones.map(z=>({id:z.id,title:z.id==='N1'?'Nhà gia đình':z.title,count:z.count,type:z.type,...(z.id==='N1'?{tableNames:['VIP A','02','03','04','05','06']}: {})}))};
  let response=await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db);assert.equal(response.status,200,await response.clone().text());let saved=await response.json();
  const renamed=saved.zones.find(z=>z.id==='N1');assert.deepEqual(renamed.tables,original.zones.find(z=>z.id==='N1').tables);assert.equal(renamed.tableNames['N1-01'],'VIP A');
- const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));try{numberingModel.applyZones(saved.zones);assert.equal(numberingModel.tableNumber('N1-01'),'VIP A');assert.equal(numberingModel.orderLocation(b),'Nhà gia đình · Bàn VIP A');}finally{numberingModel.applyZones(previous);}
+ const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));try{numberingModel.applyZones(saved.zones);assert.equal(numberingModel.tableNumber('N1-01'),'VIP A');assert.equal(numberingModel.orderLocation(b),'Chưa gán số bàn · Nhà gia đình');}finally{numberingModel.applyZones(previous);}
  assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),before);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
  assert.equal((await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db)).status,409);
  response=await namingLayoutApi.SAVE_LAYOUT(req('POST',{version:saved.version,zones:saved.zones.map(({tableNames,...z})=>z)}),db);assert.equal(response.status,200);saved=await response.json();assert.equal(saved.zones.find(z=>z.id==='N1').tableNames['N1-01'],'VIP A');
@@ -1280,4 +1281,85 @@ test('all units are lowercase across old menus, writes, custom units and catalog
  for(const [input,expected] of [['Đĩa','đĩa'],['ĐĨA','đĩa'],[' BÁT ','bát'],['CHAI','chai'],['CA','ca'],['CỐC','cốc'],['Phần','đĩa'],['KG','kg'],['100ML','100ml'],['Suất','suất']])assert.equal(menu.normalizeUnit(input),expected);
  const legacy='DPA_MENU_V1:'+JSON.stringify([{name:'Gà Hấp',price:100000,quantity:5,unit:'Đĩa'},{name:'Canh',price:100000,unit:'Bát'}]);assert.deepEqual(menu.readMenu(legacy).map(i=>i.unit),['đĩa','bát']);assert.equal(menu.readMenu(legacy)[0].name,'Gà Hấp');assert.ok(menu.writeMenu([{name:'Gà',price:100000,unit:'ĐĨA'}]).includes('đĩa'));
  const dish={id:crypto.randomUUID(),name:'Món thử đơn vị',unit:'CHAI',price:100000};const r=await catalogApi.POST_CATALOG(req('POST',{version:0,dishes:[dish],templates:[]}),db);assert.equal(r.status,200);assert.equal((await r.json()).dishes[0].unit,'chai');
+});
+
+test('portable table numbers persist separately from seat IDs, history and kitchen snapshots',async()=>{
+ const original=booking({tableLabel:'012, 013',tables:['S1-01','S1-02']});
+ assert.equal((await api.POST(req('POST',original),db)).status,200);
+ let saved=(await(await get()).json()).bookings[0];
+ assert.equal(saved.tableLabel,'12, 13');assert.deepEqual(saved.tables,original.tables);
+ assert.equal(JSON.parse(sqlite.prepare('SELECT snapshot FROM reservation_history WHERE booking_id=?').get(saved.id).snapshot).tableLabel,'12, 13');
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:saved}),db)).status,200);
+ assert.equal(JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_prints WHERE booking_id=?').get(saved.id).snapshot).tableLabel,'12, 13');
+ const updated={...saved,tableLabel:'25'};
+ assert.equal((await api.POST(req('POST',updated),db)).status,200);
+ const newer=(await(await get()).json()).bookings[0];
+ assert.equal(newer.tableLabel,'25');assert.deepEqual(newer.tables,original.tables);
+ assert.ok(kitchen.kitchenDelta(saved,newer).notes.some(note=>note.includes('Bàn 25')));
+ assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:{...newer,tableLabel:'26'}}),db)).status,409);
+ const oldClient={...newer,name:'Khách đổi tên'};delete oldClient.tableLabel;
+ assert.equal((await api.POST(req('POST',oldClient),db)).status,200);
+ saved=(await(await get()).json()).bookings[0];assert.equal(saved.tableLabel,'25');
+ assert.equal((await api.POST(req('POST',{...saved,tableLabel:''}),db)).status,200);
+ assert.equal(sqlite.prepare('SELECT table_label FROM reservations WHERE id=?').get(saved.id).table_label,'');
+});
+
+test('portable number assignment is atomic across different seat positions and rejects invalid signs',async()=>{
+ for(const tableLabel of ['0','10000','12, 012','hello','12<script>'])assert.equal((await api.POST(req('POST',booking({tableLabel})),db)).status,400,tableLabel);
+ const first=booking({tableLabel:'9'}),second=booking({tableLabel:'009',tables:['S2-01']});
+ const attempts=await Promise.all([api.POST(req('POST',first),db),api.POST(req('POST',second),db)]);
+ assert.deepEqual(attempts.map(r=>r.status).sort(),[200,409]);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM reservations').get().n,1);
+ assert.equal((await api.POST(req('POST',booking({tableLabel:'9',tables:['S2-02'],start:'14:00',end:'17:00'})),db)).status,200);
+ const saved=(await(await get()).json()).bookings.find(b=>b.start==='11:00');
+ const moved=await api.MOVE(req('POST',{id:saved.id,version:saved.version,tables:['S3-01']}),db);assert.equal(moved.status,200);
+ assert.equal((await(await get()).json()).bookings.find(b=>b.id===saved.id).tableLabel,'9');
+});
+
+test('paid sign numbers may be reused while receipts keep their original number and reversal stays atomic',async()=>{
+ const first=booking({tableLabel:'7'});assert.equal((await api.POST(req('POST',first),db)).status,200);
+ const paid=await paymentsApi.PAY(req('POST',{id:first.id,version:1,total:1500000,deposit:0,tendered:1500000,method:'cash'}),db);
+ assert.equal(paid.status,200);const payment=(await paid.json()).payment;assert.equal(payment.booking.tableLabel,'7');
+ const next=booking({tableLabel:'7',tables:['S2-01']});assert.equal((await api.POST(req('POST',next),db)).status,200);
+ const response=await paymentsApi.REVERSE_PAYMENT(req('POST',{id:first.id,version:2,paidAt:payment.paidAt,reason:'Thử hoàn đơn'}),db);assert.equal(response.status,409);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_payments WHERE booking_id=?').get(first.id).n,1);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM payment_reversals WHERE booking_id=?').get(first.id).n,0);
+ assert.equal(JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_payments WHERE booking_id=?').get(first.id).snapshot).tableLabel,'7');
+});
+
+test('portable number is printed while fixed seat numbers remain hidden',()=>{
+ const b=booking({tableLabel:'31',tables:['S1-01','S1-02']});
+ const render=require('react-dom/server').renderToStaticMarkup,React=require('react');
+ for(const Component of [printModule.MenuPrintPreview,checkoutBillModule.CheckoutBill]){
+  const html=render(React.createElement(Component,{booking:b,onClose:()=>{}}));
+  const text=html.replace(/<[^>]*>/g,'');assert.ok(text.includes('Bàn 31'));assert.ok(!text.includes('Bàn 01'));assert.ok(!text.includes('Bàn 02'));
+ }
+ assert.equal(numberingModel.orderLocation({...b,tableLabel:''}),'Chưa gán số bàn · Sân nhà 1');
+ assert.deepEqual(b.tables,['S1-01','S1-02']);
+});
+
+test('seat picker keeps the same slots and only shows a portable number after assignment',async()=>{
+ const pickerSource=fs.readFileSync('table-map-picker.tsx','utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw Error("not called during rendering");}')));
+ const {TableMapPicker}=await import(dataUrl(compile(pickerSource)));
+ const render=require('react-dom/server').renderToStaticMarkup,React=require('react');
+ const b=booking({tables:[]});
+ const empty=render(React.createElement(TableMapPicker,{booking:b,bookings:[],onChange(){}}));
+ assert.ok(empty.includes('Trống'));assert.ok(!empty.includes('>01</span>'));assert.ok(!empty.includes('>07</span>'));
+ const selected=render(React.createElement(TableMapPicker,{booking:{...b,tables:['S1-01'],tableLabel:'31'},bookings:[],onChange(){}}));
+ assert.ok(selected.includes('Bàn 31'));assert.equal((empty.match(/aria-pressed=/g)||[]).length,(selected.match(/aria-pressed=/g)||[]).length);
+ assert.deepEqual(b.tables,[]);
+});
+
+test('portable-number migration keeps existing reservations, history and table-layout positions intact',()=>{
+ const legacy=new DatabaseSync(':memory:');
+ try{
+  for(const file of ['0001_reservations.sql','0002_menu_catalog_deposit.sql','0003_order_codes.sql','0006_booking_workflow.sql','0007_payments.sql','0012_takeaway.sql','0017_table_layout.sql'])legacy.exec(fs.readFileSync(file,'utf8'));
+  legacy.prepare('INSERT INTO reservations(id,user_id,date,start,end,name,table_ids,people,platters,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(crypto.randomUUID(),'dpa-shared','2026-11-06','18:00','21:00','Đơn cần giữ',JSON.stringify(['S1-01','S1-02']),10,1,'before');
+  const rows=legacy.prepare('SELECT * FROM reservations').all(),history=legacy.prepare('SELECT * FROM reservation_history').all(),layout=legacy.prepare('SELECT * FROM table_layout').all();
+  legacy.exec(fs.readFileSync('0027_portable_table_numbers.sql','utf8'));
+  const updated=legacy.prepare('SELECT * FROM reservations').all();assert.equal(updated[0].table_label,'');
+  assert.deepEqual(updated.map(({table_label,...row})=>row),rows.map(row=>({...row})));
+  assert.deepEqual(legacy.prepare('SELECT * FROM reservation_history').all(),history);
+  assert.deepEqual(legacy.prepare('SELECT * FROM table_layout').all(),layout);
+ }finally{legacy.close();}
 });

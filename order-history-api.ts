@@ -12,7 +12,7 @@ export async function GET_ORDER_HISTORY(req:Request,db:D1Database){
   const rows=results.map(r=>({booking:{...paymentBooking(r),...(r.paid_at?{paidAt:r.paid_at}:{}),updatedAt:r.updated_at},reopened:!!r.has_reversal&&!r.paid_at&&r.status!=='cancelled',...(r.payment_snapshot?{payment:{booking:JSON.parse(r.payment_snapshot),total:r.payment_total,deposit:r.payment_deposit,received:r.received,tendered:r.tendered,method:r.method,paidAt:r.paid_at}}:{})})).filter(row=>{
    const b=row.booking;if(status==='paid_cancelled'&&!row.payment&&b.status!=='cancelled')return false;
    if(status==='paid'&&!row.payment||status==='unpaid'&&(row.payment||b.status==='cancelled')||status==='cancelled'&&b.status!=='cancelled'||status==='reopened'&&!row.reopened)return false;
-   return !query||fold([b.orderCode,b.name,b.phone,...b.tables,b.serviceType==='takeaway'?'mang về':''].join(' ')).includes(fold(query));
+   return !query||fold([b.orderCode,b.name,b.phone,b.tableLabel,...b.tables,b.serviceType==='takeaway'?'mang về':''].join(' ')).includes(fold(query));
   });
   return Response.json({rows:rows.slice((page-1)*30,page*30),count:rows.length,page,total:rows.reduce((n,row)=>n+(row.booking.status==='cancelled'?0:bookingTotal(row.booking)),0)},{headers:{'Cache-Control':'no-store'}});
  }catch{return Response.json({error:'Chưa tải được lịch sử đơn. Vui lòng thử lại.'},{status:503});}

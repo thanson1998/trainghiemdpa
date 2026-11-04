@@ -10,7 +10,7 @@ function compile(source){return ts.transpileModule(source,{compilerOptions:{modu
 function resolve(spec){if(!spec.startsWith('./'))return pathToFileURL(require.resolve(spec)).href;if(loaded.has(spec))return loaded.get(spec);let source=fs.readFileSync(spec+'.ts','utf8');if(spec==='./api')source='export async function GET(req,db){const date=new URL(req.url).searchParams.get("date");return Response.json({bookings:db.bookings.filter(b=>b.date===date)});}';const url=asUrl(compile(source));loaded.set(spec,url);return url;}
 const mod=await import(resolve('./email-reminders')),reports=await import(resolve('./order-notifications')),menu=await import(resolve('./menu'));
 const at=s=>Date.parse(s+'+07:00');
-const b=(patch={})=>({id:'booking-1',orderCode:'DPA-06112026-01',date:'2026-11-06',start:'18:00',end:'21:00',name:'Khách DPA',phone:'',tables:['S1-05'],people:10,platters:1,price:1000000,menu:menu.writeMenu([{name:'Xôi',price:null,included:true}],{name:'Mẹt xôi gà',pricePerTable:1000000}),note:'',status:'reserved',version:1,...patch});
+const b=(patch={})=>({id:'booking-1',orderCode:'DPA-06112026-01',date:'2026-11-06',start:'18:00',end:'21:00',name:'Khách DPA',phone:'',tableLabel:'5',tables:['S1-05'],people:10,platters:1,price:1000000,menu:menu.writeMenu([{name:'Xôi',price:null,included:true}],{name:'Mẹt xôi gà',pricePerTable:1000000}),note:'',status:'reserved',version:1,...patch});
 function db(){const sql=new DatabaseSync(':memory:');sql.exec("CREATE TABLE booking_payments(booking_id TEXT,booking_version INTEGER,snapshot TEXT,total INTEGER,deposit INTEGER,received INTEGER,tendered INTEGER,method TEXT,paid_at TEXT)");sql.exec(fs.readFileSync('0026_email_payment_events.sql','utf8'));return {bookings:[b()],prepare(q){const s=sql.prepare(q);const bound=(args=[])=>({bind(...a){return bound(a)},async run(){return {meta:{changes:s.run(...args).changes}}},async first(){return s.get(...args)||null},async all(){return {results:s.all(...args)}}});return bound();},sql};}
 const env=DB=>({DB,RESEND_API_KEY:'test-only-key',BOOKING_EMAIL_TO:'owner@example.com',BOOKING_EMAIL_FROM:'DPA <sender@example.com>',BOOKING_EMAIL_ENABLED:'true'});
 const request=body=>new Request('https://dpa.internal/api/email-reminders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -30,7 +30,7 @@ test('email safely includes full shared content and escapes user text',()=>{
  const booking=b({name:'<img onerror=alert(1)>',note:'A & B'});
  const text=reports.telegramSummary([booking],at('2026-11-06T10:00:00')).text;
  const content=mod.reminderContent({kind:'interval',date:booking.date,key:'test',bookings:[],text});
- assert.equal(content.text,text);assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/Bàn 05/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
+ assert.equal(content.text,text);assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/Bàn 5/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
 });
 test('arrival notices cross midnight, exclude serving, paid and takeaway and deduplicate',async()=>{
  const DB=db(),calls=[];DB.bookings=[b({date:'2026-11-07',start:'00:30',end:'02:00'})];

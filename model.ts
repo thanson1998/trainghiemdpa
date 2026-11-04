@@ -22,9 +22,9 @@ export const tableNumbers=(ids:string[])=>ids.map(tableNumber).join(', ');
 export function tableLocation(ids:string[]){
  const groups=new Map<string,string[]>();
  for(const id of ids){const key=zoneOf(id)?.title||defaultZones.find(z=>z.tables.includes(id))?.title||'Khu '+(id.includes('-')?id.slice(0,id.lastIndexOf('-')):'khác');groups.set(key,[...(groups.get(key)||[]),tableNumber(id)]);}
- return [...groups].map(([zone,numbers])=>zone+' · Bàn '+numbers.join(', ')).join(' | ');
+ return [...groups].map(([zone,numbers])=>zone+' · '+numbers.length+' vị trí').join(' | ');
 }
-export type Booking={id:string;paidAt?:string;orderCode?:string;serviceType?:'dine-in'|'takeaway';date:string;start:string;end:string;name:string;phone:string;tables:string[];people:number;totalPeople?:number;priceMode?:'auto'|'agreed';platters:number;price:number;deposit?:number;menu:string;note:string;status:'reserved'|'arrived'|'completed'|'cancelled';version:number;updatedAt?:string};
+export type Booking={id:string;paidAt?:string;orderCode?:string;serviceType?:'dine-in'|'takeaway';tableLabel?:string;date:string;start:string;end:string;name:string;phone:string;tables:string[];people:number;totalPeople?:number;priceMode?:'auto'|'agreed';platters:number;price:number;deposit?:number;menu:string;note:string;status:'reserved'|'arrived'|'completed'|'cancelled';version:number;updatedAt?:string};
 export const money=(n:number)=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(n).replace(/\./g,',');
 export const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date());
 export const statusNames={reserved:'Đã đặt',arrived:'Đang phục vụ',completed:'Hoàn tất',cancelled:'Đã hủy'};
@@ -32,7 +32,10 @@ export const statusNames={reserved:'Đã đặt',arrived:'Đang phục vụ',com
 export const isTakeaway=(b:Pick<Booking,'serviceType'>)=>b.serviceType==='takeaway';
 export const orderUnits=(b:Pick<Booking,'serviceType'|'tables'>)=>isTakeaway(b)?1:b.tables.length;
 export const bookingTotal=(b:Pick<Booking,'price'|'tables'|'serviceType'>)=>b.price*orderUnits(b);
-export const orderLocation=(b:Pick<Booking,'serviceType'|'tables'>)=>isTakeaway(b)?'MANG VỀ':tableLocation(b.tables);
+export const normalizeTableLabel=(value:string)=>value.trim()?value.trim().split(/[\s,;]+/).filter(Boolean).map(n=>/^\d{1,4}$/.test(n)?String(Number(n)):n).join(', '):'';
+export function validTableLabel(value:string){const label=normalizeTableLabel(value);if(!label)return true;const parts=label.split(', ');return parts.length<=100&&parts.every(n=>/^[1-9]\d{0,3}$/.test(n))&&new Set(parts).size===parts.length&&label.length<=500;}
+export const portableTableText=(b:Pick<Booking,'tableLabel'>)=>b.tableLabel?.trim()?'Bàn '+normalizeTableLabel(b.tableLabel):'Chưa gán số bàn';
+export const orderLocation=(b:Pick<Booking,'serviceType'|'tables'|'tableLabel'>)=>isTakeaway(b)?'MANG VỀ':portableTableText(b)+(b.tables.length?' · '+[...new Set(b.tables.map(id=>zoneOf(id)?.title||'Khu khác'))].join(', '):'');
 export const guestCount=(booking:Pick<Booking,'people'|'tables'|'totalPeople'|'serviceType'>)=>booking.totalPeople??booking.people*orderUnits(booking);
 
 export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'|'serviceType'>&Partial<Pick<Booking,'status'>>)=>b.paidAt||b.status==='cancelled'?0:Math.max(0,bookingTotal(b)-(b.deposit??0));

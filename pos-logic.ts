@@ -1,4 +1,4 @@
-import {orderUnits,bookingTotal,today,isTakeaway,type Booking} from './model';
+import {orderUnits,bookingTotal,today,isTakeaway,validTableLabel,type Booking} from './model';
 import {readMenu,readMenuSet,writeMenu,mergeMenuItems,itemQuantity,menuSetQuantity,validMenu,type MenuItem} from './menu';
 import {updateBookingDraft} from './booking-logic';
 export const posFold=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().trim();
@@ -21,6 +21,7 @@ export function posEditItem(b:Booking,index:number,patch:Partial<MenuItem>):Book
 }
 export const posFingerprint=(b:Booking)=>JSON.stringify(b);
 export function posIssue(b:Booking,action:'save'|'print'|'pay'|'move'='save'){
+ if(!validTableLabel(b.tableLabel??''))return 'Nhập số bàn từ 1 đến 9999, ngăn cách bằng dấu phẩy và không lặp số.';
  if(b.status==='cancelled'&&action!=='save')return 'Đơn đã hủy. Mở lại đơn và lưu trạng thái Đã đặt / Đang phục vụ trước khi gửi bếp, thanh toán hoặc chuyển bàn.';
  if(b.paidAt)return 'Đơn đã thanh toán. Mở tab Thanh toán để in lại phiếu.';
  if(!b.name.trim())return 'Nhập tên khách.';
