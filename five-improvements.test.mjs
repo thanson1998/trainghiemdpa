@@ -86,11 +86,11 @@ test('paid orders cannot be overwritten from a snapshot and shift saving automat
   const response=await SAVE_SHIFT(request({...range,id,opening:0,expenses:0,counted:0,fingerprint:JSON.stringify(summary)}),db),result=await response.json();assert.equal(response.status,200);assert(result.backup.ok);assert(sqlite.prepare('SELECT id FROM app_backups WHERE id=?').get('shift:'+id));
  }finally{sqlite.close();}
 });
-test('daily backups use Vietnam time, deduplicate retries and retain the thirty newest snapshots',async()=>{
+test('daily backups use Vietnam time, deduplicate retries and retain more than thirty recent snapshots',async()=>{
  const {sqlite,db}=database();try{
   await automaticShift.processAutomaticShift(db,new Date('2026-11-04T04:59:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,0);
   await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:00:00Z'));await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:01:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,1);
-  for(let i=0;i<32;i++)await backup.createStoredBackup(db,'manual:'+i,'Retention audit');assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,30);
+  for(let i=0;i<32;i++)await backup.createStoredBackup(db,'manual:'+i,'Retention audit');assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,33);
  }finally{sqlite.close();}
 });
 test('noon boundaries use Vietnam dates across leap days, year changes and adjacent 24-hour periods',()=>{

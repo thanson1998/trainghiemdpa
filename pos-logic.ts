@@ -38,7 +38,8 @@ export function posIssue(b:Booking,action:'save'|'print'|'pay'|'move'='save'){
  return '';
 }
 export const posCategory=(name:string)=>{const n=posFold(name);return /bia|nuoc|ca phe|cafe|tra |sinh to|sua chua|ruou/.test(n)?'Đồ uống':/bim bim|huong duong|kho ga|an vat|khoai tay chien/.test(n)?'Ăn vặt':'Món ăn';};
-export type PosTicket={booking:Booking;saved:string};
+export type PosDraftMeta={editedAt:number|null;revision:number;fingerprint:string;origin:string};
+export type PosTicket={booking:Booking;saved:string;draftMeta?:PosDraftMeta};
 export const posDirty=(t:PosTicket)=>t.saved!==posFingerprint(t.booking);
 export function refreshPosTickets(state:{tickets:PosTicket[];selected:string},rows:Booking[],date:string){
  const byId=new Map(rows.map(row=>[row.id,row]));let changed=false;
