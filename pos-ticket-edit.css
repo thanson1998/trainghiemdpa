@@ -92,3 +92,8 @@
 .pos-workbench .pos-cart.pos-cart-refined .pos-ticket-customer input[type=number]::-webkit-inner-spin-button,.pos-workbench .pos-cart.pos-cart-refined .pos-ticket-customer input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pos-workbench .pos-cart.pos-cart-refined .pos-cart-head .pos-ticket-details{grid-row:5;grid-column:1/-1}
 }
+/* Share the former end-time column equally with the portable table number. */
+.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule>.pos-end-table-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;min-width:0;align-items:start}
+.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule>.pos-end-table-pair:not(:has(.portable-table-field)){grid-template-columns:minmax(0,1fr)}
+.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule .pos-end-table-pair>.portable-table-field{display:flex!important;grid-column:auto;margin:0;gap:3px;min-width:0;font-size:11px;line-height:1.3;font-weight:600}
+.pos-workbench .pos-cart.pos-cart-refined .pos-inline-schedule .pos-end-table-pair input{height:32px;min-height:32px;padding:5px 5px;font-size:12px}

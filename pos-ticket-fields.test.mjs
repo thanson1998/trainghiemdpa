@@ -6,10 +6,11 @@ import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 const require=createRequire(import.meta.url),memo=new Map();
 function moduleUrl(spec){
+ if(spec.endsWith('.css'))return 'data:text/javascript,';
  if(!spec.startsWith('./'))return pathToFileURL(require.resolve(spec)).href;
  if(memo.has(spec))return memo.get(spec);
  const file=[spec,spec+'.ts',spec+'.tsx'].find(f=>fs.existsSync(f));
- const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from ['"]([^'"]+)['"]/g,(_,name)=>'from '+JSON.stringify(moduleUrl(name)));
+ const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText.replace(/from ['"]([^'"]+)['"]/g,(_,name)=>'from '+JSON.stringify(moduleUrl(name))).replace(/import ['"]([^'"]+)['"]/g,(_,name)=>'import '+JSON.stringify(moduleUrl(name)));
  const url='data:text/javascript;base64,'+Buffer.from(code).toString('base64');memo.set(spec,url);return url;
 }
 const {PosScheduleFields,PosPricingFields}=await import(moduleUrl('./pos-ticket-fields'));
@@ -22,6 +23,8 @@ test('date and both service times render as editable, labeled controls',()=>{
  assert(html.includes('type="date"'));assert(html.includes('value="11:30"'));assert(html.includes('value="14:30"'));
  assert(!html.includes('24h'));assert(!html.includes('disabled=""'));
  assert(render(PosScheduleFields,booking,true).includes('disabled=""'));
+ assert(html.includes('pos-end-table-pair'));assert(html.includes('aria-label="Số Bàn"'));assert(!html.includes('Số bàn khách mang theo'));
+ assert(!render(PosScheduleFields,{...booking,serviceType:'takeaway'}).includes('aria-label="Số Bàn"'));
 });
 test('pricing preserves the selected mode, conditional agreed amount, deposit and status',()=>{
  const auto=render(PosPricingFields);assert(auto.includes('value="auto" selected=""'));
