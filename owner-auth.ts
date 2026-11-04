@@ -100,19 +100,19 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
    const checked=await checkGoogleOwnerToken(input.credential,config,stored.nonce_hash);
    if(!checked.ok){
     const messages:Record<GoogleOwnerFailure,string>={
-     GOOGLE_EMAIL_MISMATCH:'Gmail Google vừa xác minh không trùng với Gmail Chủ quán. Chọn lại tài khoản hoặc kiểm tra giá trị DPA_OWNER_EMAIL trên Cloudflare.',
-     GOOGLE_EMAIL_UNVERIFIED:'Google chưa xác minh được địa chỉ Gmail này. Hãy dùng tài khoản Gmail đã xác minh.',
-     GOOGLE_CLIENT_MISMATCH:'Google Client ID không khớp với máy chủ DPA. Tải lại trang và kiểm tra cấu hình Google Client ID trên Cloudflare.',
-     GOOGLE_TOKEN_EXPIRED:'Thông tin đăng nhập Google đã hết hạn hoặc thời gian không khớp. Bấm Thử lại Google để lấy lượt mới.',
-     GOOGLE_NONCE_MISMATCH:'Lượt xác thực Google không khớp với trang đang mở. Bấm Thử lại Google rồi đăng nhập lại.',
-     GOOGLE_CERTS_UNAVAILABLE:'Máy chủ DPA chưa tải được khóa xác thực từ Google. Hãy thử lại sau ít phút.',
-     GOOGLE_KEY_UNAVAILABLE:'Google đang thay đổi khóa xác thực. Bấm Thử lại Google để lấy thông tin mới.',
-     GOOGLE_KEY_IMPORT_FAILED:'Máy chủ chưa đọc được khóa xác thực Google. Cần kiểm tra khả năng xác thực của máy chủ.',
-     GOOGLE_SIGNATURE_INVALID:'Chữ ký đăng nhập Google không hợp lệ. Bấm Thử lại Google; hệ thống chưa cấp quyền truy cập.',
-     GOOGLE_TOKEN_INVALID:'Thông tin đăng nhập Google không hợp lệ. Bấm Thử lại Google.'
+     GOOGLE_EMAIL_MISMATCH:'Gmail không phù hợp. Vui lòng chọn Gmail của Chủ quán.',
+     GOOGLE_EMAIL_UNVERIFIED:'Gmail chưa được Google xác minh. Vui lòng dùng Gmail đã xác minh.',
+     GOOGLE_CLIENT_MISMATCH:'Đăng nhập Google chưa được cấu hình đúng. Vui lòng liên hệ quản trị để kiểm tra.',
+     GOOGLE_TOKEN_EXPIRED:'Lượt đăng nhập đã hết hạn. Vui lòng bấm Thử lại Google.',
+     GOOGLE_NONCE_MISMATCH:'Lượt đăng nhập không còn hợp lệ. Vui lòng bấm Thử lại Google.',
+     GOOGLE_CERTS_UNAVAILABLE:'Tạm thời không kết nối được Google. Vui lòng thử lại sau ít phút hoặc đăng nhập bằng mật khẩu.',
+     GOOGLE_KEY_UNAVAILABLE:'Google đang cập nhật xác thực. Vui lòng bấm Thử lại Google sau ít phút.',
+     GOOGLE_KEY_IMPORT_FAILED:'Tạm thời chưa thể xác thực Google. Vui lòng thử lại sau ít phút hoặc đăng nhập bằng mật khẩu.',
+     GOOGLE_SIGNATURE_INVALID:'Không xác thực được đăng nhập Google. Vui lòng bấm Thử lại Google.',
+     GOOGLE_TOKEN_INVALID:'Thông tin đăng nhập Google không hợp lệ. Vui lòng bấm Thử lại Google.'
     };
     const infrastructure=['GOOGLE_CERTS_UNAVAILABLE','GOOGLE_KEY_UNAVAILABLE','GOOGLE_KEY_IMPORT_FAILED'].includes(checked.code);
-    return out({error:messages[checked.code]+(checked.verifiedEmail?' Gmail vừa chọn: '+checked.verifiedEmail+'.':'')+' ('+checked.code+')',code:checked.code},infrastructure?503:403);
+    return out({error:messages[checked.code]+(checked.verifiedEmail?' Gmail vừa chọn: '+checked.verifiedEmail+'.':''),code:checked.code},infrastructure?503:403);
    }
    const identity=checked.identity;
    const consumed=await env.DB.prepare('DELETE FROM owner_google_challenges WHERE id_hash=? AND expires_at>? RETURNING nonce_hash').bind(idHash,Math.floor(Date.now()/1000)).first();
@@ -120,7 +120,7 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
    await env.DB.prepare("INSERT INTO owner_account(id,username,password_hash,version,updated_at,google_subject) VALUES(1,'owner','',1,?,?) ON CONFLICT(id) DO NOTHING").bind(new Date().toISOString(),identity.sub).run();
    await env.DB.prepare('UPDATE owner_account SET google_subject=?,updated_at=? WHERE id=1 AND (google_subject IS NULL OR google_subject=?)').bind(identity.sub,new Date().toISOString(),identity.sub).run();
    const account=await env.DB.prepare('SELECT username,password_hash,version,google_subject FROM owner_account WHERE id=1').first<Account>();
-   if(!account||account.google_subject!==identity.sub)return out({error:'Tài khoản Chủ quán đã liên kết với Google khác. Kiểm tra lại cấu hình.'},403);
+   if(!account||account.google_subject!==identity.sub)return out({error:'Gmail không phù hợp. Tài khoản Chủ quán đã liên kết với Gmail khác.'},403);
    return issueSession(env,account);
   }
   if(path==='/api/auth/logout'){
@@ -152,19 +152,19 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
    }
    return out({ok:true,loginRequired:true});
   }
-  if(typeof input.username!=='string'||input.username.length>64||typeof input.password!=='string'||input.password.length>128)return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
+  if(typeof input.username!=='string'||input.username.length>64||typeof input.password!=='string'||input.password.length>128)return out({error:'Sai tài khoản hoặc mật khẩu. Vui lòng kiểm tra và thử lại.'},401);
   let account=await env.DB.prepare('SELECT username,password_hash,version FROM owner_account WHERE id=1').first<Account>();
   if(!account?.password_hash){
    const initial=initialPasswordConfig(env);
    if(!initial)return out({error:'Chưa thiết lập mật khẩu Chủ quán. Thêm Secret DPA_OWNER_PASSWORD trên Cloudflare trước khi đăng nhập bằng ID.',code:'OWNER_PASSWORD_NOT_CONFIGURED'},503);
-   if(input.username.toLowerCase()!==initial.username||!equal(await digest(input.password),await digest(initial.password)))return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
+   if(input.username.toLowerCase()!==initial.username||!equal(await digest(input.password),await digest(initial.password)))return out({error:'Sai tài khoản hoặc mật khẩu. Vui lòng kiểm tra và thử lại.'},401);
    // A private runtime secret may initialize the only owner, but can never reset an existing password.
    await env.DB.prepare(`INSERT INTO owner_account(id,username,password_hash,version,updated_at) VALUES(1,?,?,1,?) ON CONFLICT(id) DO UPDATE SET username=excluded.username,password_hash=excluded.password_hash,version=owner_account.version+1,updated_at=excluded.updated_at WHERE owner_account.password_hash=''`).bind(initial.username,await hashOwnerPassword(input.password),new Date().toISOString()).run();
    account=await env.DB.prepare('SELECT username,password_hash,version FROM owner_account WHERE id=1').first<Account>();
   }
   // Dummy derivation keeps the account-not-found and invalid-username paths comparable.
   const valid=await verifyOwnerPassword(input.password,account?.password_hash??`pbkdf2-sha256$${iterations}$${'0'.repeat(32)}$${'0'.repeat(64)}`);
-  if(!account||!valid||input.username.toLowerCase()!==account.username)return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
+  if(!account||!valid||input.username.toLowerCase()!==account.username)return out({error:'Sai tài khoản hoặc mật khẩu. Vui lòng kiểm tra và thử lại.'},401);
   return issueSession(env,account);
  }catch{return out({error:'Chưa sử dụng được đăng nhập. Kiểm tra kết nối và bản cập nhật máy chủ.'},503);}
 }
