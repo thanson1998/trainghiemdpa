@@ -1,5 +1,5 @@
 import {googleOwnerConfig,checkGoogleOwnerToken,checkGoogleOwnerKeys,type GoogleOwnerConfig,type GoogleOwnerFailure} from './google-owner';
-export interface OwnerAuthEnv extends GoogleOwnerConfig {DB:D1Database;DPA_OWNER_SETUP_KEY?:string}
+export interface OwnerAuthEnv extends GoogleOwnerConfig {DB:D1Database;DPA_OWNER_SETUP_KEY?:string;DPA_OWNER_PASSWORD?:string;DPA_OWNER_USERNAME?:string}
 export type OwnerIdentity={username:string;role:'owner';passwordEnabled:boolean};
 type Account={username:string;password_hash:string;version:number;google_subject?:string|null};
 export const ownerSessionSeconds=12*60*60;
@@ -47,6 +47,10 @@ async function limited(request:Request,env:OwnerAuthEnv,scope:string,limit:numbe
  return false;
 }
 function credentials(input:any){return typeof input?.username==='string'&&/^[a-zA-Z0-9_.-]{3,64}$/.test(input.username)&&typeof input.password==='string'&&input.password.length>=12&&input.password.length<=128;}
+function initialPasswordConfig(env:OwnerAuthEnv){
+ const username=env.DPA_OWNER_USERNAME?.trim().toLowerCase()||'thanson198',password=env.DPA_OWNER_PASSWORD;
+ return /^[a-zA-Z0-9_.-]{3,64}$/.test(username)&&typeof password==='string'&&password.length>=8&&password.length<=128?{username,password}:null;
+}
 async function validSetupKey(input:any,env:OwnerAuthEnv){
  const configured=env.DPA_OWNER_SETUP_KEY?.trim();
  return !!configured&&configured.length>=32&&typeof input.setupKey==='string'&&input.setupKey.length<=512&&equal(await digest(input.setupKey),await digest(configured));
@@ -63,8 +67,8 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
  const path=new URL(request.url).pathname;
  try{
   if(path==='/api/auth/status'&&request.method==='GET'){
-   const exists=await env.DB.prepare('SELECT id FROM owner_account WHERE id=1').first();
-   return out({configured:!!exists,setupAvailable:(env.DPA_OWNER_SETUP_KEY?.trim().length??0)>=32,googleClientId:googleOwnerConfig(env)?.clientId??null});
+   const exists=await env.DB.prepare('SELECT password_hash FROM owner_account WHERE id=1').first<{password_hash:string}>();
+   return out({configured:!!exists,setupAvailable:(env.DPA_OWNER_SETUP_KEY?.trim().length??0)>=32,googleClientId:googleOwnerConfig(env)?.clientId??null,passwordLoginAvailable:!!exists?.password_hash||!!initialPasswordConfig(env)});
   }
   if(path==='/api/auth/me'&&request.method==='GET'){
    const user=await requireOwner(request,env);return user?out({user}):out({error:'Vui lòng đăng nhập tài khoản Chủ quán.'},401);
@@ -149,7 +153,15 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
    return out({ok:true,loginRequired:true});
   }
   if(typeof input.username!=='string'||input.username.length>64||typeof input.password!=='string'||input.password.length>128)return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
-  const account=await env.DB.prepare('SELECT username,password_hash,version FROM owner_account WHERE id=1').first<Account>();
+  let account=await env.DB.prepare('SELECT username,password_hash,version FROM owner_account WHERE id=1').first<Account>();
+  if(!account?.password_hash){
+   const initial=initialPasswordConfig(env);
+   if(!initial)return out({error:'Chưa thiết lập mật khẩu Chủ quán. Thêm Secret DPA_OWNER_PASSWORD trên Cloudflare trước khi đăng nhập bằng ID.',code:'OWNER_PASSWORD_NOT_CONFIGURED'},503);
+   if(input.username.toLowerCase()!==initial.username||!equal(await digest(input.password),await digest(initial.password)))return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
+   // A private runtime secret may initialize the only owner, but can never reset an existing password.
+   await env.DB.prepare(`INSERT INTO owner_account(id,username,password_hash,version,updated_at) VALUES(1,?,?,1,?) ON CONFLICT(id) DO UPDATE SET username=excluded.username,password_hash=excluded.password_hash,version=owner_account.version+1,updated_at=excluded.updated_at WHERE owner_account.password_hash=''`).bind(initial.username,await hashOwnerPassword(input.password),new Date().toISOString()).run();
+   account=await env.DB.prepare('SELECT username,password_hash,version FROM owner_account WHERE id=1').first<Account>();
+  }
   // Dummy derivation keeps the account-not-found and invalid-username paths comparable.
   const valid=await verifyOwnerPassword(input.password,account?.password_hash??`pbkdf2-sha256$${iterations}$${'0'.repeat(32)}$${'0'.repeat(64)}`);
   if(!account||!valid||input.username.toLowerCase()!==account.username)return out({error:'Tên đăng nhập hoặc mật khẩu không đúng.'},401);
