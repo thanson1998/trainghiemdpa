@@ -2,7 +2,7 @@ import {MapCashier} from './map-cashier';
 import {MapKitchen} from './map-kitchen';
 import {MapStage} from './map-stage';
 import {tableNumber,zones,customZone,type Booking} from './model';
-import {MapPin} from 'lucide-react';
+import {MapPin,LogIn} from 'lucide-react';
 import './booking-location-map.css';
 
 export function BookingLocationMap({booking}:{booking:Booking}){
@@ -14,7 +14,7 @@ export function BookingLocationMap({booking}:{booking:Booking}){
    <div className="booking-location-legend"><span><i/>Bàn của phiếu này</span><span><i/>Bàn khác</span></div>
    <div className="booking-location-floor"><div className="mini-floor-map" aria-label="Sơ đồ vị trí các bàn đã đặt">
     {zones.map(z=><section key={z.id} className={'mini-zone mini-zone-'+z.id+(customZone(z.id)?' mini-zone-custom':'')}><h3>{z.title}</h3><div className="mini-zone-tables">{z.tables.map(id=><span key={id} className={'booking-location-table'+(selected.has(id)?' selected':'')} aria-label={'Bàn '+tableNumber(id)+(selected.has(id)?' · thuộc phiếu đang mở':'')}><b>{tableNumber(id)}</b></span>)}</div></section>)}
-    <MapStage/><MapKitchen/><div className="mini-map-path">LỐI ĐI</div><MapCashier mini/><div className="mini-map-entrance">Lối vào ↑</div>
+    <MapStage/><MapKitchen/><div className="mini-map-path">LỐI ĐI</div><MapCashier mini/><div className="mini-map-entrance"><LogIn aria-hidden="true"/>Lối vào</div>
    </div></div>
    <p className="booking-location-help">Bàn tô xanh thuộc phiếu đang mở. Sơ đồ hiển thị vị trí; dùng “Chọn bàn” để chỉnh sửa.</p>
   </div>

@@ -1,3 +1,4 @@
+import {printKitchenPaper,type KitchenPaperMode} from "./kitchen-paper-print";
 import {printedTableRows} from './print-table-rows';
 import {tableNumber,isTakeaway,orderLocation,orderUnits,money,zones,guestCount,balanceDue,type Booking} from './model';
 import {apiRequest} from './sync';
@@ -14,6 +15,9 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
  const dialog=useRef<HTMLDivElement>(null);
  const sheet=useRef<HTMLElement>(null);
  const [paperHeight,setPaperHeight]=useState(160);
+ const [paperMode,setPaperMode]=useState<KitchenPaperMode>("single"),[printing,setPrinting]=useState(false);
+ async function printPaper(){if(!sheet.current||printing)return;setPrinting(true);setPrintStatus("");try{await printKitchenPaper(sheet.current,paperMode);}catch(error){setPrintStatus(error instanceof Error?error.message:"Chưa in được phiếu bếp. Vui lòng thử lại.");}finally{setPrinting(false);}}
+
  const [savingImage,setSavingImage]=useState(false),[imageNotice,setImageNotice]=useState('');
  async function saveImage(){
   if(!sheet.current||savingImage)return;
@@ -58,7 +62,7 @@ export function MenuPrintPreview({booking,onClose}:{booking:Booking;onClose:()=>
  const dishes=readMenu(booking.menu,count).filter(item=>item.name.trim());
  const date=new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(booking.date+'T12:00:00'));
  return <div className="menu-print-overlay" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="print-menu-title">
-  <div className="menu-print-toolbar"><div><b>Xem trước menu</b><small>Giấy cuộn 80 mm · Chọn khổ 80 mm và tỷ lệ 100% khi in</small></div><button type="button" className="secondary-btn" onClick={onClose}><X size={16}/>Đóng</button><button type="button" className="secondary-btn" disabled={savingImage} onClick={()=>void saveImage()}>{savingImage?<LoaderCircle size={16} className="spin"/>:<Download size={16}/>} {savingImage?'Đang tạo ảnh…':'Lưu ảnh phiếu in'}</button><button type="button" className="primary-btn" onClick={()=>window.print()}><Printer size={16}/>In / Lưu PDF</button></div>
+  <div className="menu-print-toolbar"><div><b>Xem trước menu</b><small>Giấy cuộn 80 mm · Chọn khổ 80 mm và tỷ lệ 100% khi in</small></div><button type="button" className="secondary-btn" onClick={onClose}><X size={16}/>Đóng</button><button type="button" className="secondary-btn" disabled={savingImage} onClick={()=>void saveImage()}>{savingImage?<LoaderCircle size={16} className="spin"/>:<Download size={16}/>} {savingImage?'Đang tạo ảnh…':'Lưu ảnh phiếu in'}</button><label className="kitchen-paper-choice">Khổ in<select aria-label="Khổ in phiếu gửi bếp" value={paperMode} disabled={printing} onChange={e=>setPaperMode(e.target.value as KitchenPaperMode)}><option value="single">1 tờ XP-80C (80 × 297 mm)</option><option value="roll">Giấy cuộn dài (giữ cỡ chữ)</option></select></label><button type="button" className="primary-btn" disabled={printing} onClick={()=>void printPaper()}><Printer size={16}/>{printing?"Đang chuẩn bị phiếu…":paperMode==="single"?"In 1 tờ XP-80C":"In phiếu giấy cuộn dài"}</button></div>
   <div className="kitchen-delta-controls"><button type="button" className="secondary-btn" aria-pressed={!deltaMode} onClick={()=>setDeltaMode(false)}>Phiếu đầy đủ</button><button type="button" className="secondary-btn" disabled={!lastSent||!difference?.changed||!baselineReady} aria-pressed={deltaMode} onClick={()=>setDeltaMode(true)}>In món bổ sung / thay đổi</button><button type="button" className="primary-btn" disabled={confirming||!booking.version||!baselineReady} onClick={()=>void confirmSent()}>{confirming?'Đang ghi nhận…':'Đã gửi bếp — ghi nhận'}</button></div>
   <p className="kitchen-delta-notice">{lastSent?'Đã có phiếu gửi bếp trước. Mục bổ sung chỉ liệt kê thay đổi.':'Chưa có phiếu gửi bếp được xác nhận.'} Sau khi chuyển phiếu cho bếp, bấm “Đã gửi bếp — ghi nhận”.{!booking.version&&' Hãy lưu đơn để dùng chức năng này.'}</p>
   {printStatus&&<p className="kitchen-delta-notice" role="status">{printStatus}</p>}

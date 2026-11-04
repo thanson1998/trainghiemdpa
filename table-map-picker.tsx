@@ -4,7 +4,7 @@ import {MapStage} from './map-stage';
 import {tableNumber,tableLocation,zones,customZone,type Booking} from './model';
 import {useEffect,useState} from 'react';
 import {apiRequest} from './sync';
-import {Check} from 'lucide-react';
+import {Check,LogIn} from 'lucide-react';
 import {posFold} from './pos-logic';
 import './table-map-picker.css';
 
@@ -31,7 +31,7 @@ export function TableMapPicker({booking,bookings,onChange,disabled=false,zone='a
     const match=!query||posFold(tableNumber(id)+' '+id+' '+z.title).includes(posFold(query));
     return <button type="button" key={id} className={(picked?'picked ':taken?'occupied ':'')+(!match?'dimmed':'')} aria-pressed={picked} aria-label={'Bàn '+tableNumber(id)+' · '+z.title+(picked?' · đã chọn':'')+(taken?' · trùng giờ':'')} title={taken?'Trùng giờ: '+other.map(row=>row.name+' ('+row.start+'–'+row.end+')').join(', '):z.title+' · Bàn '+tableNumber(id)} disabled={locked||!match||(!picked&&taken)} onClick={()=>onChange(picked?booking.tables.filter(t=>t!==id):[...booking.tables,id])}>{picked&&<Check size={11}/>}<span>{tableNumber(id)}</span></button>;
    })}</div></section>)}
-   {zone==='all'&&<><MapStage/><MapKitchen/><div className="mini-map-path">LỐI ĐI</div><MapCashier mini/><div className="mini-map-entrance">Lối vào ↑</div></>}
+   {zone==='all'&&<><MapStage/><MapKitchen/><div className="mini-map-path">LỐI ĐI</div><MapCashier mini/><div className="mini-map-entrance"><LogIn aria-hidden="true"/>Lối vào</div></>}
   </div></div>
   {!shown.length&&<p className="field-help">Không tìm thấy bàn phù hợp.</p>}
   {booking.tables.length>0&&<p className="mini-selected-tables" aria-live="polite">Đã chọn: <b>{tableLocation(booking.tables)}</b></p>}

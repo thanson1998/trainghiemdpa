@@ -1,8 +1,25 @@
-.floorplan:not(.single-zone){grid-template-columns:.92fr repeat(3,minmax(0,1fr)) 58px}
-.mini-floor-map:not(.mini-single-zone){grid-template-columns:.85fr repeat(3,minmax(0,1fr)) 30px}
-.map-stage{grid-column:5;grid-row:1;align-self:end;justify-self:stretch;display:flex;align-items:center;justify-content:center;min-height:378px;padding:10px 7px;border:2px solid #ae8446;border-radius:8px;background:linear-gradient(90deg,#f5ead4,#fffbef);color:#6c4b20;box-shadow:0 2px 7px #76532518;text-align:center}
-.map-stage b{writing-mode:vertical-rl;font-size:15px;line-height:1.5;letter-spacing:2px;white-space:nowrap}
-.mini-floor-map .map-stage{min-height:264px;padding:7px 3px;border-width:1px;border-radius:5px;box-shadow:none}
+.floorplan:not(.single-zone){grid-template-columns:.92fr repeat(3,minmax(0,1fr));grid-template-rows:58px auto 42px auto 75px}
+.floorplan:not(.single-zone)>.zone-OUT,.floorplan:not(.single-zone)>.zone-S3,.floorplan:not(.single-zone)>.zone-S2,.floorplan:not(.single-zone)>.zone-S1{grid-row:2}
+.floorplan:not(.single-zone)>.zone-N3,.floorplan:not(.single-zone)>.zone-N2,.floorplan:not(.single-zone)>.zone-N1,.floorplan:not(.single-zone)>.zone-FRONT{grid-row:4}
+.floorplan:not(.single-zone)>.walkway{grid-row:3}
+.floorplan:not(.single-zone)>.cashier,.floorplan:not(.single-zone)>.map-kitchen{grid-row:5}
+.map-stage{grid-column:2;grid-row:1;align-self:start;justify-self:stretch;display:flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;min-width:0;min-height:42px;padding:9px 12px;border:2px solid #ae8446;border-radius:8px;background:linear-gradient(180deg,#fffbef,#f5ead4);color:#6c4b20;box-shadow:0 2px 7px #76532518;text-align:center}
+.map-stage b{font-size:15px;line-height:1.4;letter-spacing:2px;white-space:nowrap}
+.map-stage svg{width:20px;height:20px;flex:none}
+.mini-floor-map:not(.mini-single-zone){grid-template-columns:.85fr repeat(3,minmax(0,1fr));grid-template-rows:34px auto 30px auto 35px}
+.mini-floor-map:not(.mini-single-zone)>.mini-zone-OUT{grid-row:2/5}
+.mini-floor-map:not(.mini-single-zone)>.mini-zone-S3,.mini-floor-map:not(.mini-single-zone)>.mini-zone-S2,.mini-floor-map:not(.mini-single-zone)>.mini-zone-S1{grid-row:2}
+.mini-floor-map:not(.mini-single-zone)>.mini-zone-N3,.mini-floor-map:not(.mini-single-zone)>.mini-zone-N2,.mini-floor-map:not(.mini-single-zone)>.mini-zone-N1{grid-row:4}
+.mini-floor-map:not(.mini-single-zone)>.mini-zone-FRONT{grid-row:5/7}
+.mini-floor-map:not(.mini-single-zone)>.mini-map-path{grid-row:3}
+.mini-floor-map:not(.mini-single-zone)>.mini-map-counter,.mini-floor-map:not(.mini-single-zone)>.mini-map-entrance,.mini-floor-map:not(.mini-single-zone)>.map-kitchen{grid-row:5}
+.mini-floor-map:not(.mini-single-zone)>.map-kitchen{grid-column:4}
+.mini-floor-map .map-stage{min-height:28px;padding:5px 3px;gap:4px;border-width:1px;border-radius:5px;box-shadow:none}
 .mini-floor-map .map-stage b{font-size:10px;letter-spacing:1px}
-.booking-location-floor .map-stage{min-height:240px}
+.mini-floor-map .map-stage svg{width:13px;height:13px}
+.booking-location-map .mini-floor-map:not(.mini-single-zone){grid-template-rows:32px auto 24px auto 30px}
+.floorplan svg,.mini-floor-map svg,.plan-toolbar svg,.plan-filters svg,.zone-manager svg{flex-shrink:0;vertical-align:middle;overflow:visible}
+.mini-map-entrance{display:flex;align-items:center;justify-content:center;gap:5px}
+.mini-map-entrance svg{width:14px;height:14px}
+@media(max-width:600px){.floorplan:not(.single-zone){grid-template-columns:1fr;grid-template-rows:none}.floorplan>.map-stage{grid-column:1;grid-row:1;max-width:none}.floorplan:not(.single-zone)>.map-kitchen{grid-column:1;grid-row:auto;justify-self:stretch}}
 @media print{.map-stage{background:#fff!important;color:#000;border-color:#777;box-shadow:none}}

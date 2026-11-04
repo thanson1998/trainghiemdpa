@@ -19,9 +19,24 @@ function resolve(spec){
 const menu=await import(resolve('./menu')),{appendPosTemplate:append}=await import(resolve('./pos-append-template'));
 const {kitchenDelta}=await import(resolve('./kitchen-delta')),{updateBookingDraft}=await import(resolve('./booking-logic'));
 const {CheckoutBill}=await import(resolve('./checkout-bill')),{PaymentMenuLines}=await import(resolve('./payment-menu-lines'));
+const {kitchenPageLayout}=await import(resolve('./kitchen-paper-print'));
+const previousLocation=globalThis.location,previousWindow=globalThis.window;
+globalThis.location=new URL('https://dpa.test/');globalThis.window={};
+const {MenuPrintPreview}=await import(resolve('./print-menu'));
+if(previousLocation===undefined)delete globalThis.location;else globalThis.location=previousLocation;
+if(previousWindow===undefined)delete globalThis.window;else globalThis.window=previousWindow;
 const xoi={name:'Mẹt xôi gà',menu:menu.writeMenu([{name:'Gà',price:null,included:true,quantity:1},{name:'Xôi',price:null,included:true,quantity:1}],{name:'Mẹt xôi gà',pricePerTable:1000000,quantity:1,people:8})};
 const lau={name:'Lẩu thập cẩm',menu:menu.writeMenu([{name:'Gà',price:null,included:true,quantity:1},{name:'Tôm',price:null,included:true,quantity:2}],{name:'Lẩu thập cẩm',pricePerTable:1500000,quantity:1,people:8})};
 const base={id:'test',date:'2026-11-04',start:'18:00',end:'21:00',name:'Khách kiểm tra',phone:'',tables:[],people:1,totalPeople:1,platters:1,price:0,priceMode:'auto',deposit:0,menu:'',note:'',status:'arrived',version:0};
+test('kitchen single-sheet mode fits long tickets to XP-80C and roll mode keeps text size',()=>{
+ const long=kitchenPageLayout(2400,'single');
+ assert.equal(long.heightMm,297);assert.ok(long.scale<1);assert.ok(2400*25.4/96*long.scale<=281);
+ assert.equal(kitchenPageLayout(400,'single').scale,1);
+ assert.deepEqual(kitchenPageLayout(2400,'roll'),{scale:1,heightMm:639});
+ assert.throws(()=>kitchenPageLayout(0,'single'));assert.throws(()=>kitchenPageLayout(Infinity,'single'));
+ const html=renderToStaticMarkup(React.createElement(MenuPrintPreview,{booking:base,onClose:()=>{}}));
+ assert.ok(html.includes('Khổ in phiếu gửi bếp'));assert.ok(html.includes('In 1 tờ XP-80C'));assert.ok(html.includes('Giấy cuộn dài (giữ cỡ chữ)'));
+});
 test('two different sets append with independent quantities, extras and table-independent totals',()=>{
  const beer=menu.writeMenu([{name:'Bia',price:20000,quantity:3}]);
  const first=append(beer,xoi,1,4),mixed=append(first,lau,2,4);
