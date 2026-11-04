@@ -24,8 +24,8 @@ test('date and both service times render as editable, labeled controls',()=>{
  assert(html.includes('type="date"'));assert(html.includes('value="11:30"'));assert(html.includes('value="14:30"'));
  assert(!html.includes('24h'));assert(!html.includes('disabled=""'));
  assert(render(PosScheduleFields,booking,true).includes('disabled=""'));
- assert(html.includes('pos-end-table-pair'));assert(html.includes('aria-label="Số Bàn"'));assert(!html.includes('Số bàn khách mang theo'));
- assert(!render(PosScheduleFields,{...booking,serviceType:'takeaway'}).includes('aria-label="Số Bàn"'));
+ assert(html.includes('pos-end-table-pair'));assert(html.includes('aria-label="Số thẻ"'));assert(!html.includes('Số bàn khách mang theo'));
+ assert(!render(PosScheduleFields,{...booking,serviceType:'takeaway'}).includes('aria-label="Số thẻ"'));
 });
 test('pricing preserves the selected mode, conditional agreed amount, deposit and status',()=>{
  const auto=render(PosPricingFields);assert(auto.includes('value="auto" selected=""'));

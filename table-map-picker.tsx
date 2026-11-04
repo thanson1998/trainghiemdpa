@@ -30,7 +30,7 @@ export function TableMapPicker({booking,bookings,onChange,disabled=false,zone='a
    {shown.map(z=><section className={'mini-zone mini-zone-'+z.id+(customZone(z.id)?' mini-zone-custom':'')} key={z.id}><h3>{z.title}</h3><div className="mini-zone-tables">{z.tables.map(id=>{
     const picked=booking.tables.includes(id),other=conflicts.filter(row=>row.tables.includes(id)),taken=other.length>0;
     const match=!query||posFold(seatText(id)+' '+z.title).includes(posFold(query));
-    const label=picked?(booking.tableLabel?'Bàn '+booking.tableLabel:'Đã chọn'):taken?other.map(row=>row.tableLabel?'Bàn '+row.tableLabel:row.name).join(' / '):'Trống';
+    const label=picked?(booking.tableLabel?'Thẻ '+booking.tableLabel:'Đã chọn'):taken?other.map(row=>row.tableLabel?'Thẻ '+row.tableLabel:row.name).join(' / '):'Trống';
     return <button type="button" key={id} className={(picked?'picked ':taken?'occupied ':'')+(!match?'dimmed':'')} aria-pressed={picked} aria-label={'Chỗ ngồi · '+z.title+' · ô '+(z.tables.indexOf(id)+1)+(picked?' · đã chọn':'')+(taken?' · trùng giờ':'')} title={taken?'Trùng giờ: '+other.map(row=>portableTableText(row)+' · '+row.name+' ('+row.start+'-'+row.end+')').join(', '):z.title+' · '+label} disabled={locked||!match||(!picked&&taken)} onClick={()=>onChange(picked?booking.tables.filter(t=>t!==id):[...booking.tables,id])}>{picked?<Check size={11}/>:!taken?<Plus size={11}/>:null}<span>{label}</span></button>;
    })}</div></section>)}
    {zone==='all'&&<><MapStage/><MapKitchen/><div className="mini-map-path">LỐI ĐI</div><MapCashier mini/><div className="mini-map-entrance"><LogIn aria-hidden="true"/>Lối vào</div></>}

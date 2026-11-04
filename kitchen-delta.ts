@@ -14,7 +14,7 @@ export function kitchenDelta(previous:Booking,current:Booking){
  if(previous.date!==current.date||previous.start!==current.start||previous.end!==current.end)notes.push('Thời gian cũ: '+previous.date.split('-').reverse().join('/')+' '+previous.start+'–'+previous.end+'. Thời gian mới ghi trên phiếu.');
  if(previous.note!==current.note)notes.push('Ghi chú phục vụ đã thay đổi. Hãy đọc ghi chú mới trên phiếu.');
  if(guestCount(previous)!==guestCount(current))notes.push('Số khách đã thay đổi; xem tổng số khách mới trên phiếu.');
- if(!isTakeaway(current)&&portableTableText(previous)!==portableTableText(current))notes.push('Đổi số bàn khách: '+portableTableText(previous)+' → '+portableTableText(current));
+ if(!isTakeaway(current)&&portableTableText(previous)!==portableTableText(current))notes.push('Đổi số thẻ khách: '+portableTableText(previous)+' → '+portableTableText(current));
  return {added,removed,notes,changed:!!(added.length||removed.length||notes.length)};
 }
 

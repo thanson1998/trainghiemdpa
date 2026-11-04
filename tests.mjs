@@ -117,7 +117,7 @@ const get=()=>api.GET(new Request('https://dpa.example/api/bookings?date=2026-10
 test('checkout bill shows dishes, units and set quantities while retaining agreed total, deposit and unpaid balance',()=>{
  const b=booking({tableLabel:'42',orderCode:'DPA-25102026-01',tables:['S1-01','S1-02'],people:7,totalPeople:13,price:1250000,deposit:500000,note:'Ra món lúc 18:30',menu:menu.writeMenu([{name:'Gà trong set',quantity:2,unit:'đĩa',price:null,included:true},{name:'Bia',quantity:3,unit:'chai',price:20000}],{name:'Set lẩu',quantity:2,people:6,pricePerTable:1200000})});
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(checkoutBillModule.CheckoutBill,{booking:b})),text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['DPA-25102026-01','Bàn 42 · Sân nhà 1','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
+ for(const expected of ['DPA-25102026-01','Thẻ 42 · Sân nhà 1','13 người','Gà trong set','Bia','chai','đĩa','Đơn giá','Tổng','2,500,000','500,000','2,000,000','2,460,000','60,000','Trong set','Ra món lúc 18:30','Kiểm tra món và tiền cọc'])assert.ok(text.includes(expected),expected);
  assert.match(html,/<b>2<\/b> đĩa/);assert.match(html,/<b>3<\/b> chai/);assert.ok(!text.includes('4 đĩa'));
 });
 
@@ -508,7 +508,7 @@ test('orders overview excludes cancelled value and counts menu quantities once p
  const html=require('react-dom/server').renderToStaticMarkup(require('react').createElement(OrdersDashboard,{bookings:rows,loading:false,error:'',date:'2026-10-25',monthly:true,onDay(){},onMonth(){},onWholeMonth(){},onOpen(){},onPrint(){}}));
  const text=html.replace(/<[^>]+>/g,'');
  assert.ok(text.includes('200,000'));assert.ok(text.includes('50,000'));assert.ok(text.includes('150,000'));
- assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('Bàn 30 · Sân nhà 1'));assert.ok(text.includes('Đã cọc một phần'));
+ assert.ok(!text.includes('19,999,998'));assert.ok(text.includes('3 đã đặt'));assert.ok(!text.includes('6 đã đặt'));assert.ok(!text.includes('Món đã hủy'));assert.ok(text.includes('Thẻ 30 · Sân nhà 1'));assert.ok(text.includes('Đã cọc một phần'));
 });
 test('anonymous clients share bookings and price is per table',async()=>{
  const b=booking({tables:['S1-01','S1-02']});assert.equal((await api.POST(req('POST',b),db)).status,200);
@@ -555,7 +555,7 @@ test('menu print includes table locations, guests, dishes and correct per-table 
  const b=booking({tableLabel:'45',tables:['20','19','18'],people:10,platters:2,price:1200000,menu:'Gà hấp\nLẩu cá tầm\n<script>alert(1)</script>'});
  const html=renderToStaticMarkup(React.createElement(printModule.MenuPrintPreview,{booking:b,onClose:()=>{}}));
  const text=html.replace(/<[^>]*>/g,'');
- for(const expected of ['Chị Hương','Trước quầy','Bàn 45','3 vị trí đã chọn','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
+ for(const expected of ['Chị Hương','Trước quầy','Thẻ 45','3 vị trí đã chọn','30 người','10 người / bàn','Gà hấp','Lẩu cá tầm',new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(1200000).replace(/\./g,','),new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0}).format(3600000).replace(/\./g,',')])assert.ok(text.includes(expected),'Missing print content: '+expected);
  assert.ok(!text.includes('mâm'),'Receipt must omit platter counts');
  assert.ok(!html.includes('<script>alert(1)</script>'));
 });
@@ -1254,7 +1254,7 @@ test('renaming an area and its tables persists labels without changing reservati
  const draft={version:original.version,zones:original.zones.map(z=>({id:z.id,title:z.id==='N1'?'Nhà gia đình':z.title,count:z.count,type:z.type,...(z.id==='N1'?{tableNames:['VIP A','02','03','04','05','06']}: {})}))};
  let response=await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db);assert.equal(response.status,200,await response.clone().text());let saved=await response.json();
  const renamed=saved.zones.find(z=>z.id==='N1');assert.deepEqual(renamed.tables,original.zones.find(z=>z.id==='N1').tables);assert.equal(renamed.tableNames['N1-01'],'VIP A');
- const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));try{numberingModel.applyZones(saved.zones);assert.equal(numberingModel.tableNumber('N1-01'),'VIP A');assert.equal(numberingModel.orderLocation(b),'Chưa gán số bàn · Nhà gia đình');}finally{numberingModel.applyZones(previous);}
+ const previous=numberingModel.zones.map(z=>({...z,tables:[...z.tables]}));try{numberingModel.applyZones(saved.zones);assert.equal(numberingModel.tableNumber('N1-01'),'VIP A');assert.equal(numberingModel.orderLocation(b),'Chưa gán số thẻ · Nhà gia đình');}finally{numberingModel.applyZones(previous);}
  assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservations').all()),before);assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM reservation_history').all()),history);
  assert.equal((await namingLayoutApi.SAVE_LAYOUT(req('POST',draft),db)).status,409);
  response=await namingLayoutApi.SAVE_LAYOUT(req('POST',{version:saved.version,zones:saved.zones.map(({tableNames,...z})=>z)}),db);assert.equal(response.status,200);saved=await response.json();assert.equal(saved.zones.find(z=>z.id==='N1').tableNames['N1-01'],'VIP A');
@@ -1315,7 +1315,7 @@ test('portable table numbers persist separately from seat IDs, history and kitch
  assert.equal((await api.POST(req('POST',updated),db)).status,200);
  const newer=(await(await get()).json()).bookings[0];
  assert.equal(newer.tableLabel,'25');assert.deepEqual(newer.tables,original.tables);
- assert.ok(kitchen.kitchenDelta(saved,newer).notes.some(note=>note.includes('Bàn 25')));
+ assert.ok(kitchen.kitchenDelta(saved,newer).notes.some(note=>note.includes('Thẻ 25')));
  assert.equal((await api.CONFIRM_PRINT(req('POST',{booking:{...newer,tableLabel:'26'}}),db)).status,409);
  const oldClient={...newer,name:'Khách đổi tên'};delete oldClient.tableLabel;
  assert.equal((await api.POST(req('POST',oldClient),db)).status,200);
@@ -1352,9 +1352,9 @@ test('portable number is printed while fixed seat numbers remain hidden',()=>{
  const render=require('react-dom/server').renderToStaticMarkup,React=require('react');
  for(const Component of [printModule.MenuPrintPreview,checkoutBillModule.CheckoutBill]){
   const html=render(React.createElement(Component,{booking:b,onClose:()=>{}}));
-  const text=html.replace(/<[^>]*>/g,'');assert.ok(text.includes('Bàn 31'));assert.ok(!text.includes('Bàn 01'));assert.ok(!text.includes('Bàn 02'));
+  const text=html.replace(/<[^>]*>/g,'');assert.ok(text.includes('Thẻ 31'));assert.ok(!text.includes('Bàn 01'));assert.ok(!text.includes('Bàn 02'));
  }
- assert.equal(numberingModel.orderLocation({...b,tableLabel:''}),'Chưa gán số bàn · Sân nhà 1');
+ assert.equal(numberingModel.orderLocation({...b,tableLabel:''}),'Chưa gán số thẻ · Sân nhà 1');
  assert.deepEqual(b.tables,['S1-01','S1-02']);
 });
 
@@ -1366,7 +1366,7 @@ test('seat picker keeps the same slots and only shows a portable number after as
  const empty=render(React.createElement(TableMapPicker,{booking:b,bookings:[],onChange(){}}));
  assert.ok(empty.includes('Trống'));assert.ok(!empty.includes('>01</span>'));assert.ok(!empty.includes('>07</span>'));
  const selected=render(React.createElement(TableMapPicker,{booking:{...b,tables:['S1-01'],tableLabel:'31'},bookings:[],onChange(){}}));
- assert.ok(selected.includes('Bàn 31'));assert.equal((empty.match(/aria-pressed=/g)||[]).length,(selected.match(/aria-pressed=/g)||[]).length);
+ assert.ok(selected.includes('Thẻ 31'));assert.equal((empty.match(/aria-pressed=/g)||[]).length,(selected.match(/aria-pressed=/g)||[]).length);
  assert.deepEqual(b.tables,[]);
 });
 

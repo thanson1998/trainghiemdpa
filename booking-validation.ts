@@ -10,7 +10,7 @@ export function bookingFieldErrors(b:Booking):BookingFieldErrors{
  if(!time(b.start))errors.start='Nhập giờ theo định dạng 24h, ví dụ 18:00.';
  if(!time(b.end))errors.end='Nhập giờ theo định dạng 24h, ví dụ 21:00.';
  else if(time(b.start)&&b.end<=b.start)errors.end='Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.';
- if(!validTableLabel(b.tableLabel??''))errors.tableLabel='Nhập số bàn 1–9999, cách nhau bằng dấu phẩy, không lặp số.';
+ if(!validTableLabel(b.tableLabel??''))errors.tableLabel='Nhập số thẻ 1–9999, cách nhau bằng dấu phẩy, không lặp số.';
  if(!isTakeaway(b)&&!b.tables.length)errors.tables='Chọn ít nhất một bàn trước khi lưu.';
  const guests=guestCount(b);if(!Number.isInteger(guests)||guests<1||guests>50000)errors.totalPeople='Số khách phải là số nguyên từ 1 đến 50.000.';
  if(!Number.isInteger(b.price)||b.price<0||b.price>100000000)errors.price='Giá phải từ 0 đến 100.000.000 đồng.';

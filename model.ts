@@ -34,7 +34,7 @@ export const orderUnits=(b:Pick<Booking,'serviceType'|'tables'>)=>isTakeaway(b)?
 export const bookingTotal=(b:Pick<Booking,'price'|'tables'|'serviceType'>)=>b.price*orderUnits(b);
 export const normalizeTableLabel=(value:string)=>value.trim()?value.trim().split(/[\s,;]+/).filter(Boolean).map(n=>/^\d{1,4}$/.test(n)?String(Number(n)):n).join(', '):'';
 export function validTableLabel(value:string){const label=normalizeTableLabel(value);if(!label)return true;const parts=label.split(', ');return parts.length<=100&&parts.every(n=>/^[1-9]\d{0,3}$/.test(n))&&new Set(parts).size===parts.length&&label.length<=500;}
-export const portableTableText=(b:Pick<Booking,'tableLabel'>)=>b.tableLabel?.trim()?'Bàn '+normalizeTableLabel(b.tableLabel):'Chưa gán số bàn';
+export const portableTableText=(b:Pick<Booking,'tableLabel'>)=>b.tableLabel?.trim()?'Thẻ '+normalizeTableLabel(b.tableLabel):'Chưa gán số thẻ';
 export const orderLocation=(b:Pick<Booking,'serviceType'|'tables'|'tableLabel'>)=>isTakeaway(b)?'MANG VỀ':portableTableText(b)+(b.tables.length?' · '+[...new Set(b.tables.map(id=>zoneOf(id)?.title||'Khu khác'))].join(', '):'');
 export const guestCount=(booking:Pick<Booking,'people'|'tables'|'totalPeople'|'serviceType'>)=>booking.totalPeople??booking.people*orderUnits(booking);
 
