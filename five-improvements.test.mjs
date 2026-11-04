@@ -21,6 +21,7 @@ const {GET_BANK,SAVE_BANK,SAVE_SHIFT}=await import(resolve('./pos-tools-api'));
 const {BillPaymentQr}=await import(resolve('./checkout-bill')),{BankContext}=await import(resolve('./bank-context'));
 const validation=await import(resolve('./booking-validation')),{posIssue,posFingerprint}=await import(resolve('./pos-logic'));
 const api=await import(resolve('./api')),backup=await import(resolve('./backups-api'));
+const automaticShift=await import(resolve('./automatic-shift'));
 const request=(body,path='/api/bookings',method='POST')=>new Request('https://audit.invalid'+path,{method,...(method==='GET'?{}:{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})});
 function database(){
  const sqlite=new DatabaseSync(':memory:');
@@ -87,9 +88,38 @@ test('paid orders cannot be overwritten from a snapshot and shift saving automat
 });
 test('daily backups use Vietnam time, deduplicate retries and retain the thirty newest snapshots',async()=>{
  const {sqlite,db}=database();try{
-  await backup.processDailyBackup(db,new Date('2026-11-04T14:59:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,0);
-  await backup.processDailyBackup(db,new Date('2026-11-04T15:00:00Z'));await backup.processDailyBackup(db,new Date('2026-11-04T15:01:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,1);
+  await automaticShift.processAutomaticShift(db,new Date('2026-11-04T04:59:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,0);
+  await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:00:00Z'));await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:01:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,1);
   for(let i=0;i<32;i++)await backup.createStoredBackup(db,'manual:'+i,'Retention audit');assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,30);
+ }finally{sqlite.close();}
+});
+test('noon boundaries use Vietnam dates across leap days, year changes and adjacent 24-hour periods',()=>{
+ assert.equal(automaticShift.noonShiftPeriod(new Date('2026-11-04T04:59:59Z')),null);
+ const current=automaticShift.noonShiftPeriod(new Date('2026-11-04T05:00:00Z'));assert.deepEqual(current,{day:'2026-11-04',from:'2026-11-03T05:00:00.000Z',to:'2026-11-04T05:00:00.000Z'});
+ assert.equal(automaticShift.noonShiftPeriod(new Date('2026-11-05T05:00:00Z')).from,current.to);
+ assert.equal(automaticShift.noonShiftPeriod(new Date('2028-03-01T05:00:00Z')).from,'2028-02-29T05:00:00.000Z');
+ assert.equal(automaticShift.noonShiftPeriod(new Date('2027-01-01T05:00:00Z')).from,'2026-12-31T05:00:00.000Z');
+});
+test('automatic shifts remain frozen, keep cash counts unknown and retry a failed backup without creating duplicate reports',async()=>{
+ const {sqlite,db}=database();try{
+  const normal=booking();assert.equal((await api.POST(request(normal),db)).status,200);
+  const {createStoredBackup}=backup;sqlite.exec('ALTER TABLE app_backups RENAME TO app_backups_unavailable');
+  await assert.rejects(automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:00:00Z')));
+  const row=sqlite.prepare("SELECT * FROM pos_shift_reports WHERE source='automatic'").get();assert(row);const frozen=JSON.parse(row.data);for(const key of ['opening','expenses','counted','expected','difference'])assert.equal(frozen[key],null);
+  assert.equal(sqlite.prepare('SELECT status FROM reservations WHERE id=?').get(normal.id).status,'reserved');
+  sqlite.exec('ALTER TABLE app_backups_unavailable RENAME TO app_backups');
+  const result=await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:03:00Z'));assert.deepEqual(result.report,frozen);assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM pos_shift_reports WHERE source='automatic'").get().n,1);
+  assert(sqlite.prepare('SELECT id FROM app_backups WHERE id=?').get('auto-shift:2026-11-04'));
+  await automaticShift.processAutomaticShift(db,new Date('2026-11-04T10:00:00Z'));assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM app_backups').get().n,1);
+ }finally{sqlite.close();}
+});
+test('noon payment totals exclude the exact next-period boundary and manual shifts stay in a separate history',async()=>{
+ const {sqlite,db}=database();try{
+  const pay=await import(resolve('./payments-api')),times=['2026-11-03T04:59:59.000Z','2026-11-03T05:00:00.000Z','2026-11-04T04:59:59.000Z','2026-11-04T05:00:00.000Z'];
+  for(let i=0;i<times.length;i++){const b={...booking(),tables:[String(7+i)]};assert.equal((await api.POST(request(b),db)).status,200);assert.equal((await pay.PAY(request({id:b.id,version:1,total:200000,deposit:10000,tendered:190000,method:i===2?'transfer':'cash'}),db)).status,200);sqlite.prepare('UPDATE booking_payments SET paid_at=? WHERE booking_id=?').run(times[i],b.id);}
+  const result=await automaticShift.processAutomaticShift(db,new Date('2026-11-04T05:00:00Z'));assert.equal(result.report.summary.paidCount,2);assert.equal(result.report.summary.cash,190000);assert.equal(result.report.summary.transfer,190000);
+  const tools=await import(resolve('./pos-tools-api')),range={from:'2026-11-04T00:00:00.000Z',to:'2026-11-05T00:00:00.000Z'},summary=await tools.shiftSummary(db,range.from,range.to);assert.equal((await SAVE_SHIFT(request({...range,id:crypto.randomUUID(),opening:50000,expenses:10000,counted:230000,fingerprint:JSON.stringify(summary)}),db)).status,200);
+  const history=await (await tools.GET_SHIFT(request(null,'/api/pos/shift?'+new URLSearchParams(range),'GET'),db)).json();assert.equal(history.history.length,1);assert.equal(history.history[0].source,'manual');assert.equal(history.automaticHistory.length,1);assert.equal(history.automaticHistory[0].source,'automatic');assert.equal(history.automaticHistory[0].backupReady,true);
  }finally{sqlite.close();}
 });
 test('backup failure keeps the saved shift and a conflicting table blocks restoration atomically',async()=>{

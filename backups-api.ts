@@ -20,11 +20,6 @@ export async function createStoredBackup(db:D1Database,id:string,reason:string){
  await db.prepare('DELETE FROM app_backups WHERE id NOT IN (SELECT id FROM app_backups ORDER BY created_at DESC,id DESC LIMIT 30)').run();
  return await db.prepare('SELECT id,created_at,reason,checksum FROM app_backups WHERE id=?').bind(id).first<any>();
 }
-export async function processDailyBackup(db:D1Database,now=new Date()){
- const parts=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now),value=(key:string)=>parts.find(p=>p.type===key)?.value??'';
- if(Number(value('hour'))<22)return;
- await createStoredBackup(db,'daily:'+value('year')+'-'+value('month')+'-'+value('day'),'Tự động cuối ngày');
-}
 export async function GET_BACKUPS(req:Request,db:D1Database){try{
  const id=new URL(req.url).searchParams.get('id');
  if(id){if(id.length>100)return out({error:'Mã sao lưu không hợp lệ.'},400);const row=await db.prepare('SELECT * FROM app_backups WHERE id=?').bind(id).first<any>();if(!row)return out({error:'Không tìm thấy bản sao lưu.'},404);return out(await unpack(row));}

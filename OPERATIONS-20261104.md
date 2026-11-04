@@ -18,7 +18,7 @@ Các form dùng chung quy tắc kích thước và hiển thị lỗi. POS đang
 
 ## Sao lưu cuối ca
 
-Lưu chốt ca sẽ tạo một bản sao lưu trên máy chủ. Nếu sao lưu thất bại, bản chốt ca vẫn được giữ và có thông báo để tạo lại tại Lịch sử → Sao lưu & khôi phục. Lịch định kỳ hiện có tạo thêm một bản cuối ngày, bắt đầu từ 22:00 giờ Việt Nam; lần sau thử lại nếu lần trước chưa thành công.
+Lưu chốt ca sẽ tạo một bản sao lưu trên máy chủ. Nếu sao lưu thất bại, bản chốt ca vẫn được giữ và có thông báo để tạo lại tại Lịch sử → Sao lưu & khôi phục. Lịch định kỳ hiện có tự chốt ca và tạo sao lưu lúc 12:00 trưa giờ Việt Nam, tổng hợp từ 12:00 hôm trước đến 12:00 hôm nay. Ca tự động và ca thủ công có danh sách riêng. Tiền kiểm đếm trong bản tự động để chưa xác nhận. Nếu sao lưu lỗi, các lần chạy sau sẽ thử lại mà không tạo thêm ca trùng.
 
 Giữ 30 bản gần nhất. Mỗi bản được nén và kiểm tra SHA-256 trước khi tải hoặc khôi phục. Nội dung gồm các đơn đã lưu, thư viện, lịch sử, phiếu bếp, thanh toán/hoàn tác, tài khoản nhận tiền, chốt ca và sơ đồ. Nháp trình duyệt và ảnh món ăn không nằm trong bản sao lưu JSON. Hãy tải thêm bản về máy để có bản độc lập với cơ sở dữ liệu đang chạy.
 

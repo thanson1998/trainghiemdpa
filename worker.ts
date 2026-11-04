@@ -1,4 +1,5 @@
-import {GET_BACKUPS,CREATE_BACKUP,RESTORE_BACKUP_ORDER,processDailyBackup} from './backups-api';
+import {processAutomaticShift} from './automatic-shift';
+import {GET_BACKUPS,CREATE_BACKUP,RESTORE_BACKUP_ORDER} from './backups-api';
 import {IMPORT_CATALOG} from './catalog-ai';
 import {telegramStatus,processBookingTelegrams,processTelegramChecks,processTelegramPayments,type TelegramEnv} from './telegram-reminders';
 import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,processEmailPayments,type EmailReminderEnv} from './email-reminders';
@@ -14,14 +15,14 @@ import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
 interface Env extends EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
- async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDailyBackup(env.DB).catch(()=>console.error('Daily backup deferred to next cron')));ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
+ async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processAutomaticShift(env.DB).catch(()=>console.error('Automatic noon shift or backup deferred to next cron')));ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
   url.pathname=({'/api/market-connection':'/api/ads-connection','/api/market-feed':'/api/ads-live','/api/market-research':'/api/ads-research'} as Record<string,string>)[url.pathname]||url.pathname;
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
   const allowed=env.ALLOWED_ORIGIN||'https://thanson1998.github.io';
-  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'five-v1'});
+  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'noon-v1'});
   if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Ngu?n truy c?p kh�ng du?c c?u h�nh.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});

@@ -36,3 +36,6 @@ input[aria-invalid=true],select[aria-invalid=true]{border-color:#b83e2d!importan
  .booking-drawer .drawer-head,.booking-drawer .booking-form-nav,.booking-drawer .drawer-footer{padding-left:17px;padding-right:17px;gap:8px}
  .booking-drawer .drawer-footer>button{font-size:13px;padding:9px 6px}
 }
+
+.pos-shift-auto-info{padding:12px;margin:12px 0;border:1px solid #d4dfcc;border-radius:8px;background:#f3f7ef;line-height:1.5}.pos-shift-dialog>[aria-label="Loại chốt ca"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;margin:12px 0}
+@media print{.pos-shift-auto-info,.pos-shift-dialog>[aria-label="Loại chốt ca"]{display:none!important}}
