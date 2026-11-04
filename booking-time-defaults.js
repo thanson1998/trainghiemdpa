@@ -10,6 +10,8 @@
   if(!target.isConnected)return;
   const label=target.closest('label');
   const group=target.closest('.time-24-control');
+  // Current booking forms own both times in React; never dispatch a second edit.
+  if(group?.dataset?.reactTime==='true')return;
   let value,endInputs;
   if(label&&labelText(label)==='Bắt đầu'){
    const scope=label.parentElement;

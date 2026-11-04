@@ -5,6 +5,14 @@ import ts from 'typescript';
 import vm from 'node:vm';
 const code=ts.transpileModule(fs.readFileSync('time-input-value.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {automaticBookingEnd,normalizeTimeInput}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+
+test('booking drawer time edits are handled once by React without compatibility events',()=>{
+ const handlers={};let synthetic=0;
+ class Input{constructor(){this.isConnected=true;this.value='19:30';}closest(selector){return selector==='.time-24-control'?{dataset:{reactTime:'true'}}:null;}dispatchEvent(){synthetic++;}}
+ vm.runInNewContext(fs.readFileSync('booking-time-defaults.js','utf8'),{document:{documentElement:{},querySelectorAll:()=>[],addEventListener:(name,fn)=>handlers[name]=fn},HTMLInputElement:Input,HTMLSelectElement:class{},MutationObserver:class{observe(){}},queueMicrotask:fn=>fn(),Event});
+ const target=new Input();handlers.input({target});handlers.change({target});handlers.focusout({target});
+ assert.equal(target.value,'19:30');assert.equal(synthetic,0);
+});
 test('start time calculates a three-hour end while retaining minutes',()=>{
  for(const [start,end] of [['00:00','03:00'],['09:15','12:15'],['11:00','14:00'],['18:45','21:45'],['20:59','23:59']])assert.equal(automaticBookingEnd(start),end);
  assert.equal(automaticBookingEnd(normalizeTimeInput('1130')),'14:30');

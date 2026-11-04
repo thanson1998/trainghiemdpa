@@ -3,17 +3,31 @@
  const update=()=>document.querySelectorAll('.menu-print-sheet').forEach(sheet=>{
   const dishes=sheet.querySelector('.menu-print-dishes'),heading=dishes?.querySelector('h3'),set=dishes?.querySelector('.menu-print-set-name');
   const sets=Array.from(dishes?.querySelectorAll('.menu-print-set-name')??[]);
-  const matches=sets.map(row=>row.textContent.match(/(\d+)\s*set\s*$/i));
+  const lines=sets.flatMap(row=>row.textContent.split(/\s+\+\s+(?=\d+\s*[×x])/u)).map(text=>{
+   const leading=text.match(/^\s*(\d+)\s*[×x]\s*(.+)$/u),trailing=text.match(/^(.+?)\s*[·•]?\s+(\d+)\s*set\s*$/iu);
+   return leading?{name:leading[2].replace(/\s*[·•]\s*\d+\s*set\s*$/iu,'').trim(),count:Number(leading[1])}:trailing?{name:trailing[1].replace(/[\s·•]+$/u,''),count:Number(trailing[2])}:{name:text.trim(),count:1};
+  });
   const quantity=set?.textContent.match(/(\d+)\s*set\s*$/i);
   if(heading&&set&&quantity){
    let badge=heading.querySelector('.menu-print-set-quantity');
    if(!badge){badge=document.createElement('span');badge.className='menu-print-set-quantity';heading.appendChild(badge);}
-   const text='S\u1ed1 set: '+matches.reduce((sum,match)=>sum+Number(match?.[1]??0),0);if(badge.textContent!==text)badge.textContent=text;
+   const text='S\u1ed1 set: '+lines.reduce((sum,line)=>sum+line.count,0);if(badge.textContent!==text)badge.textContent=text;
    let caption=dishes.querySelector('.menu-print-set-caption');
    if(!caption){caption=document.createElement('p');caption.className='menu-print-set-caption';set.after(caption);}
-   const name=sets.map(row=>row.textContent).join(' + ');
+   const name=lines.map(line=>line.count+' × '+line.name).join('\n+ ');
    if(caption.textContent!==name)caption.textContent=name;
    sets.forEach(row=>row.classList.add('menu-print-set-relocated'));
+   // Presentation only: old mixed orders leave the first set's dishes unlabelled.
+   const firstName=/lẩu/iu.test(lines[0]?.name??'')?'Lẩu':lines[0]?.name;
+   dishes.querySelectorAll('li').forEach(row=>{
+    if(!row.querySelector('.dish-print-included'))return;
+    const description=row.querySelector('p');if(!description||!firstName)return;
+    const existing=Array.from(description.querySelectorAll('.dish-print-note')).some(note=>!note.dataset.generatedSet&&/Set\s*:/iu.test(note.textContent));
+    let label=description.querySelector('[data-generated-set]');
+    if(existing){label?.remove();return;}
+    if(!label){label=document.createElement('small');label.className='dish-print-note';label.dataset.generatedSet='true';description.appendChild(label);}
+    const text='Set: '+firstName;if(label.textContent!==text)label.textContent=text;
+   });
   }else{
    dishes?.querySelector('.menu-print-set-quantity')?.remove();dishes?.querySelector('.menu-print-set-caption')?.remove();
    set?.classList.remove('menu-print-set-relocated');

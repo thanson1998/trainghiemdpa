@@ -1,3 +1,4 @@
+import {TimeInput} from "./time-input";
 const EmailNotifications=lazy(()=>import('./email-notifications').then(module=>({default:module.EmailNotifications})));
 import {openPosTicket,readPosTickets} from './pos-logic';
 import {MapCashier} from './map-cashier';
@@ -34,8 +35,9 @@ type Hover={id:string;x:number;y:number};
 const empty=(date:string,slot:Slot,table?:string):Booking=>({id:crypto.randomUUID(),date,start:slot==='lunch'?'11:00':'18:00',end:slot==='lunch'?'14:00':'21:00',name:'',phone:'',tables:table?[table]:[],people:10,totalPeople:10,priceMode:'auto',platters:1,price:0,deposit:0,menu:'',note:'',status:'reserved',version:0});
 const fmtDate=(date:string)=>new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).format(new Date(date+'T12:00:00'));
 function Time24Input({value,onChange,label}:{value:string;onChange:(value:string)=>void;label:string}){
- return <div className="time-24-control" role="group" aria-label={label+' (24 giờ)'}><select required aria-label={label+': giờ'} value={value.slice(0,2)} onChange={e=>onChange(e.target.value+':'+(value.slice(3,5)||'00'))}><option value="" disabled>Giờ</option>{Array.from({length:24},(_,hour)=>String(hour).padStart(2,'0')).map(hour=><option key={hour} value={hour}>{hour}</option>)}</select><span aria-hidden="true">:</span><select required aria-label={label+': phút'} value={value.slice(3,5)} onChange={e=>onChange((value.slice(0,2)||'00')+':'+e.target.value)}><option value="" disabled>Phút</option>{Array.from({length:60},(_,minute)=>String(minute).padStart(2,'0')).map(minute=><option key={minute} value={minute}>{minute}</option>)}</select></div>;
+ return <div className="time-24-control" data-react-time="true" role="group" aria-label={label+" (24 giờ)"}><TimeInput required aria-label={label} placeholder="18:00" value={value} onChange={onChange}/></div>;
 }
+
 export default function Dashboard(){
  const layout=useTableLayout();
  function openOrderInPos(booking:Booking){if(booking.status==='cancelled'){open(booking);return;}try{const state=readPosTickets(localStorage.getItem('dpa-pos-tickets-v1'))??{tickets:[],selected:''};localStorage.setItem('dpa-pos-tickets-v1',JSON.stringify({format:'DPA_POS_V1',...openPosTicket(state,booking)}));setView('pos');}catch{setToast('Không mở được nháp POS. Kiểm tra dung lượng trình duyệt rồi thử lại.');}}
