@@ -1,11 +1,12 @@
 import {cleanSetName} from './set-names';
 export type MenuItem={name:string;price:number|null;quantity?:number;unit?:string;included?:boolean;category?:string;note?:string;served?:number};
-export type MenuSet={name:string;pricePerTable:number;people?:number;quantity?:number};
+export type MenuSetPart={name:string;pricePerTable:number;people?:number;quantity:number};
+export type MenuSet={name:string;pricePerTable:number;people?:number;quantity?:number;parts?:MenuSetPart[]};
 const prefix='DPA_MENU_V1:';
 const setPrefix='DPA_MENU_V2:';
 export function readMenuSet(value:string):MenuSet|undefined{
  if(!value.startsWith(setPrefix))return;
- try{const data=JSON.parse(value.slice(setPrefix.length)),set=data.set;return set?{...set,name:cleanSetName(set.name,{...set,itemNames:data.items?.map((i:MenuItem)=>i.name)})}:undefined;}catch{return;}
+ try{const data=JSON.parse(value.slice(setPrefix.length)),set=data.set;return set?{...set,name:set.parts?set.name:cleanSetName(set.name,{...set,itemNames:data.items?.map((i:MenuItem)=>i.name)})}:undefined;}catch{return;}
 }
 export const menuSetQuantity=(value:string,tableCount=1)=>readMenuSet(value)?.quantity??tableCount;
 export const hasPricedMenu=(value:string)=>!!readMenuSet(value)||readMenu(value).some(item=>item.name.trim()&&item.price!==null);
@@ -22,6 +23,7 @@ export function readMenu(value:string,tableCount=1,expandSet=true):MenuItem[]{
 }
 export function setMenuQuantity(value:string,quantity:number,tableCount=1):string{
  const set=readMenuSet(value);if(!set||!Number.isInteger(quantity)||quantity<1||quantity>1000)throw new Error('Số lượng set phải từ 1 đến 1.000.');
+ if(set.parts){if(quantity===1)return value;throw new Error('Với thực đơn nhiều loại set, chọn số lượng rồi thêm từng set từ thư viện.');}
  const previous=menuSetQuantity(value,tableCount);
  const items=readMenu(value,tableCount).map(item=>item.included?{...item,quantity:Math.round(itemQuantity(item)*quantity/previous*100)/100,...(item.served!==undefined?{served:Math.min(item.served,Math.round(itemQuantity(item)*quantity/previous*100)/100)}:{})}:item);
  const next=writeMenu(items,{...set,quantity});if(!validMenu(next))throw new Error('Số lượng món sau khi nhân set phải từ 0,01 đến 1.000.');return next;
@@ -47,6 +49,11 @@ export function validMenu(value:string):boolean{
  if(value.startsWith(setPrefix)){
   try{
    const data=JSON.parse(value.slice(setPrefix.length)),set=data.set;
+   if(set?.parts!==undefined){
+    if(!Array.isArray(set.parts)||set.parts.length<2||set.parts.length>80||set.quantity!==1)return false;
+    if(!set.parts.every((p:MenuSetPart)=>p&&typeof p.name==='string'&&p.name.trim().length>0&&p.name.length<=100&&Number.isInteger(p.pricePerTable)&&p.pricePerTable>=0&&p.pricePerTable<=100000000&&Number.isInteger(p.quantity)&&p.quantity>=1&&p.quantity<=1000&&(p.people===undefined||(Number.isInteger(p.people)&&p.people>=1&&p.people<=1000))))return false;
+    if(set.pricePerTable!==set.parts.reduce((sum:number,p:MenuSetPart)=>sum+p.pricePerTable*p.quantity,0)||set.parts.reduce((sum:number,p:MenuSetPart)=>sum+p.quantity,0)>1000)return false;
+   }
    return !!set&&typeof set.name==='string'&&set.name.trim().length>0&&set.name.length<=100&&Number.isInteger(set.pricePerTable)&&set.pricePerTable>=0&&set.pricePerTable<=100000000&&(set.people===undefined||(Number.isInteger(set.people)&&set.people>=1&&set.people<=1000))&&(set.quantity===undefined||(Number.isInteger(set.quantity)&&set.quantity>=1&&set.quantity<=1000))&&Array.isArray(data.items)&&data.items.some((item:MenuItem)=>item?.included&&item.name?.trim())&&data.items.every((item:MenuItem)=>item.included===undefined||typeof item.included==='boolean')&&data.items.every((item:MenuItem)=>!item.included||item.price===null)&&validMenu(prefix+JSON.stringify(data.items));
   }catch{return false;}
  }

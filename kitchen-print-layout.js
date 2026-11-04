@@ -2,16 +2,18 @@
 (()=>{
  const update=()=>document.querySelectorAll('.menu-print-sheet').forEach(sheet=>{
   const dishes=sheet.querySelector('.menu-print-dishes'),heading=dishes?.querySelector('h3'),set=dishes?.querySelector('.menu-print-set-name');
+  const sets=Array.from(dishes?.querySelectorAll('.menu-print-set-name')??[]);
+  const matches=sets.map(row=>row.textContent.match(/(\d+)\s*set\s*$/i));
   const quantity=set?.textContent.match(/(\d+)\s*set\s*$/i);
   if(heading&&set&&quantity){
    let badge=heading.querySelector('.menu-print-set-quantity');
    if(!badge){badge=document.createElement('span');badge.className='menu-print-set-quantity';heading.appendChild(badge);}
-   const text='S\u1ed1 set: '+quantity[1];if(badge.textContent!==text)badge.textContent=text;
+   const text='S\u1ed1 set: '+matches.reduce((sum,match)=>sum+Number(match?.[1]??0),0);if(badge.textContent!==text)badge.textContent=text;
    let caption=dishes.querySelector('.menu-print-set-caption');
    if(!caption){caption=document.createElement('p');caption.className='menu-print-set-caption';set.after(caption);}
-   const name=set.textContent.slice(0,quantity.index).replace(/[\s\u00b7\u2022]+$/u,'');
+   const name=sets.map(row=>row.textContent).join(' + ');
    if(caption.textContent!==name)caption.textContent=name;
-   if(!set.classList.contains('menu-print-set-relocated'))set.classList.add('menu-print-set-relocated');
+   sets.forEach(row=>row.classList.add('menu-print-set-relocated'));
   }else{
    dishes?.querySelector('.menu-print-set-quantity')?.remove();dishes?.querySelector('.menu-print-set-caption')?.remove();
    set?.classList.remove('menu-print-set-relocated');
