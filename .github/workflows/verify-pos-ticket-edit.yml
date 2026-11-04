@@ -21,12 +21,12 @@ jobs:
             try{
               const expectedResponse=await fetch('https://raw.githubusercontent.com/'+process.env.GITHUB_REPOSITORY+'/'+process.env.GITHUB_SHA+'/index.html',{cache:'no-store',signal:AbortSignal.timeout(15000)});
               if(!expectedResponse.ok)throw Error('Expected build manifest is not available');
-              const expectedHtml=await expectedResponse.text(),expectedAssets=[...expectedHtml.matchAll(/(?:src|href)="(\.\/assets\/source-[^"]+\.(?:js|css))"/g)].map(m=>m[1]);
-              if(expectedAssets.length<2)throw Error('Expected application assets are missing');
+              const expectedHtml=await expectedResponse.text(),expectedRelease=expectedHtml.match(/<meta name="dpa-release" content="([^"]+)"\s*\/>/)?.[1];
+              if(!expectedRelease)throw Error('Expected release marker is missing');
               for(const host of ['https://thanson1998.github.io/trainghiemdpa/','https://trainghiemdpa.thanson198.workers.dev/']){
                 const r=await fetch(host+'?ticket='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
                 const html=await r.text();
-                if(!r.ok||!expectedAssets.every(asset=>html.includes(asset))||!html.includes('pos-ticket-edit.js?v=20261030-12')||!html.includes('pos-ticket-edit.css?v=20261104-end-table')||!html.includes('booking-time-defaults.js?v=20261104-edit-time'))throw Error('Current form is not ready');
+                if(!r.ok||!html.includes('name="dpa-release" content="'+expectedRelease+'"')||!html.includes('pos-ticket-edit.js?v=20261030-12')||!html.includes('pos-ticket-edit.css?v=20261104-end-table')||!html.includes('booking-time-defaults.js?v=20261104-edit-time'))throw Error('Current form is not ready');
               }
               break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
