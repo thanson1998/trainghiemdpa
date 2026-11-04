@@ -46,26 +46,3 @@
 .stats-grid .stat{border:1px solid #dce5df;border-radius:12px;box-shadow:0 3px 12px #173d2610,0 1px 3px #173d2608;background:#fff}.stats-grid .stat.accent-stat{background:#f3f6ef;border-color:#dce5d5}
 .booking-drawer .booking-customer-fields .time-24-control input{width:100%;min-width:0;pointer-events:auto}
 
-/* One grid keeps captions and controls aligned across booking rows. */
-.booking-drawer .booking-customer-fields{grid-template-columns:repeat(12,minmax(0,1fr));gap:16px 12px}
-.booking-drawer .booking-customer-fields>.form-row,.booking-drawer .booking-customer-fields .booking-end-table-pair{display:contents}
-.booking-drawer .booking-customer-fields label{grid-column:span 4;grid-template-rows:21px 40px;gap:6px;margin:0}
-.booking-drawer .booking-customer-fields>label:nth-of-type(2),.booking-drawer .booking-customer-fields .time-24-field,.booking-drawer .booking-customer-fields .booking-end-table-pair .portable-table-field{grid-column:span 3;margin:0;grid-template-rows:21px 40px;gap:6px;font-size:14px}
-.booking-drawer .booking-customer-fields input,.booking-drawer .booking-customer-fields select{height:40px;min-height:40px;margin:0;width:100%;min-width:0;box-sizing:border-box}
-.booking-drawer .booking-customer-fields .time-24-control[data-react-time=true]{grid-template-columns:minmax(0,1fr);gap:0;margin:0;height:40px}
-.booking-drawer .booking-customer-fields .time-24-control input{font-variant-numeric:tabular-nums}
-.booking-drawer .drawer-body>.order-service-choice{margin:16px 0 18px}
-.booking-drawer .drawer-body>.order-service-choice>[role=group]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.booking-drawer .order-service-choice button{box-sizing:border-box;height:40px;min-height:40px;margin:0;padding:8px 12px}
-.booking-drawer .booking-form-nav{padding-left:26px;padding-right:26px;gap:12px}
-.booking-drawer .drawer-head{padding-left:26px;padding-right:26px}
-.booking-drawer .booking-form-nav button{height:40px;min-height:40px}
-.booking-drawer .drawer-footer{gap:10px;padding-left:26px;padding-right:26px}
-.booking-drawer .drawer-footer>button{flex:1 1 0;min-width:0;min-height:42px;margin:0;justify-content:center;padding:9px 12px}
-@media(max-width:650px){
- .booking-drawer .booking-customer-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
- .booking-drawer .booking-customer-fields label,.booking-drawer .booking-customer-fields>label:nth-of-type(2),.booking-drawer .booking-customer-fields .time-24-field,.booking-drawer .booking-customer-fields .booking-end-table-pair .portable-table-field{grid-column:span 1}
- .booking-drawer .booking-customer-fields>label:first-child{grid-column:1/-1}
- .booking-drawer .drawer-head,.booking-drawer .booking-form-nav,.booking-drawer .drawer-footer{padding-left:17px;padding-right:17px;gap:8px}
- .booking-drawer .drawer-footer>button{font-size:13px;padding:9px 6px}
-}

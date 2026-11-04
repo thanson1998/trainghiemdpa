@@ -1,10 +1,12 @@
+import {createStoredBackup} from './backups-api';
+import {defaultBankSettings,validBankAccount} from './bank-model';
 import {bookingTotal} from './model';
 import {z} from 'zod';
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
-const bankSchema=z.object({bankId:z.string().regex(/^\d{6}$/),account:z.string().regex(/^\d{6,30}$/),name:z.string().trim().min(1).max(100),version:z.number().int().min(0)});
-export async function GET_BANK(_req:Request,db:D1Database){try{const row=await db.prepare('SELECT data,version FROM pos_bank WHERE id=1').first<{data:string;version:number}>();return out(row?{...JSON.parse(row.data),version:row.version}:{bankId:'',account:'',name:'',version:0});}catch{return out({error:'Chưa tải được tài khoản nhận tiền.'},503);}}
+const bankSchema=z.object({bankId:z.string().regex(/^\d{6}$/),account:z.string().trim().refine(validBankAccount),name:z.string().trim().min(1).max(100),version:z.number().int().min(0)});
+export async function GET_BANK(_req:Request,db:D1Database){try{const row=await db.prepare('SELECT data,version FROM pos_bank WHERE id=1').first<{data:string;version:number}>();return out(row?{...JSON.parse(row.data),version:row.version}:defaultBankSettings);}catch{return out({error:'Chưa tải được tài khoản nhận tiền.'},503);}}
 export async function SAVE_BANK(req:Request,db:D1Database){try{
- const parsed=bankSchema.safeParse(await req.json());if(!parsed.success)return out({error:'Chọn ngân hàng, nhập số tài khoản 6–30 chữ số và tên chủ tài khoản.'},400);
+ const parsed=bankSchema.safeParse(await req.json());if(!parsed.success)return out({error:'Chọn ngân hàng, nhập số tài khoản / mã thanh toán 6–30 chữ hoặc số và tên chủ tài khoản.'},400);
  const {version,...data}=parsed.data;
  const result=version===0?await db.prepare('INSERT INTO pos_bank(id,data,version) VALUES(1,?,1) ON CONFLICT(id) DO NOTHING').bind(JSON.stringify(data)).run():await db.prepare('UPDATE pos_bank SET data=?,version=version+1 WHERE id=1 AND version=?').bind(JSON.stringify(data),version).run();
  return result.meta.changes?out({...data,version:version+1}):out({error:'Tài khoản vừa thay đổi trên máy khác. Đóng rồi mở lại để kiểm tra.'},409);
@@ -31,5 +33,7 @@ export async function SAVE_SHIFT(req:Request,db:D1Database){try{
  const report={...input,summary,expected:input.opening+summary.cash-input.expenses,difference:input.counted-(input.opening+summary.cash-input.expenses),createdAt:new Date().toISOString()};
  const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(input.from));
  const result=await db.prepare('INSERT INTO pos_shift_reports(id,service_date,data,created_at) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(input.id,day,JSON.stringify(report),report.createdAt).run();
- return result.meta.changes?out({report}):out({error:'Bản đối soát đã lưu. Mở lịch sử ca để kiểm tra.'},409);
+ if(!result.meta.changes)return out({error:'Bản đối soát đã lưu. Mở lịch sử ca để kiểm tra.'},409);
+ let backup;try{backup={ok:true,snapshot:await createStoredBackup(db,'shift:'+input.id,'Chốt ca')};}catch{backup={ok:false,error:'Ca đã lưu nhưng sao lưu chưa thành công. Vào Lịch sử > Sao lưu để tạo lại.'};}
+ return out({report,backup});
  }catch{return out({error:'Chưa lưu được đối soát ca. Cập nhật số liệu để kiểm tra trước khi thử lại.'},503);}}

@@ -15,7 +15,7 @@ function moduleUrl(spec){
 }
 const {PosScheduleFields,PosPricingFields}=await import(moduleUrl('./pos-ticket-fields'));
 const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
-const booking={date:'2026-10-30',start:'11:30',end:'14:30',serviceType:'dine-in',priceMode:'auto',status:'reserved',price:1500000,deposit:200000};
+const booking={id:'audit-booking',name:'Khách lẻ',phone:'',tables:['S1-01'],people:1,totalPeople:1,platters:1,menu:'',note:'',version:0,date:'2026-10-30',start:'11:30',end:'14:30',serviceType:'dine-in',priceMode:'auto',status:'reserved',price:1500000,deposit:200000};
 const render=(component,b=booking,disabled=false)=>renderToStaticMarkup(React.createElement(component,{booking:b,disabled,onChange:()=>{}}));
 test('date and both service times render as editable, labeled controls',()=>{
  const html=render(PosScheduleFields);

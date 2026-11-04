@@ -1,3 +1,4 @@
+import {GET_BACKUPS,CREATE_BACKUP,RESTORE_BACKUP_ORDER,processDailyBackup} from './backups-api';
 import {IMPORT_CATALOG} from './catalog-ai';
 import {telegramStatus,processBookingTelegrams,processTelegramChecks,processTelegramPayments,type TelegramEnv} from './telegram-reminders';
 import {emailReminderStatus,saveEmailSchedule,sendTestBookingEmail,processBookingEmails,processEmailPayments,type EmailReminderEnv} from './email-reminders';
@@ -13,14 +14,14 @@ import {GET_CATALOG,POST_CATALOG} from './catalog-api';
 import {GET,POST,DELETE,MOVE,HISTORY,RESTORE,BACKUP,GET_PRINT,CONFIRM_PRINT} from './api';
 interface Env extends EmailReminderEnv,TelegramEnv {SEARCHAPI_API_KEY?:string;DB:D1Database;ASSETS:Fetcher;ALLOWED_ORIGIN?:string;GEMINI_API_KEY?:string;GEMINI_MODEL?:string;DISH_IMAGES_DAILY_LIMIT?:string;DISH_IMAGES_ENABLED?:string;AI?:{run(model:string,input:Record<string,unknown>):Promise<unknown>}}
 export default {
- async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
+ async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext){ctx.waitUntil(processDailyBackup(env.DB).catch(()=>console.error('Daily backup deferred to next cron')));ctx.waitUntil(processDishImages(env));ctx.waitUntil(processBookingEmails(env));ctx.waitUntil(processBookingTelegrams(env));ctx.waitUntil(processTelegramChecks(env));ctx.waitUntil(processTelegramPayments(env));},
  async fetch(request:Request,env:Env,ctx?:ExecutionContext):Promise<Response>{
   const url=new URL(request.url);
   url.pathname=({'/api/market-connection':'/api/ads-connection','/api/market-feed':'/api/ads-live','/api/market-research':'/api/ads-research'} as Record<string,string>)[url.pathname]||url.pathname;
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
   const allowed=env.ALLOWED_ORIGIN||'https://thanson1998.github.io';
-  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin'});
+  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'five-v1'});
   if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Ngu?n truy c?p kh�ng du?c c?u h�nh.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
@@ -45,7 +46,7 @@ export default {
    if(request.method==='POST'&&!request.headers.get('Content-Type')?.includes('application/json'))return Response.json({error:'Y�u c?u ph?i c� d?nh d?ng JSON.'},{status:415,headers});
    const response=url.pathname==='/api/ads-connection'?(request.method==='GET'?await GET_ADS_CONNECTION(request,env):request.method==='POST'?await CONNECT_ADS(request,env):Response.json({error:'Phuong th?c kh�ng h? tr?.'},{status:405})):(request.method==='GET'?await GET_LIVE_ADS(request,env):request.method==='POST'?await SEARCH_LIVE_ADS(request,env):Response.json({error:'Phuong th?c kh�ng h? tr?.'},{status:405}));const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
-  if(!['/api/order-history','/api/table-layout','/api/ads-research','/api/pos/bank','/api/pos/shift','/api/bookings','/api/catalog','/api/catalog/import','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments','/api/payments/reverse'].includes(url.pathname))return Response.json({error:'Kh�ng t�m th?y ch?c nang.'},{status:404,headers});
+  if(!['/api/backups','/api/backups/restore','/api/order-history','/api/table-layout','/api/ads-research','/api/pos/bank','/api/pos/shift','/api/bookings','/api/catalog','/api/catalog/import','/api/bookings/move','/api/import-text','/api/ai-status','/api/ai-check','/api/history','/api/history/restore','/api/backup','/api/bookings/prints','/api/payments','/api/payments/reverse'].includes(url.pathname))return Response.json({error:'Kh�ng t�m th?y ch?c nang.'},{status:404,headers});
   if(['POST','DELETE'].includes(request.method)&&!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return Response.json({error:'Y�u c?u ph?i c� d?nh d?ng JSON.'},{status:415,headers});
   if(['/api/ai-status','/api/ai-check'].includes(url.pathname)){
    let response:Response;
@@ -56,7 +57,7 @@ export default {
    }else response=Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});
    const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;
   }
-  const extra:Record<string,Record<string,typeof GET>>={'/api/order-history':{GET:GET_ORDER_HISTORY},'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
+  const extra:Record<string,Record<string,typeof GET>>={'/api/backups':{GET:GET_BACKUPS,POST:CREATE_BACKUP},'/api/backups/restore':{GET:RESTORE_BACKUP_ORDER,POST:RESTORE_BACKUP_ORDER},'/api/order-history':{GET:GET_ORDER_HISTORY},'/api/table-layout':{GET:GET_LAYOUT,POST:SAVE_LAYOUT},'/api/ads-research':{GET:GET_ADS,POST:SAVE_ADS},'/api/pos/bank':{GET:GET_BANK,POST:SAVE_BANK},'/api/pos/shift':{GET:GET_SHIFT,POST:SAVE_SHIFT},'/api/payments/reverse':{GET:REVERSAL_STATUS,POST:REVERSE_PAYMENT},'/api/payments':{GET:GET_PAYMENTS,POST:PAY},'/api/history':{GET:HISTORY},'/api/history/restore':{POST:RESTORE},'/api/backup':{GET:BACKUP},'/api/bookings/prints':{GET:GET_PRINT,POST:CONFIRM_PRINT}};
   if(extra[url.pathname]){const fn=extra[url.pathname][request.method];const response=fn?await fn(request,env.DB):Response.json({error:'Phuong th?c kh�ng du?c h? tr?.'},{status:405});if(url.pathname==='/api/payments'&&request.method==='POST'&&response.ok&&ctx){ctx.waitUntil(processTelegramPayments(env).catch(()=>console.error('Telegram payment notice deferred to cron')));ctx.waitUntil(processEmailPayments(env).catch(()=>console.error('Email payment notice deferred to cron')));}const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/catalog/import'){const response=request.method==='POST'&&request.headers.get('Content-Type')?.toLowerCase().includes('application/json')?await IMPORT_CATALOG(request,env):Response.json({error:'Chỉ nhận POST JSON.'},{status:request.method==='POST'?415:405});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}
   if(url.pathname==='/api/import-text'){const response=request.method==='POST'?await IMPORT(request,env):Response.json({error:'Ch? h? tr? POST.'},{status:405,headers:{Allow:'POST, OPTIONS'}});const result=new Response(response.body,response);headers.forEach((v,k)=>result.headers.set(k,v));return result;}

@@ -13,9 +13,4 @@ export function kitchenState(b:Booking,last:Booking|null|undefined){
 }
 export function servedProgress(b:Booking){const items=readMenu(b.menu,orderUnits(b));return {done:items.filter(i=>(i.served??0)>=itemQuantity(i)).length,total:items.length};}
 export function cashSuggestions(due:number){return [...new Set([due,...[50000,100000,200000,500000,1000000].map(step=>Math.ceil(due/step)*step)])].filter(n=>n>=due&&n<=5000000000).slice(0,5);}
-export type BankSettings={bankId:string;account:string;name:string;version:number};
-export function transferQr(bank:BankSettings,due:number,code:string){
- if(!/^\d{6}$/.test(bank.bankId)||!/^\d{6,30}$/.test(bank.account)||!bank.name.trim()||!Number.isSafeInteger(due)||due<=0)return '';
- const query=new URLSearchParams({amount:String(due),addInfo:code.replace(/[^a-zA-Z0-9 -]/g,'').slice(0,40),accountName:bank.name});
- return `https://img.vietqr.io/image/${bank.bankId}-${bank.account}-compact2.png?${query}`;
-}
+export {type BankSettings,bankQr as transferQr} from './bank-model';

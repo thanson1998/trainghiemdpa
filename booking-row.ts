@@ -1,0 +1,2 @@
+import type {Booking} from './model';
+export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway' as const}:{}),...(r.table_label?{tableLabel:r.table_label}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version};}

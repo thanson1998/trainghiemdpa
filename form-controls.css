@@ -1,0 +1,38 @@
+
+.booking-drawer,.pos-cart,.pos-checkout,.catalog-editor,.pos-shift-dialog,.backup-panel{--control-height:40px;--control-radius:6px;--control-gap:12px}
+.pos-cart{--control-height:32px}
+.booking-drawer input,.booking-drawer select,.pos-cart input,.pos-cart select,.pos-checkout input,.pos-checkout select,.catalog-editor input,.catalog-editor select,.pos-shift-dialog input,.backup-panel input{box-sizing:border-box;min-width:0;border-radius:var(--control-radius);font-variant-numeric:tabular-nums}
+.field-error{display:block!important;grid-column:1/-1;font-size:12px!important;line-height:1.4!important;color:#a53527!important;margin:3px 0 0!important;white-space:normal!important}
+input[aria-invalid=true],select[aria-invalid=true]{border-color:#b83e2d!important;box-shadow:0 0 0 1px #b83e2d22}
+.reservation-draft-banner{padding:12px 16px;border:1px solid #d2dec8;background:#f2f6eb;border-radius:8px;margin:12px 0}
+.reservation-draft-banner>div{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
+.reservation-draft-banner>div>span{flex:1;min-width:180px}
+.reservation-draft-banner button{min-height:36px;padding:6px 10px}
+.backup-list{display:grid;gap:10px;margin:12px 0}
+.backup-list article{display:flex;align-items:center;flex-wrap:wrap;gap:10px;border:1px solid #d9e3d3;border-radius:8px;padding:12px}
+.backup-list article>div{display:grid;gap:4px;flex:1;min-width:200px}.backup-list small{color:#667760}
+.backup-list button{min-height:40px}.backup-restore{margin-top:20px;padding:16px;border:1px solid #c9d8bf;border-radius:10px}.backup-restore>p{line-height:1.5;color:#526650}.backup-restore>input{height:40px;padding:8px 10px;width:100%;max-width:480px}
+@media(max-width:600px){.backup-list article>div{width:100%;flex-basis:100%}.backup-list button{flex:1}.reservation-draft-banner button{flex:1}}
+/* One grid keeps captions and controls aligned across booking rows. */
+.booking-drawer .booking-customer-fields{grid-template-columns:repeat(12,minmax(0,1fr));gap:16px 12px}
+.booking-drawer .booking-customer-fields>.form-row,.booking-drawer .booking-customer-fields .booking-end-table-pair{display:contents}
+.booking-drawer .booking-customer-fields label{grid-column:span 4;grid-template-rows:21px 40px;gap:6px;margin:0}
+.booking-drawer .booking-customer-fields>label:nth-of-type(2),.booking-drawer .booking-customer-fields .time-24-field,.booking-drawer .booking-customer-fields .booking-end-table-pair .portable-table-field{grid-column:span 3;margin:0;grid-template-rows:21px 40px;gap:6px;font-size:14px}
+.booking-drawer .booking-customer-fields input,.booking-drawer .booking-customer-fields select{height:40px;min-height:40px;margin:0;width:100%;min-width:0;box-sizing:border-box}
+.booking-drawer .booking-customer-fields .time-24-control[data-react-time=true]{grid-template-columns:minmax(0,1fr);gap:0;margin:0;height:40px}
+.booking-drawer .booking-customer-fields .time-24-control input{font-variant-numeric:tabular-nums}
+.booking-drawer .drawer-body>.order-service-choice{margin:16px 0 18px}
+.booking-drawer .drawer-body>.order-service-choice>[role=group]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.booking-drawer .order-service-choice button{box-sizing:border-box;height:40px;min-height:40px;margin:0;padding:8px 12px}
+.booking-drawer .booking-form-nav{padding-left:26px;padding-right:26px;gap:12px}
+.booking-drawer .drawer-head{padding-left:26px;padding-right:26px}
+.booking-drawer .booking-form-nav button{height:40px;min-height:40px}
+.booking-drawer .drawer-footer{gap:10px;padding-left:26px;padding-right:26px}
+.booking-drawer .drawer-footer>button{flex:1 1 0;min-width:0;min-height:42px;margin:0;justify-content:center;padding:9px 12px}
+@media(max-width:650px){
+ .booking-drawer .booking-customer-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+ .booking-drawer .booking-customer-fields label,.booking-drawer .booking-customer-fields>label:nth-of-type(2),.booking-drawer .booking-customer-fields .time-24-field,.booking-drawer .booking-customer-fields .booking-end-table-pair .portable-table-field{grid-column:span 1}
+ .booking-drawer .booking-customer-fields>label:first-child{grid-column:1/-1}
+ .booking-drawer .drawer-head,.booking-drawer .booking-form-nav,.booking-drawer .drawer-footer{padding-left:17px;padding-right:17px;gap:8px}
+ .booking-drawer .drawer-footer>button{font-size:13px;padding:9px 6px}
+}

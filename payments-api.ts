@@ -2,7 +2,8 @@ import {validSalesRange,utcSalesRange,monthRange} from './sales-date';
 import {bookingTotal,type Booking} from './model';
 import {z} from 'zod';
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
-export function paymentBooking(r:any):Booking{return {id:r.id,...(r.service_type==='takeaway'?{serviceType:'takeaway' as const}:{}),...(r.table_label?{tableLabel:r.table_label}:{}),orderCode:r.order_code,date:r.date,start:r.start,end:r.end,name:r.name,phone:r.phone,tables:JSON.parse(r.table_ids),people:r.people,...(r.total_people!=null?{totalPeople:r.total_people}:{}),priceMode:r.price_mode??'agreed',platters:r.platters,price:r.price,deposit:r.deposit??0,menu:r.menu,note:r.note,status:r.status,version:r.version};}
+import {paymentBooking} from './booking-row';
+export {paymentBooking} from './booking-row';
 export async function GET_PAYMENTS(req:Request,db:D1Database){
  const p=new URL(req.url).searchParams,month=p.get('month');
  const range=p.has('from')||p.has('to')?{from:p.get('from')||'',to:p.get('to')||''}:month&&/^\d{4}-(0[1-9]|1[0-2])$/.test(month)?monthRange(month):null;

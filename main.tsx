@@ -1,10 +1,11 @@
 import {createRoot} from 'react-dom/client';
+import {BankSettingsProvider} from './bank-settings';
 import Dashboard from './dashboard';
 import './styles.css';
 import './menu-print.css';
 import './menu-editor.css';
 import './catalog.css';
-createRoot(document.getElementById('root')!).render(<Dashboard/>);
+createRoot(document.getElementById('root')!).render(<BankSettingsProvider><Dashboard/></BankSettingsProvider>);
 import './orders-dashboard.css';
 
 import './table-transfer.css';
@@ -22,3 +23,5 @@ import './pos-readability.css';
 import './page-layout.css';
 
 import './performance.css';
+
+import './form-controls.css';

@@ -30,17 +30,17 @@ jobs:
               html=await page.text();
               // An invalid range must return 400. This checks routing without reading customer data.
               const route=await fetch(base+'/api/order-history?from=invalid&to=invalid',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              if(page.ok&&html.includes('pos-menu-overview.js?v=20261028-perf1')&&route.status===400)break;
+              if(page.ok&&html.includes('pos-menu-overview.js?v=20261028-perf1')&&route.status===400&&route.headers.get('x-dpa-ops')==='five-v1')break;
               if(attempt===29)throw Error('Current deployment is not ready.');
             }catch(e){if(attempt===29)throw e;}
             await new Promise(resolve=>setTimeout(resolve,6000));
           }
           const report={};
-          for(const [label,url] of [['catalog',base+'/api/catalog'],['layout',base+'/api/table-layout'],['images',base+'/api/dish-images']]){
+          for(const [label,url] of [['catalog',base+'/api/catalog'],['layout',base+'/api/table-layout'],['images',base+'/api/dish-images'],['backups',base+'/api/backups'],['bank',base+'/api/pos/bank']]){
             const r=await fetch(url,{signal:AbortSignal.timeout(20000)});
             if(!r.ok)throw Error(label+' unavailable: '+r.status);
             const body=await r.json();
-            report[label]=label==='catalog'?{dishes:body.dishes?.length,templates:body.templates?.length}:label==='layout'?{version:body.version,zones:body.zones?.length,tables:body.zones?.reduce((n,z)=>n+z.tables.length,0)}:{enabled:body.enabled};
+            report[label]=label==='catalog'?{dishes:body.dishes?.length,templates:body.templates?.length}:label==='layout'?{version:body.version,zones:body.zones?.length,tables:body.zones?.reduce((n,z)=>n+z.tables.length,0)}:label==='images'?{enabled:body.enabled}:label==='backups'?{snapshots:body.backups?.length}:{configured:!!body.account};
           }
           const paths=[...html.matchAll(/(?:src|href)="(\.\/(?:assets\/[^"]+\.(?:js|css)|pos-menu-overview\.(?:js|css)[^"]*))"/g)].map(m=>m[1]);
           if(!paths.length)throw Error('Published application assets are missing.');
