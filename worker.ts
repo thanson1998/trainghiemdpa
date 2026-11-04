@@ -22,7 +22,7 @@ export default {
   if(!url.pathname.startsWith('/api/'))return env.ASSETS.fetch(request);
   const origin=request.headers.get('Origin');
   const allowed=env.ALLOWED_ORIGIN||'https://thanson1998.github.io';
-  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'retry60-v1'});
+  const headers=new Headers({'Cache-Control':'no-store','Vary':'Origin','X-DPA-Ops':'catalog-newest-v1'});
   if(origin===allowed||origin===url.origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');headers.set('Access-Control-Allow-Headers','Content-Type');headers.set('Access-Control-Max-Age','600');}
   if(origin && origin!==allowed && origin!==url.origin)return Response.json({error:'Ngu?n truy c?p kh�ng du?c c?u h�nh.'},{status:403,headers});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});

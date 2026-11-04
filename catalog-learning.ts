@@ -1,3 +1,4 @@
+import {newCatalogEntriesFirst} from './catalog-order';
 import {inferDishGroup} from './dish-groups';
 import {readMenu} from './menu';
 import type {Catalog} from './catalog-model';
@@ -12,7 +13,7 @@ export function mergeLearnedDishes(catalog:Catalog,menu:string,names:string[]){
   else if(dishes.length<500){dishes.push({id:crypto.randomUUID(),name:item.name.trim(),price:item.price,unit:item.unit?.trim()||'đĩa',category:inferDishGroup(item.name)});changed=true;}
   else warnings.push('Thư viện đã đủ 500 món, chưa thêm được '+item.name+'.');
  }
- return {catalog:{...catalog,dishes},changed,warning:warnings.join(' ')};
+ return {catalog:{...catalog,dishes:newCatalogEntriesFirst(dishes,catalog.dishes)},changed,warning:warnings.join(' ')};
 }
 export async function learnCatalogFromMenu(db:D1Database,menu:string,names:string[]):Promise<string>{
  if(!names.length)return '';

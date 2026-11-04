@@ -13,6 +13,11 @@ const text='Thực đơn mẫu:\n'+names.join(', ')+'\n2 triệu';
 const raw={kind:'template',name:null,price:2,items:names.map(name=>({name,price:999999,unit:'Đĩa',quantity:1})),warnings:[]};
 const empty=()=>({version:7,dishes:[],templates:[]});
 const req=(value,method='POST')=>new Request('https://dpa.example/api/catalog/import',{method,body:typeof value==='string'?value:JSON.stringify(value),headers:{'Content-Type':'application/json'}});
+test('a new AI template leads the library while retaining the previous templates and preventing duplicates',()=>{
+ const previous={id:crypto.randomUUID(),name:'Thực đơn đã có',menu:menu.writeMenu([{name:'Món cũ',price:90000}])};
+ const draft=api.normalizeCatalogAi(raw,text),before={...empty(),templates:[previous]},result=model.mergeAiCatalog(before,draft);
+ assert.equal(result.catalog.templates[0].name,draft.name);assert.deepEqual(result.catalog.templates[1],previous);assert.deepEqual(before.templates,[previous]);assert.equal(model.mergeAiCatalog(result.catalog,draft).added,0);
+});
 test('the requested menu has all 13 dishes and a two-million fixed price without priced extras',()=>{
  const draft=api.normalizeCatalogAi(raw,text);assert.equal(draft.kind,'template');assert.equal(draft.price,2000000);assert.equal(draft.items.length,13);assert.deepEqual(draft.items.map(i=>i.name),names);assert.ok(draft.items.every(i=>i.price===null&&i.unit==='đĩa'));
  const result=model.mergeAiCatalog(empty(),draft);assert.equal(result.added,1);assert.equal(result.catalog.templates.length,1);assert.equal(result.catalog.dishes.length,0);

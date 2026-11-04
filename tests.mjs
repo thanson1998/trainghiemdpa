@@ -130,7 +130,7 @@ test('dish groups can be edited, synchronized and kept when old clients only upd
  const {category,...legacy}=c.dishes[0];r=await catalogApi.POST_CATALOG(req('POST',{...c,dishes:[{...legacy,price:35000}]}),db);c=await r.json();assert.equal(c.dishes[0].category,'Đồ uống đặc biệt');assert.equal(c.dishes[0].price,35000);
  r=await catalogApi.POST_CATALOG(req('POST',{...c,dishes:[{...c.dishes[0],category:''}]}),db);c=await r.json();assert.equal(c.dishes[0].category,'Trà');
  const read=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(read.dishes[0].category,'Trà');assert.equal(read.dishes[0].price,35000);
- const merged=learning.mergeLearnedDishes(read,menu.writeMenu([{name:'Nước ép cóc',price:30000,unit:'cốc'}]),['Nước ép cóc']);assert.equal(merged.catalog.dishes.at(-1).category,'Nước ép');
+ const merged=learning.mergeLearnedDishes(read,menu.writeMenu([{name:'Nước ép cóc',price:30000,unit:'cốc'}]),['Nước ép cóc']);assert.equal(merged.catalog.dishes[0].name,'Nước ép cóc');assert.equal(merged.catalog.dishes[0].category,'Nước ép');
 });
 
 test('POS combines repeated dishes, preserves edited prices and expands legacy sets exactly once',()=>{
@@ -308,7 +308,7 @@ test('AI booking save adds new dishes and updates explicit prices while preservi
  const old=booking({price:300000,menu:menu.writeMenu([{name:'Gà hấp',price:300000,quantity:1}])});await api.POST(req('POST',old),db);
  const next=booking({tables:['S1-02'],price:740000,menu:menu.writeMenu([{name:'Gà hấp',unit:'đĩa',price:320000,quantity:2},{name:'Món mới',unit:'bát',price:100000,quantity:1}]),learnDishNames:['Gà hấp','Món mới']});
  assert.equal((await api.POST(req('POST',next),db)).status,200);
- const catalog=(await(await catalogApi.GET_CATALOG(req('GET'),db)).json());assert.equal(catalog.dishes.length,2);assert.equal(catalog.dishes[0].id,id);assert.equal(catalog.dishes[0].price,320000);assert.equal(catalog.dishes[1].price,100000);assert.equal(catalog.dishes[1].unit,'bát');assert.deepEqual(catalog.templates,[template]);
+ const catalog=(await(await catalogApi.GET_CATALOG(req('GET'),db)).json());assert.equal(catalog.dishes.length,2);assert.equal(catalog.dishes[0].name,'Món mới');assert.equal(catalog.dishes[0].price,100000);assert.equal(catalog.dishes[0].unit,'bát');assert.equal(catalog.dishes[1].id,id);assert.equal(catalog.dishes[1].price,320000);assert.deepEqual(catalog.templates,[template]);
  const bookings=(await(await get()).json()).bookings;assert.equal(bookings.find(b=>b.id===old.id).price,300000);assert.equal(menu.readMenu(bookings.find(b=>b.id===old.id).menu)[0].price,300000);
  assert.equal(await learning.learnCatalogFromMenu(db,next.menu,next.learnDishNames),'');const repeated=await(await catalogApi.GET_CATALOG(req('GET'),db)).json();assert.equal(repeated.version,catalog.version);assert.equal(repeated.dishes.length,2);
 });
@@ -599,6 +599,15 @@ test('deposits are per reservation and persist across updates with version check
  assert.equal((await api.POST(req('POST',{...b,deposit:700000,version:1}),db)).status,409);
  for(const deposit of [-1,0.5,2400001])assert.equal((await api.POST(req('POST',booking({tables:['18','19'],price:1200000,deposit})),db)).status,400);
  const old=booking({tables:['20']});await api.POST(req('POST',old),db);assert.equal((await(await get()).json()).bookings.find(x=>x.id===old.id).deposit,0);
+});
+test('new dishes and templates lead the shared catalog even when an older client appends them',async()=>{
+ const save=body=>catalogApi.POST_CATALOG(req('POST',body),db),read=async()=>await(await catalogApi.GET_CATALOG(req('GET'),db)).json();
+ const template=name=>({id:crypto.randomUUID(),name,menu:menu.writeMenu([{name:'Món mẫu',price:100000}])}),dish=name=>({id:crypto.randomUUID(),name,unit:'đĩa',price:100000});
+ const oldDish=dish('Món cũ'),oldSet=template('Set cũ');assert.equal((await save({version:0,dishes:[oldDish],templates:[oldSet]})).status,200);
+ const initial=await read(),newDish=dish('Món mới tạo'),newSet=template('Set mới tạo');assert.equal((await save({...initial,dishes:[...initial.dishes,newDish],templates:[...initial.templates,newSet]})).status,200);
+ const fresh=await read();assert.deepEqual(fresh.dishes.map(d=>d.id),[newDish.id,oldDish.id]);assert.deepEqual(fresh.templates.map(t=>t.id),[newSet.id,oldSet.id]);
+ assert.equal((await save({...fresh,dishes:fresh.dishes.map(d=>d.id===oldDish.id?{...d,price:150000}:d)})).status,200);
+ const edited=await read();assert.deepEqual(edited.dishes.map(d=>d.id),[newDish.id,oldDish.id]);assert.deepEqual(edited.templates.map(t=>t.id),[newSet.id,oldSet.id]);assert.equal(edited.dishes[1].price,150000);
 });
 test('catalog starts empty, synchronizes dishes and templates and protects concurrent edits',async()=>{
  const request=(data)=>new Request('https://dpa.example/api/catalog',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});

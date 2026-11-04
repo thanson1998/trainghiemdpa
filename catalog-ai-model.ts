@@ -15,7 +15,7 @@ export function mergeAiCatalog(current:Catalog,draft:CatalogAiDraft){
   const signature=(value:string)=>JSON.stringify({set:readMenuSet(value),items:readMenu(value,1,false)});
   if(existing){if(signature(existing.menu)===signature(menu))return {catalog:current,added:0,skipped:1};throw Error('Tên thực đơn này đã có trong thư viện. Hãy đổi tên để thêm bản mới.');}
   if(current.templates.length>=100)throw Error('Thư viện đã đủ 100 thực đơn mẫu.');
-  return {catalog:{...current,templates:[...current.templates,{id:crypto.randomUUID(),name:draft.name.trim(),menu}]},added:1,skipped:0};
+  return {catalog:{...current,templates:[{id:crypto.randomUUID(),name:draft.name.trim(),menu},...current.templates]},added:1,skipped:0};
  }
  const seen=new Set(current.dishes.map(d=>key(d.name)));let skipped=0;
  const added=draft.items.flatMap(i=>{if(seen.has(key(i.name))){skipped++;return [];}seen.add(key(i.name));return [{id:crypto.randomUUID(),name:i.name.trim(),unit:normalizeUnit(i.unit),price:i.price}];});
