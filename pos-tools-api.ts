@@ -1,4 +1,4 @@
-import {createStoredBackup} from './backups-api';
+import {enqueueBackup,runBackupJob} from './backup-jobs';
 import {defaultBankSettings,validBankAccount} from './bank-model';
 import {bookingTotal} from './model';
 import {z} from 'zod';
@@ -26,8 +26,8 @@ export async function GET_SHIFT(req:Request,db:D1Database){try{
  const params=new URL(req.url).searchParams,parsed=periodSchema.safeParse({from:params.get('from'),to:params.get('to'),opening:0,expenses:0,counted:0});if(!parsed.success)return out({error:'Chọn khoảng ca hợp lệ, tối đa 24 giờ.'},400);
  const {from,to}=parsed.data,summary=await shiftSummary(db,from,to);
  const {results:history}=await db.prepare("SELECT data FROM pos_shift_reports WHERE source='manual' ORDER BY created_at DESC LIMIT 10").all<{data:string}>();
- const {results:automaticHistory}=await db.prepare("SELECT s.data,EXISTS(SELECT 1 FROM app_backups b WHERE b.id='auto-shift:'||s.service_date) AS backup_ready FROM pos_shift_reports s WHERE s.source='automatic' ORDER BY s.created_at DESC LIMIT 10").all<{data:string;backup_ready:number}>();
- return out({summary,fingerprint:JSON.stringify(summary),history:history.map(r=>JSON.parse(r.data)),automaticHistory:automaticHistory.map(r=>({...JSON.parse(r.data),backupReady:!!r.backup_ready}))});
+ const {results:automaticHistory}=await db.prepare("SELECT s.data,EXISTS(SELECT 1 FROM app_backups b WHERE b.id='auto-shift:'||s.service_date AND b.created_at>strftime('%Y-%m-%dT%H:%M:%fZ','now','-60 days')) AS backup_ready,(SELECT status FROM backup_jobs j WHERE j.id='auto-shift:'||s.service_date) AS backup_state,(SELECT next_attempt FROM backup_jobs j WHERE j.id='auto-shift:'||s.service_date) AS backup_next_attempt FROM pos_shift_reports s WHERE s.source='automatic' ORDER BY s.created_at DESC LIMIT 10").all<{data:string;backup_ready:number;backup_state:string|null;backup_next_attempt:string|null}>();
+ return out({summary,fingerprint:JSON.stringify(summary),history:history.map(r=>JSON.parse(r.data)),automaticHistory:automaticHistory.map(r=>({...JSON.parse(r.data),backupReady:!!r.backup_ready,backupState:r.backup_state??undefined,nextAttemptAt:r.backup_next_attempt??undefined}))});
  }catch{return out({error:'Chưa tải được đối soát ca.'},503);}}
 export async function SAVE_SHIFT(req:Request,db:D1Database){try{
  const parsed=periodSchema.and(z.object({id:z.string().uuid(),fingerprint:z.string().max(5000)})).safeParse(await req.json());if(!parsed.success)return out({error:'Kiểm tra thời gian ca và các số tiền.'},400);
@@ -37,6 +37,6 @@ export async function SAVE_SHIFT(req:Request,db:D1Database){try{
  const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(input.from));
  const result=await db.prepare('INSERT INTO pos_shift_reports(id,service_date,data,created_at) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(input.id,day,JSON.stringify(report),report.createdAt).run();
  if(!result.meta.changes)return out({error:'Bản đối soát đã lưu. Mở lịch sử ca để kiểm tra.'},409);
- let backup;try{backup={ok:true,snapshot:await createStoredBackup(db,'shift:'+input.id,'Chốt ca')};}catch{backup={ok:false,error:'Ca đã lưu nhưng sao lưu chưa thành công. Vào Lịch sử > Sao lưu để tạo lại.'};}
+ let backup;try{const id='shift:'+input.id;await enqueueBackup(db,id,'Chốt ca thủ công',report.createdAt);backup=await runBackupJob(db,id);}catch{backup={ok:false,error:'Ca đã lưu nhưng sao lưu chưa thành công. Vào Lịch sử > Sao lưu để tạo lại.'};}
  return out({report,backup});
  }catch{return out({error:'Chưa lưu được đối soát ca. Cập nhật số liệu để kiểm tra trước khi thử lại.'},503);}}

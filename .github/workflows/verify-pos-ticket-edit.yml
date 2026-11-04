@@ -100,7 +100,7 @@ jobs:
               await page.waitForFunction(()=>document.querySelector('.pos-inline-pricing input[aria-label="Giá chốt POS mỗi bàn"]')?.value.replace(/\D/g,'')==='1500000');
               await page.getByLabel('Cách tính giá POS',{exact:true}).selectOption('auto');
               await page.waitForFunction(()=>!document.querySelector('.pos-inline-pricing input[aria-label="Giá chốt POS mỗi bàn"]'));
-              assert.equal(await dates.count(),1);await context.close();
+              assert.equal(await dates.count(),1);await page.getByRole('button',{name:'Khôi phục nháp',exact:true}).click();const recovery=page.getByRole('dialog',{name:'Chọn bản nháp khôi phục',exact:true});await recovery.waitFor();await recovery.getByRole('button',{name:'Đóng',exact:true}).click();await recovery.waitFor({state:'hidden'});await context.close();
             }
             console.log('Verified editable dates/times, +3h end, manual end, relocated pricing and removed old controls on both hosts. No orders saved or sent.');
           }finally{await browser.close();}

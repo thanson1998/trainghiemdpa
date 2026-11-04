@@ -97,6 +97,7 @@ beforeEach(()=>{
  sqlite.exec(fs.readFileSync('0027_portable_table_numbers.sql','utf8'));
  sqlite.exec(fs.readFileSync('0028_shift_backups.sql','utf8'));
  sqlite.exec(fs.readFileSync('0029_automatic_noon_shifts.sql','utf8'));
+ sqlite.exec(fs.readFileSync('0030_backup_retry_jobs.sql','utf8'));
 
  db={prepare(sql){const statement=sqlite.prepare(sql);const bound=(values=[])=>({bind(...args){return bound(args)},async all(){return{results:statement.all(...values)}},async first(){return statement.get(...values)??null},async run(){return{meta:{changes:statement.run(...values).changes}}}});return bound();},async batch(statements){sqlite.exec('BEGIN');try{const results=await Promise.all(statements.map(s=>s.all()));sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 });
