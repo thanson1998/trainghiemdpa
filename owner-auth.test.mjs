@@ -179,3 +179,30 @@ test('Google can link to the existing sole owner without changing password, sale
   await login(env);assert.equal((await call(env,'/api/catalog',undefined,local.token)).status,200);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM owner_account').get().n,1);
  }finally{globalThis.fetch=originalFetch;sqlite.close();}
 });
+
+test('Google failure diagnostics disclose a chosen email only after verifying its signature and never grant access',async()=>{
+ const {sqlite,env:base}=database(),env=googleEnv(base),originalFetch=globalThis.fetch;globalThis.fetch=googleKeys;
+ try{
+  const c=await challenge(env),token=await googleToken(c.nonce,{email:'different.owner.test@gmail.com'});
+  const denied=await call(env,'/api/auth/google',{challenge:c.challenge,credential:token});assert.equal(denied.status,403);
+  const body=await denied.json();assert.equal(body.code,'GOOGLE_EMAIL_MISMATCH');assert(body.error.includes('different.owner.test@gmail.com'));assert(!body.error.includes(googleEmail));
+  const parts=token.split('.');parts[1]=base64url({...JSON.parse(Buffer.from(parts[1],'base64url')),email:'forged-claim@gmail.com'});
+  const forged=await(await call(env,'/api/auth/google',{challenge:c.challenge,credential:parts.join('.')})).json();assert.equal(forged.code,'GOOGLE_SIGNATURE_INVALID');assert(!forged.error.includes('forged-claim@gmail.com'));
+  const expired=await(await call(env,'/api/auth/google',{challenge:c.challenge,credential:await googleToken(c.nonce,{iat:Math.floor(Date.now()/1000)-7200,exp:Math.floor(Date.now()/1000)-1})})).json();assert.equal(expired.code,'GOOGLE_TOKEN_EXPIRED');
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM owner_sessions').get().n,0);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM owner_account').get().n,0);
+ }finally{globalThis.fetch=originalFetch;sqlite.close();}
+});
+test('Google certificates outage is distinguished from wrong Gmail without accepting a token',async()=>{
+ const nonce='c'.repeat(64),nonceHash=createHash('sha256').update(nonce).digest('hex'),token=await googleToken(nonce),parts=token.split('.');
+ parts[0]=base64url({alg:'RS256',kid:'unknown-test-rotation-key'});
+ const result=await google.checkGoogleOwnerToken(parts.join('.'),{clientId:googleClientId,email:googleEmail},nonceHash,async()=>{throw Error('network offline');});
+ assert.deepEqual(result,{ok:false,code:'GOOGLE_CERTS_UNAVAILABLE'});
+});
+test('Google runtime health checks only public-key readiness and do not expose owner email or create sessions',async()=>{
+ const {sqlite,env:base}=database(),env=googleEnv(base),originalFetch=globalThis.fetch;globalThis.fetch=googleKeys;
+ try{
+  const r=await call(env,'/api/auth/google/health');assert.equal(r.status,200);assert.deepEqual(await r.json(),{ok:true});
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM owner_sessions').get().n,0);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM owner_account').get().n,0);
+  assert.equal((await call(base,'/api/auth/google/health')).status,503);
+ }finally{globalThis.fetch=originalFetch;sqlite.close();}
+});

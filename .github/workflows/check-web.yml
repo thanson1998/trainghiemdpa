@@ -30,7 +30,7 @@ jobs:
               html=await page.text();
               // Business routes must reject anonymous access without reading customer data.
               const route=await fetch(base+'/api/order-history?from=invalid&to=invalid',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              if(page.ok&&html.includes('name="dpa-release" content="owner-auth-v1"')&&route.status===401&&route.headers.get('x-dpa-ops')==='owner-auth-v1')break;
+              if(page.ok&&html.includes('name="dpa-release" content="owner-auth-v2"')&&route.status===401&&route.headers.get('x-dpa-ops')==='owner-auth-v2')break;
               if(attempt===29)throw Error('Current deployment is not ready.');
             }catch(e){if(attempt===29)throw e;}
             await new Promise(resolve=>setTimeout(resolve,6000));
@@ -46,6 +46,7 @@ jobs:
           if(!authResponse.ok)throw Error('Login storage is not ready');
           const auth=await authResponse.json();
           if(!auth.configured&&!auth.setupAvailable&&!auth.googleClientId)throw Error('Configure the owner Google login before activation');
+          if(auth.googleClientId){const keys=await fetch(base+'/api/auth/google/health',{signal:AbortSignal.timeout(20000)}),keyStatus=await keys.json();if(!keys.ok||!keyStatus.ok)throw Error('Google verifier runtime check failed: '+JSON.stringify(keyStatus));report.googleVerifier={ready:true};}
           const paths=[...html.matchAll(/(?:src|href)="(\.\/(?:assets\/[^"]+\.(?:js|css)|pos-menu-overview\.(?:js|css)[^"]*))"/g)].map(m=>m[1]);
           if(!paths.length)throw Error('Published application assets are missing.');
           for(const path of paths){

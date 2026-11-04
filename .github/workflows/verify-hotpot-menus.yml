@@ -18,7 +18,7 @@ jobs:
           node --input-type=module <<'JS'
           for(let attempt=0;attempt<30;attempt++){
             const r=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/catalog',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-            if(r.status===401&&r.headers.get('X-DPA-Ops')==='owner-auth-v1'){const body=await r.json();if(Object.keys(body).some(key=>key!=='error'))throw Error('Anonymous catalog response exposes fields');console.log('Private catalog is protected; menu contents are covered by local regression tests.');break;}
+            if(r.status===401&&r.headers.get('X-DPA-Ops')==='owner-auth-v2'){const body=await r.json();if(Object.keys(body).some(key=>key!=='error'))throw Error('Anonymous catalog response exposes fields');console.log('Private catalog is protected; menu contents are covered by local regression tests.');break;}
             if(attempt===29)throw Error('Private catalog is not ready');await new Promise(resolve=>setTimeout(resolve,6000));
           }
           JS

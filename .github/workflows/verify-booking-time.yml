@@ -30,7 +30,7 @@ jobs:
                 }
               }
               const response=await fetch('https://trainghiemdpa.thanson198.workers.dev/api/bookings?date=invalid',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-              if(response.status!==401||response.headers.get('X-DPA-Ops')!=='owner-auth-v1')throw Error('Portable table number API is not ready');
+              if(response.status!==401||response.headers.get('X-DPA-Ops')!=='owner-auth-v2')throw Error('Portable table number API is not ready');
               console.log('Verified: automatic end time, editable time fields and portable table number API on both hosts.');break;
             }catch(error){if(attempt===34)throw error;await new Promise(resolve=>setTimeout(resolve,12000));}
           }

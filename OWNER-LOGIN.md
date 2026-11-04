@@ -48,4 +48,8 @@ Cron chốt ca/sao lưu 12:00, giữ bản sao 60 ngày và thông báo theo c�
 
 ## Kiểm tra
 
+Lỗi đăng nhập Google có mã riêng cho Gmail không khớp, Client ID sai, token hết hạn, nonce không khớp, tải/đọc khóa lỗi và chữ ký không hợp lệ. Chỉ hiển thị Gmail vừa chọn sau khi chữ ký đã được xác minh; không công khai Gmail cho phép trong cấu hình, không lưu hay ghi log Google ID token. Không có tài khoản hay phiên nào được tạo khi xác thực bị từ chối.
+
+Endpoint GET `/api/auth/google/health` kiểm tra máy chủ tải và đọc được public key Google. Chỉ trả `ok` hoặc mã lỗi hạ tầng, không trả email, claims, khóa hay dữ liệu bán hàng; giới hạn 6 lần/15 phút theo IP và giới hạn tổng. Kiểm tra triển khai dùng endpoint này để phân biệt lỗi hạ tầng với lỗi chọn Gmail.
+
 Các kiểm thử auth và Google dùng SQLite trong bộ nhớ cùng khóa RSA giả lập Google để kiểm tra chữ ký thật, tài khoản được phép/bị từ chối, giả mạo/expired token, nonce/replay, thu hồi phiên, giới hạn thử sai, CORS và DB lỗi. Không tạo tài khoản/đơn/thanh toán trên hệ thống thật. Đăng nhập Google thực tế cần Client ID, Gmail cho phép và thử trực tiếp trên trình duyệt của chủ quán.

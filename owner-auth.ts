@@ -1,4 +1,4 @@
-import {googleOwnerConfig,verifyGoogleOwnerToken,type GoogleOwnerConfig} from './google-owner';
+import {googleOwnerConfig,checkGoogleOwnerToken,checkGoogleOwnerKeys,type GoogleOwnerConfig,type GoogleOwnerFailure} from './google-owner';
 export interface OwnerAuthEnv extends GoogleOwnerConfig {DB:D1Database;DPA_OWNER_SETUP_KEY?:string}
 export type OwnerIdentity={username:string;role:'owner';passwordEnabled:boolean};
 type Account={username:string;password_hash:string;version:number;google_subject?:string|null};
@@ -69,6 +69,11 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
   if(path==='/api/auth/me'&&request.method==='GET'){
    const user=await requireOwner(request,env);return user?out({user}):out({error:'Vui lòng đăng nhập tài khoản Chủ quán.'},401);
   }
+  if(path==='/api/auth/google/health'&&request.method==='GET'){
+   if(!googleOwnerConfig(env))return out({ok:false,code:'GOOGLE_NOT_CONFIGURED'},503);
+   if(await limited(request,env,'google-health',6,900))return out({error:'Thử kiểm tra lại sau ít phút.'},429);
+   const result=await checkGoogleOwnerKeys();return out(result,result.ok?200:503);
+  }
   if(!['/api/auth/setup','/api/auth/login','/api/auth/logout','/api/auth/password','/api/auth/recover','/api/auth/google/challenge','/api/auth/google'].includes(path))return out({error:'Không tìm thấy chức năng.'},404);
   if(request.method!=='POST')return out({error:'Chỉ hỗ trợ POST.'},405);
   if(!request.headers.get('Content-Type')?.toLowerCase().includes('application/json'))return out({error:'Yêu cầu phải là JSON.'},415);
@@ -88,8 +93,24 @@ export async function ownerAuthRoute(request:Request,env:OwnerAuthEnv):Promise<R
    if(typeof input.credential!=='string'||typeof input.challenge!=='string'||!/^[a-f0-9]{64}$/.test(input.challenge))return out({error:'Thông tin đăng nhập Google không hợp lệ.'},400);
    const idHash=await digest(input.challenge),stored=await env.DB.prepare('SELECT nonce_hash FROM owner_google_challenges WHERE id_hash=? AND expires_at>?').bind(idHash,now).first<{nonce_hash:string}>();
    if(!stored)return out({error:'Lượt đăng nhập Google đã hết hạn. Hãy thử lại.'},401);
-   const identity=await verifyGoogleOwnerToken(input.credential,config,stored.nonce_hash);
-   if(!identity)return out({error:'Không xác thực được Gmail Chủ quán. Hãy chọn đúng tài khoản Google đã được cho phép.'},403);
+   const checked=await checkGoogleOwnerToken(input.credential,config,stored.nonce_hash);
+   if(!checked.ok){
+    const messages:Record<GoogleOwnerFailure,string>={
+     GOOGLE_EMAIL_MISMATCH:'Gmail Google vừa xác minh không trùng với Gmail Chủ quán. Chọn lại tài khoản hoặc kiểm tra giá trị DPA_OWNER_EMAIL trên Cloudflare.',
+     GOOGLE_EMAIL_UNVERIFIED:'Google chưa xác minh được địa chỉ Gmail này. Hãy dùng tài khoản Gmail đã xác minh.',
+     GOOGLE_CLIENT_MISMATCH:'Google Client ID không khớp với máy chủ DPA. Tải lại trang và kiểm tra cấu hình Google Client ID trên Cloudflare.',
+     GOOGLE_TOKEN_EXPIRED:'Thông tin đăng nhập Google đã hết hạn hoặc thời gian không khớp. Bấm Thử lại Google để lấy lượt mới.',
+     GOOGLE_NONCE_MISMATCH:'Lượt xác thực Google không khớp với trang đang mở. Bấm Thử lại Google rồi đăng nhập lại.',
+     GOOGLE_CERTS_UNAVAILABLE:'Máy chủ DPA chưa tải được khóa xác thực từ Google. Hãy thử lại sau ít phút.',
+     GOOGLE_KEY_UNAVAILABLE:'Google đang thay đổi khóa xác thực. Bấm Thử lại Google để lấy thông tin mới.',
+     GOOGLE_KEY_IMPORT_FAILED:'Máy chủ chưa đọc được khóa xác thực Google. Cần kiểm tra khả năng xác thực của máy chủ.',
+     GOOGLE_SIGNATURE_INVALID:'Chữ ký đăng nhập Google không hợp lệ. Bấm Thử lại Google; hệ thống chưa cấp quyền truy cập.',
+     GOOGLE_TOKEN_INVALID:'Thông tin đăng nhập Google không hợp lệ. Bấm Thử lại Google.'
+    };
+    const infrastructure=['GOOGLE_CERTS_UNAVAILABLE','GOOGLE_KEY_UNAVAILABLE','GOOGLE_KEY_IMPORT_FAILED'].includes(checked.code);
+    return out({error:messages[checked.code]+(checked.verifiedEmail?' Gmail vừa chọn: '+checked.verifiedEmail+'.':'')+' ('+checked.code+')',code:checked.code},infrastructure?503:403);
+   }
+   const identity=checked.identity;
    const consumed=await env.DB.prepare('DELETE FROM owner_google_challenges WHERE id_hash=? AND expires_at>? RETURNING nonce_hash').bind(idHash,Math.floor(Date.now()/1000)).first();
    if(!consumed)return out({error:'Lượt đăng nhập này đã được sử dụng. Hãy thử lại.'},401);
    await env.DB.prepare("INSERT INTO owner_account(id,username,password_hash,version,updated_at,google_subject) VALUES(1,'owner','',1,?,?) ON CONFLICT(id) DO NOTHING").bind(new Date().toISOString(),identity.sub).run();
