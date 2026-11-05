@@ -15,13 +15,14 @@ function resolve(spec){
 }
 const logic=await import(resolve('./pos-logic')),menu=await import(resolve('./menu'));
 const {acknowledgePosSave,savePosInBackground}=await import(resolve('./pos-background-save'));
+const {editPosTicket,confirmPosDateChange,posBrowseBooking}=await import(resolve('./pos-date-scope'));
 const booking=()=>({...logic.newPosBooking('2026-11-06'),tables:['S1-01'],start:'18:00',end:'21:00',version:1,menu:menu.writeMenu([{name:'Gà',price:200000,quantity:1}])});
 // Execute the production scheduling effect with a controlled clock and save boundary.
 const source=fs.readFileSync('pos-panel.tsx','utf8');
 const effect=source.slice(source.indexOf(' useEffect(()=>{\n  if(busy||backgroundSaving||loading||!online'),source.indexOf(' useEffect(()=>{const key='));
 function harness(tickets){
  let cleanup;const timers=new Map(),calls=[];
- const context={...logic,state:{tickets,selected:tickets[0].booking.id},latest:{current:{tickets}},busy:false,backgroundSaving:false,loading:false,online:true,checkout:null,move:null,reversal:null,pendingCancel:null,pendingClose:'',reloadConfirm:false,recoveryOpen:false,inflight:{current:false},autoAttempts:{current:new Map()},saveRef:{current:(...args)=>calls.push(args)},setTimeout:(fn,ms)=>{assert.equal(ms,900);timers.set(fn,fn);return fn;},clearTimeout:id=>timers.delete(id),useEffect:fn=>{cleanup?.();cleanup=fn();}};
+ const context={...logic,state:{tickets,selected:tickets[0].booking.id},latest:{current:{tickets}},busy:false,backgroundSaving:false,loading:false,online:true,checkout:null,move:null,reversal:null,pendingCancel:null,pendingClose:'',reloadConfirm:false,recoveryOpen:false,pendingDate:null,inflight:{current:false},autoAttempts:{current:new Map()},saveRef:{current:(...args)=>calls.push(args)},setTimeout:(fn,ms)=>{assert.equal(ms,900);timers.set(fn,fn);return fn;},clearTimeout:id=>timers.delete(id),useEffect:fn=>{cleanup?.();cleanup=fn();}};
  return {context,calls,render:()=>vm.runInNewContext(effect,context),flush:()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}},pending:()=>timers.size};
 }
 test('rapid dish additions coalesce into one save of the latest quantities',()=>{
@@ -45,7 +46,7 @@ test('other tickets save after switching and stale timers cannot save removed or
 });
 test('invalid, paid, cancelled orders and payment or confirmation dialogs never auto save',()=>{
  for(const patch of [{tables:[]},{paidAt:new Date().toISOString()},{status:'cancelled'}]){const h=harness([{booking:{...booking(),...patch},saved:''}]);h.render();h.flush();assert.equal(h.calls.length,0);}
- for(const key of ['busy','backgroundSaving','loading','checkout','move','reversal','pendingCancel','pendingClose','reloadConfirm','recoveryOpen']){const h=harness([{booking:booking(),saved:''}]);h.context[key]=true;h.render();h.flush();assert.equal(h.calls.length,0,key);}
+ for(const key of ['busy','backgroundSaving','loading','checkout','move','reversal','pendingCancel','pendingClose','reloadConfirm','recoveryOpen','pendingDate']){const h=harness([{booking:booking(),saved:''}]);h.context[key]=true;h.render();h.flush();assert.equal(h.calls.length,0,key);}
 });
 
 test('slow background saves preserve dish edits and the next request includes those edits at the new version',async()=>{
@@ -85,4 +86,37 @@ test('failed or conflicting saves keep the draft; an accepted write retains its 
  await assert.rejects(savePosInBackground(submitted,async(path,options)=>options?.method==='POST'?Response.json({version:2}):Response.json({error:'Offline'},{status:503}),saved=>{ticket=acknowledgePosSave(ticket,submitted,saved);}),/chưa kiểm tra/);
  assert.equal(ticket.booking.version,2);assert.equal(ticket.booking.menu,submitted.menu);
  const newer={booking:{...submitted,version:5,name:'Server changed'},saved:''};assert.equal(acknowledgePosSave(newer,submitted,{...submitted,version:2}),newer);
+});
+
+test('viewing November 6 leaves two clean November 5 orders unchanged and sends no save',()=>{
+ const first={...booking(),date:'2026-11-05'},second={...booking(),date:'2026-11-05'};
+ const tickets=[first,second].map(booking=>({booking,saved:logic.posFingerprint(booking)})),before=JSON.stringify(tickets),h=harness(tickets);
+ for(const date of ['2026-11-06','2026-11-07','2026-11-05']){
+  h.context.date=date;
+  const preview=posBrowseBooking(first,date);assert.equal(preview.date,date);
+  h.render();h.flush();
+ }
+ assert.equal(JSON.stringify(tickets),before);assert.equal(h.calls.length,0);
+});
+test('editing dishes while viewing another day saves the order own date, not the viewed date',async()=>{
+ const submitted={...booking(),date:'2026-11-05'},edited=logic.posAppend(submitted,[{name:'Tôm',price:30000,quantity:1}]);
+ const preview=posBrowseBooking(edited,'2026-11-06');let posted;
+ assert.equal(preview.date,'2026-11-06');assert.equal(edited.date,'2026-11-05');
+ await savePosInBackground(edited,async(path,options)=>{
+  if(options?.method==='POST'){posted=JSON.parse(options.body);return Response.json({version:2});}
+  assert.equal(path,'/api/bookings?date=2026-11-05');return Response.json({bookings:[{...edited,version:2}]});
+ },()=>{});
+ assert.equal(posted.date,'2026-11-05');
+});
+test('a delayed field event after switching tickets edits only the originating order',()=>{
+ const first=booking(),second=booking(),state={tickets:[first,second].map(booking=>({booking,saved:logic.posFingerprint(booking)})),selected:second.id};
+ const next=editPosTicket(state,first.id,'date','2026-11-07');
+ assert.equal(next.tickets[0].booking.date,'2026-11-07');assert.equal(next.tickets[1],state.tickets[1]);assert.equal(next.selected,second.id);
+});
+test('an explicitly confirmed date change affects exactly one order and rejects a stale or paid ticket',()=>{
+ const first={...booking(),date:'2026-11-05'},second={...booking(),date:'2026-11-05'},state={tickets:[first,second].map(booking=>({booking,saved:logic.posFingerprint(booking)})),selected:second.id};
+ const change={id:first.id,from:'2026-11-05',to:'2026-11-06'},next=confirmPosDateChange(state,change);
+ assert.equal(next.tickets[0].booking.date,'2026-11-06');assert.equal(next.tickets[1],state.tickets[1]);assert.equal(state.tickets[0].booking.date,'2026-11-05');
+ assert.throws(()=>confirmPosDateChange(next,change),/Phiếu đã thay đổi/);
+ assert.throws(()=>confirmPosDateChange({...state,tickets:[{...state.tickets[0],booking:{...first,paidAt:new Date().toISOString()}}]},change),/Phiếu đã thay đổi/);
 });
