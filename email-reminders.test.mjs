@@ -30,7 +30,7 @@ test('email safely includes full shared content and escapes user text',()=>{
  const booking=b({name:'<img onerror=alert(1)>',note:'A & B'});
  const text=reports.telegramSummary([booking],at('2026-11-06T10:00:00')).text;
  const content=mod.reminderContent({kind:'interval',date:booking.date,key:'test',bookings:[],text});
- assert.equal(content.text,text);assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/Bàn 5/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
+ assert.equal(content.text,text);assert.match(content.text,/Mẹt xôi gà/);assert.match(content.text,/Thẻ 5/);assert.ok(!content.html.includes('<img'));assert.match(content.html,/&lt;img/);assert.match(content.html,/A &amp; B/);
 });
 test('arrival notices cross midnight, exclude serving, paid and takeaway and deduplicate',async()=>{
  const DB=db(),calls=[];DB.bookings=[b({date:'2026-11-07',start:'00:30',end:'02:00'})];

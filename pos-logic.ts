@@ -31,7 +31,7 @@ export function posIssue(b:Booking,action:'save'|'print'|'pay'|'move'='save'){
  if(isTakeaway(b)&&action==='move')return 'Đơn mang về không dùng chức năng chuyển bàn.';
  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.end))return 'Nhập giờ theo định dạng 24h, ví dụ 18:00.';
  if(b.end<=b.start)return 'Giờ kết thúc phải sau giờ bắt đầu (trong cùng ngày).';
- if(!readMenu(b.menu).some(i=>i.name.trim()))return 'Chọn ít nhất một món.';
+ if(!(action==='save'&&b.version>0)&&!readMenu(b.menu).some(i=>i.name.trim()))return 'Chọn ít nhất một món.';
  if(!validMenu(b.menu))return 'Kiểm tra tên món, số lượng và đơn giá.';
  if(b.priceMode!=='agreed'&&readMenu(b.menu).some(i=>!i.included&&i.price===null))return 'Nhập đủ giá món hoặc chọn giữ giá đã chốt.';
  if((b.deposit??0)>bookingTotal(b))return 'Tiền cọc đang lớn hơn tổng đơn. Kiểm tra giá hoặc tiền cọc.';
