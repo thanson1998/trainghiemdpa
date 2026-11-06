@@ -1,3 +1,4 @@
+import {redesignRestaurant} from './restaurant-layout';
 import {defaultZones,type Zone} from './model';
 import {z} from 'zod';
 const out=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
@@ -5,7 +6,14 @@ export type TableLayout={version:number;zones:Zone[]};
 export async function readTableLayout(db:D1Database):Promise<TableLayout>{
  const row=await db.prepare("SELECT data,version FROM table_layout WHERE id='dpa-shared'").first<{data:string;version:number}>();
  if(!row)throw Error('TABLE_LAYOUT_MISSING');
- return {zones:JSON.parse(row.data),version:row.version};
+ const zones=JSON.parse(row.data) as Zone[],next=redesignRestaurant(zones);
+ if(next!==zones){
+  const result=await db.prepare("UPDATE table_layout SET data=?,version=version+1,updated_at=? WHERE id='dpa-shared' AND version=?").bind(JSON.stringify(next),new Date().toISOString(),row.version).run();
+  if(result.meta.changes)return {zones:next,version:row.version+1};
+  const latest=await db.prepare("SELECT data,version FROM table_layout WHERE id='dpa-shared'").first<{data:string;version:number}>();
+  if(!latest)throw Error('TABLE_LAYOUT_MISSING');return {zones:JSON.parse(latest.data),version:latest.version};
+ }
+ return {zones,version:row.version};
 }
 export async function GET_LAYOUT(_req:Request,db:D1Database){try{return out(await readTableLayout(db));}catch{return out({error:'Chưa tải được cấu hình khu vực và bàn. Vui lòng tải lại.'},503);}}
 const schema=z.object({version:z.number().int().positive(),zones:z.array(z.object({id:z.string().max(30).optional(),title:z.string().trim().min(1).max(80),count:z.number().int().min(1).max(100),type:z.enum(['inside','outdoor','patio']),tableNames:z.array(z.string().trim().min(1).max(40)).max(100).optional()})).min(1).max(50)});
@@ -30,9 +38,10 @@ export async function SAVE_LAYOUT(req:Request,db:D1Database){
     const name=draft.tableNames?.[index]??existing?.tableNames?.[table]??(number?String(Number(number)).padStart(2,'0'):table);
     const key=name.normalize('NFC').toLocaleLowerCase('vi');if(seenNames.has(key))return out({error:'Tên bàn không được trùng nhau trong cùng khu vực.'},400);seenNames.add(key);tableNames[table]=name;
    }
-   next.push({id,title:draft.title,count:draft.count,type:draft.type,sub:existing?.sub||(draft.type==='inside'?'Không gian trong nhà':draft.type==='patio'?'Sân vườn':'Ngoài trời'),tables,tableNames});
+   next.push({...(existing?.retired?{retired:true}:{}),id,title:draft.title,count:draft.count,type:draft.type,sub:existing?.sub||(draft.type==='inside'?'Không gian trong nhà':draft.type==='patio'?'Sân vườn':'Ngoài trời'),tables,tableNames});
   }
-  if(current.zones.some(z=>!ids.has(z.id)))return out({error:'Không xóa khu vực hiện có. Bạn có thể đổi tên hoặc chỉnh số bàn.'},400);
+  if(current.zones.some(z=>!z.retired&&!ids.has(z.id)))return out({error:'Không xóa khu vực hiện có. Bạn có thể đổi tên hoặc chỉnh số bàn.'},400);
+  next.push(...current.zones.filter(z=>z.retired&&!ids.has(z.id)));
   const all=next.flatMap(z=>z.tables);if(all.length>1000||new Set(all).size!==all.length)return out({error:'Tối đa 1,000 bàn và mã bàn không được trùng.'},400);
   const result=await db.prepare("UPDATE table_layout SET data=?,version=version+1,updated_at=? WHERE id='dpa-shared' AND version=?").bind(JSON.stringify(next),new Date().toISOString(),input.version).run();
   if(!result.meta.changes)return out({error:'Sơ đồ vừa thay đổi. Tải lại trước khi lưu.'},409);

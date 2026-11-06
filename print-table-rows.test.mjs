@@ -2,8 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
+const planCode=ts.transpileModule(fs.readFileSync('restaurant-layout.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const planUrl='data:text/javascript;base64,'+Buffer.from(planCode).toString('base64');
 const modelCode=ts.transpileModule(fs.readFileSync('model.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const modelUrl='data:text/javascript;base64,'+Buffer.from(modelCode).toString('base64');
+const modelUrl='data:text/javascript;base64,'+Buffer.from(modelCode.replace("'./restaurant-layout'",JSON.stringify(planUrl))).toString('base64');
 const code=ts.transpileModule(fs.readFileSync('print-table-rows.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText.replace("'./model'",JSON.stringify(modelUrl));
 const {printedTableRows}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 test('two tables share one comma-separated print row',()=>{

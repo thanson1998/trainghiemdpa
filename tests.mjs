@@ -1218,7 +1218,7 @@ test('number-only labels preserve unique storage IDs and distinguish areas with 
  try{numberingModel.applyZones([...numberingModel.defaultZones,{id:'K1',title:'Sân Sau',sub:'Sân vườn',type:'patio',count:2,tables:['K1-01','K1-02']}]);
  for(const [id,label] of [['N1-01','01'],['S3-09','09'],['NTC-06','06'],['K1-01','01'],['7','07'],['20','20']])assert.equal(numberingModel.tableNumber(id),label);
  const tables=['N1-01','N2-01','NTC-01','K1-01'],copy=[...tables];const label=numberingModel.orderLocation({tables});
- for(const area of ['Trong nhà 1','Trong nhà 2','Nhà Tre Cao','Sân Sau'])assert.ok(label.includes(area));
+ for(const area of ['Nhà 1','Nhà 2','Nhà Tre Cao','Sân Sau'])assert.ok(label.includes(area));
  assert.ok(!/N1-|N2-|NTC-|K1-/.test(label));assert.deepEqual(tables,copy);assert.equal(new Set(numberingModel.tableIds).size,numberingModel.tableIds.length);
  assert.deepEqual(numberingModel.defaultZones.find(z=>z.id==='NTC').tables,['NTC-01','NTC-02','NTC-03','NTC-04','NTC-05','NTC-06']);
  }finally{numberingModel.applyZones(previous);}
@@ -1358,7 +1358,7 @@ test('portable number is printed while fixed seat numbers remain hidden',()=>{
  assert.deepEqual(b.tables,['S1-01','S1-02']);
 });
 
-test('seat picker keeps the same slots and only shows a portable number after assignment',async()=>{
+test('seat picker shows current positions and exposes legacy slots for existing assignments',async()=>{
  const pickerSource=fs.readFileSync('table-map-picker.tsx','utf8').replace("'./sync'",JSON.stringify(dataUrl('export async function apiRequest(){throw Error("not called during rendering");}')));
  const {TableMapPicker}=await import(dataUrl(compile(pickerSource)));
  const render=require('react-dom/server').renderToStaticMarkup,React=require('react');
@@ -1366,7 +1366,7 @@ test('seat picker keeps the same slots and only shows a portable number after as
  const empty=render(React.createElement(TableMapPicker,{booking:b,bookings:[],onChange(){}}));
  assert.ok(empty.includes('Trống'));assert.ok(!empty.includes('>01</span>'));assert.ok(!empty.includes('>07</span>'));
  const selected=render(React.createElement(TableMapPicker,{booking:{...b,tables:['S1-01'],tableLabel:'31'},bookings:[],onChange(){}}));
- assert.ok(selected.includes('Thẻ 31'));assert.equal((empty.match(/aria-pressed=/g)||[]).length,(selected.match(/aria-pressed=/g)||[]).length);
+ assert.ok(selected.includes('Thẻ 31'));assert.equal((selected.match(/aria-pressed=/g)||[]).length,(empty.match(/aria-pressed=/g)||[]).length+1);
  assert.deepEqual(b.tables,[]);
 });
 

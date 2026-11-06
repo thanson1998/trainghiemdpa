@@ -1,5 +1,6 @@
-export type Zone={id:string;title:string;sub:string;type:string;count:number;tables:string[];tableNames?:Record<string,string>};
-export const defaultZones:Zone[] = [
+import {redesignRestaurant} from './restaurant-layout';
+export type Zone={id:string;title:string;sub:string;type:string;count:number;tables:string[];tableNames?:Record<string,string>;retired?:boolean};
+const originalZones:Zone[] = [
  {id:'OUT',title:'Khu Bàn Đá',sub:'Ngoài trời',type:'outdoor',count:11,tables:Array.from({length:11},(_,i)=>String(i+7))},
  {id:'S3',title:'Sân nhà 3',sub:'Sân vườn',type:'patio',count:9,tables:Array.from({length:9},(_,i)=>`S3-0${i+1}`)},
  {id:'S2',title:'Sân nhà 2',sub:'Sân vườn',type:'patio',count:9,tables:Array.from({length:9},(_,i)=>`S2-0${i+1}`)},
@@ -11,6 +12,8 @@ export const defaultZones:Zone[] = [
  {id:'NTD',title:'Nhà Tre Dưới',sub:'Không gian trong nhà',type:'inside',count:10,tables:Array.from({length:10},(_,i)=>`NTD-${String(i+1).padStart(2,'0')}`)},
  {id:'FRONT',title:'Trước quầy',sub:'Trước quầy thanh toán',type:'outdoor',count:3,tables:['20','19','18']},
 ];
+export const defaultZones:Zone[]=redesignRestaurant(originalZones);
+export const mapZones=(used:string[]=[])=>zones.filter(z=>!z.retired||z.tables.some(id=>used.includes(id)));
 export const zones:Zone[]=defaultZones.map(z=>({...z,tables:[...z.tables]}));
 export const tableIds=zones.flatMap(z=>z.tables);
 export function applyZones(next:Zone[]){zones.splice(0,zones.length,...next.map(z=>({...z,tables:[...z.tables]})));tableIds.splice(0,tableIds.length,...zones.flatMap(z=>z.tables));}

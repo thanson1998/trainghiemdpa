@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && node build.mjs",
-    "test": "node --test tests.mjs email-reminders.test.mjs booking-time.test.mjs print-table-rows.test.mjs pos-ticket-fields.test.mjs catalog-ai.test.mjs mixed-sets.test.mjs telegram-reminders.test.mjs five-improvements.test.mjs backup-draft-reliability.test.mjs owner-auth.test.mjs owner-client.test.mjs pos-autosave.test.mjs",
+    "test": "node --test tests.mjs email-reminders.test.mjs booking-time.test.mjs print-table-rows.test.mjs pos-ticket-fields.test.mjs catalog-ai.test.mjs mixed-sets.test.mjs telegram-reminders.test.mjs five-improvements.test.mjs backup-draft-reliability.test.mjs owner-auth.test.mjs owner-client.test.mjs pos-autosave.test.mjs restaurant-layout.test.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "deploy": "node deploy.mjs",
     "verify:ai": "node verify-ai.mjs"
