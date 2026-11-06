@@ -224,3 +224,11 @@
 .restaurant-plan>.restaurant-tickets{grid-column:1/5;width:100%;min-width:0;box-sizing:border-box;justify-self:stretch;}
 .restaurant-plan.floorplan:not(.single-zone)>.map-stage,
 .restaurant-plan.mini-floor-map:not(.mini-single-zone)>.map-stage{grid-column:5/14;width:100%;max-width:none;min-width:0;box-sizing:border-box;justify-self:stretch;}
+
+/* Stage: 30% narrower, with the same height as the adjacent pool. */
+.floorplan.restaurant-plan:not(.single-zone){grid-template-rows:28px minmax(72px,auto) auto auto;}
+.restaurant-plan.floorplan:not(.single-zone)>.map-stage{width:70%;max-width:70%;height:72px;min-height:72px;justify-self:center;align-self:start;box-sizing:border-box;}
+.restaurant-plan.floorplan:not(.single-zone)>.restaurant-tickets{height:52px;min-height:52px;align-self:start;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone){grid-template-rows:24px minmax(56px,auto) auto auto;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone)>.map-stage{width:70%;max-width:70%;height:56px;min-height:56px;justify-self:center;align-self:start;box-sizing:border-box;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone)>.restaurant-tickets{height:40px;min-height:40px;align-self:start;}
