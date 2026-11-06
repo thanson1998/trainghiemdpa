@@ -203,3 +203,19 @@
 .booking-location-map .restaurant-plan .booking-location-table{min-height:28px;padding:3px 1px;font-size:9px;gap:2px;}
 .booking-location-map .restaurant-plan .booking-location-table svg{width:9px;height:9px;}
 .booking-location-map .restaurant-plan .booking-location-table .position-number{font-size:10px;line-height:14px;}
+
+/* Final overview adjustment: hide the retired S1 area and keep the pool beside the slide. */
+.restaurant-plan>.zone-S1,.restaurant-plan>.mini-zone-S1{display:none!important;}
+.zone-select option[value="S1"],select[aria-label="Khu vực POS"] option[value="S1"]{display:none;}
+.restaurant-plan>.restaurant-side{justify-content:flex-start;gap:10px;}
+.restaurant-plan.mini-floor-map .restaurant-side{justify-content:flex-start;gap:8px;}
+.restaurant-plan .restaurant-side>.restaurant-pool{margin-top:0;min-height:72px;}
+.restaurant-plan.mini-floor-map .restaurant-side>.restaurant-pool{margin-top:0;min-height:56px;}
+.restaurant-plan .zone-YARD .tables{grid-auto-rows:minmax(90px,auto);gap:8px 10px;}
+.restaurant-plan .table-wrap{grid-template-rows:11px minmax(50px,auto) 20px;gap:4px;}
+.restaurant-plan .table-wrap>.table-code{font-size:9px;line-height:11px;}
+.restaurant-plan .table-wrap>.dining-table{min-height:50px;padding:3px;gap:2px;}
+.restaurant-plan .table-wrap>.table-pay-button{min-height:20px;padding:2px 4px;line-height:14px;}
+.restaurant-plan :is(.zone-N3,.zone-N2,.zone-N1) .tables{gap:8px 6px;}
+.restaurant-plan.mini-floor-map .mini-zone-YARD .mini-zone-tables{grid-auto-rows:minmax(38px,auto);gap:7px 5px;}
+.restaurant-plan.mini-floor-map .mini-zone-tables>button{min-height:38px;padding:4px 3px;gap:2px;}
