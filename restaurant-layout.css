@@ -66,3 +66,66 @@
 .restaurant-plan.mini-floor-map .restaurant-side>.restaurant-slide{min-height:150px;}
 .restaurant-plan.mini-floor-map .restaurant-side>.restaurant-slide>b{font-size:10px;width:150px;top:43%;left:-9%;}
 .restaurant-plan.mini-floor-map .restaurant-side>.restaurant-pool{min-height:94px;border-radius:8px;font-size:13px;}
+
+/* Compact overview: readable table labels, smaller facilities, and an unclipped slide label. */
+.floorplan.restaurant-plan:not(.single-zone){min-width:900px;padding:16px 12px;grid-template-rows:28px 52px auto auto;gap:10px 8px;}
+.restaurant-plan .zone-YARD .tables{grid-auto-rows:minmax(102px,auto);gap:10px 12px;}
+.restaurant-plan .table-wrap{grid-template-rows:12px minmax(58px,auto) 22px;gap:5px;}
+.restaurant-plan .table-wrap>.table-code{font-size:9px;line-height:12px;letter-spacing:0;}
+.restaurant-plan .table-wrap>.dining-table{min-height:58px;padding:4px 3px;gap:2px;border-radius:8px;}
+.restaurant-plan .table-wrap>.dining-table>.position-number{font-size:12px;line-height:15px;}
+.restaurant-plan .table-wrap .guest-name{font-size:10px;line-height:1.25;}
+.restaurant-plan .table-wrap .platter-count{font-size:9px;line-height:1.3;}
+.restaurant-plan .table-wrap>.table-pay-button{min-height:22px;padding:3px 4px;font-size:9px;line-height:14px;border-radius:5px;}
+.restaurant-plan .dining-table svg,.restaurant-plan .table-pay-button svg{width:12px;height:12px;}
+.restaurant-plan .dining-table:before,.restaurant-plan .dining-table:after{width:18px;height:3px;}
+.restaurant-plan .dining-table:before{top:-4px;}
+.restaurant-plan .dining-table:after{bottom:-5px;}
+.restaurant-plan .zone-header{margin-bottom:8px;gap:6px;}
+.restaurant-plan .zone-header h2{font-size:12px;line-height:1.4;}
+.restaurant-plan .zone-header>span{font-size:10px;padding:2px 4px;}
+.restaurant-plan .zone-icon svg{width:13px;height:13px;}
+.restaurant-plan :is(.zone-N3,.zone-N2,.zone-N1){padding:8px 6px;}
+.restaurant-plan :is(.zone-N3,.zone-N2,.zone-N1) .tables{gap:10px 8px;}
+.restaurant-plan>.restaurant-road{font-size:12px;letter-spacing:1px;gap:10px;}
+.restaurant-plan>.restaurant-tickets{font-size:10px;padding:5px;border-top-width:5px;}
+.restaurant-plan.floorplan:not(.single-zone)>.map-stage{min-height:36px;padding:6px 8px;gap:5px;}
+.restaurant-plan .map-stage b{font-size:11px;letter-spacing:1px;}
+.restaurant-plan .map-stage svg{width:14px;height:14px;}
+.restaurant-plan .restaurant-side{gap:12px;}
+.restaurant-plan .restaurant-side>.restaurant-slide{
+ clip-path:none;min-height:104px;overflow:visible;display:grid;place-items:center;
+ padding:10px 7px;box-sizing:border-box;background:#e0f2fa;border:1px solid #98c8db;border-radius:8px;
+}
+.restaurant-plan .restaurant-side>.restaurant-slide>b{
+ position:static;left:auto;top:auto;transform:none;width:auto;max-width:100%;box-sizing:border-box;
+ font-size:11px;line-height:1.5;letter-spacing:.4px;text-align:center;white-space:normal;overflow-wrap:normal;
+}
+.restaurant-plan .restaurant-side>.restaurant-pool{min-height:90px;font-size:12px;gap:4px;border-width:1px;border-radius:8px;}
+.restaurant-plan .restaurant-side>.restaurant-pool>span{font-size:18px;letter-spacing:2px;}
+.restaurant-plan.floorplan:not(.single-zone)>.map-kitchen{min-height:56px;padding:8px 4px;font-size:11px;gap:5px;border-width:1px;}
+.restaurant-plan .map-kitchen svg{width:16px;height:16px;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone){min-width:560px;grid-template-rows:24px 40px auto auto;gap:8px 5px;}
+.restaurant-plan.mini-floor-map .mini-zone-YARD .mini-zone-tables{grid-auto-rows:minmax(42px,auto);gap:8px 6px;}
+.restaurant-plan.mini-floor-map .mini-zone-tables>button{min-height:42px;padding:5px 3px;gap:2px;border-radius:5px;}
+.restaurant-plan.mini-floor-map .mini-zone-tables>button .position-number{font-size:11px;line-height:14px;margin:0 0 2px;}
+.restaurant-plan.mini-floor-map .mini-zone-tables>button>span>span{font-size:9px;line-height:1.3;}
+.restaurant-plan.mini-floor-map .mini-zone-tables>button>svg{width:8px;height:8px;top:3px;right:3px;}
+.restaurant-plan.mini-floor-map .mini-zone h3{font-size:10px;line-height:1.4;margin-bottom:6px;}
+.restaurant-plan.mini-floor-map :is(.mini-zone-N3,.mini-zone-N2,.mini-zone-N1){padding:6px 4px;}
+.restaurant-plan.mini-floor-map :is(.mini-zone-N3,.mini-zone-N2,.mini-zone-N1) .mini-zone-tables{gap:6px 4px;}
+.restaurant-plan.mini-floor-map>.restaurant-road{font-size:10px;letter-spacing:.5px;}
+.restaurant-plan.mini-floor-map>.restaurant-tickets{font-size:8px;padding:4px;border-top-width:4px;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone)>.map-stage{min-height:28px;padding:4px 3px;}
+.restaurant-plan.mini-floor-map .map-stage b{font-size:9px;letter-spacing:.5px;}
+.restaurant-plan.mini-floor-map .map-stage svg{width:11px;height:11px;}
+.restaurant-plan.mini-floor-map .restaurant-side>.restaurant-slide{min-height:70px;padding:7px 4px;}
+.restaurant-plan.mini-floor-map .restaurant-side>.restaurant-slide>b{position:static;transform:none;left:auto;top:auto;width:auto;max-width:100%;font-size:9px;line-height:1.5;letter-spacing:0;}
+.restaurant-plan.mini-floor-map .restaurant-side>.restaurant-pool{min-height:62px;font-size:10px;gap:3px;}
+.restaurant-plan.mini-floor-map .restaurant-side>.restaurant-pool>span{font-size:14px;letter-spacing:1px;}
+.restaurant-plan.mini-floor-map:not(.mini-single-zone)>.map-kitchen{min-height:42px;padding:6px 3px;font-size:10px;gap:4px;}
+.restaurant-plan.mini-floor-map .map-kitchen svg{width:12px;height:12px;}
+.booking-location-map .restaurant-plan .booking-location-table{min-height:28px;padding:3px 1px;font-size:9px;gap:2px;}
+.booking-location-map .restaurant-plan .booking-location-table svg{width:9px;height:9px;}
+.booking-location-map .restaurant-plan .booking-location-table .position-number{font-size:10px;line-height:14px;}
+

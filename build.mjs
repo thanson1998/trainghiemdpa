@@ -12,7 +12,7 @@ html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20
 html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261104-set-labels"/><script defer src="./kitchen-print-layout.js?v=20261104-set-labels"></script></head>');
 html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261104-edit-time"></script></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261104-end-table&controls=20261105"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261104-end-table&controls=20261105&mapcompact=20261106"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
 html=html.replace('</head>','<script defer src="./checkout-bill-print.js?v=20261031-1"></script></head>');
 // Hashed JS, CSS and artwork can be cached independently across visits.
 // Keep the same relative asset paths for GitHub Pages and the Worker.
