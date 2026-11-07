@@ -1,3 +1,10 @@
+/* Unpaid bills are available before the cashier confirms payment. */
+.pos-checkout-with-bill>header{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:start;gap:12px}
+.pos-checkout-with-bill>header>div{min-width:0}
+.pos-checkout-with-bill>header>.checkout-header-print{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:132px;min-height:44px;padding:10px 18px;white-space:nowrap;font-size:14px}
+.pos-checkout-with-bill .checkout-print-source{display:none!important}
+@media(max-width:600px){.pos-checkout-with-bill>header{grid-template-columns:minmax(0,1fr) auto;gap:8px}.pos-checkout-with-bill>header>div{grid-column:1/-1}.pos-checkout-with-bill>header>.checkout-header-print{justify-self:start}}
+@media print{.checkout-header-print{display:none!important}}
 /* Keep the 80 mm bill readable without changing its amounts or payment details. */
 .checkout-bill .checkout-bill-table{table-layout:auto;width:100%;border-collapse:collapse;font:12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:0}
 .checkout-bill .checkout-bill-table th,.checkout-bill .checkout-bill-table td{box-sizing:border-box;padding:7px 2px;vertical-align:top}

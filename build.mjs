@@ -9,11 +9,11 @@ html=html.replace('</head>','<link rel="preconnect" href="https://trainghiemdpa.
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-layout-fix.css?v=20261025-1"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-menu-overview.css?v=20261107-toolbar-actions"/><script defer src="./pos-menu-overview.js?v=20261107-toolbar-actions"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20261026-3"/></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261107-before-payment"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261104-set-labels"/><script defer src="./kitchen-print-layout.js?v=20261104-set-labels"></script></head>');
 html=html.replace('</head>','<script defer src="./booking-time-defaults.js?v=20261104-edit-time"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-ticket-edit.css?v=20261104-end-table&controls=20261105&mapcompact=20261106-4"/><script defer src="./pos-ticket-edit.js?v=20261030-12"></script></head>');
-html=html.replace('</head>','<script defer src="./checkout-bill-print.js?v=20261031-1"></script></head>');
+html=html.replace('</head>','<script defer src="./checkout-bill-print.js?v=20261107-before-payment"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./payment-save-image.css?v=20261107-1"/><script defer src="./payment-save-image.js?v=20261107-1"></script></head>');
 for(const file of ['payment-save-image.js','payment-save-image.css','payment-image-canvas.js'])fs.copyFileSync(file,'dist/'+file);
 // Hashed JS, CSS and artwork can be cached independently across visits.

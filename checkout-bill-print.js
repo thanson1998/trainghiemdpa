@@ -106,3 +106,26 @@
   finally{button.disabled=false;button.textContent=label;active.delete(overlay);}
  },true);
 })();
+
+// Offer the existing unpaid-bill preview at the top of the checkout dialog.
+(()=>{
+ let pending=false;
+ const sync=()=>{
+  pending=false;
+  document.querySelectorAll('.pos-checkout-with-bill').forEach(dialog=>{
+   const header=dialog.querySelector(':scope>header'),source=dialog.querySelector('.checkout-print-button');
+   if(!header||!source)return;
+   let button=header.querySelector('.checkout-header-print');
+   if(!button){
+    button=document.createElement('button');button.type='button';button.className='primary-btn checkout-header-print';
+    button.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/></svg><span>In bill</span>';
+    button.addEventListener('click',()=>{const action=dialog.querySelector('.checkout-print-button');if(action&&!action.disabled)action.click();});
+    header.insertBefore(button,header.querySelector(':scope>button'));
+   }
+   if(button.disabled!==source.disabled)button.disabled=source.disabled;
+   source.classList.add('checkout-print-source');
+  });
+ };
+ const schedule=()=>{if(!pending){pending=true;requestAnimationFrame(sync);}};
+ new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});sync();
+})();
