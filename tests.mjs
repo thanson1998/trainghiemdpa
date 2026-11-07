@@ -1383,3 +1383,15 @@ test('portable-number migration keeps existing reservations, history and table-l
   assert.deepEqual(legacy.prepare('SELECT * FROM table_layout').all(),layout);
  }finally{legacy.close();}
 });
+
+test('automatic order total keeps every dong instead of multiplying a rounded per-seat price',async()=>{
+ const model=await import(modelUrl);
+ const value=menu.writeMenu([{name:'Coca',price:15000,quantity:6},{name:'Nước cam',price:15000,quantity:5},{name:'Nước lọc',price:10000,quantity:2},{name:'Trà sâm dứa',price:20000,quantity:1},{name:'Bia',price:18000,quantity:3}],{name:'3 lẩu + 1 xôi',pricePerTable:4000000,quantity:1});
+ const b=booking({tables:['S1-01','S1-02','S1-03','S1-04','S1-05','S1-06'],price:709833,priceMode:'auto',menu:value,deposit:100000});
+ assert.equal(menu.menuSum(value,6),4259000);
+ assert.equal(model.bookingTotal(b),4259000);
+ assert.equal(model.balanceDue(b),4159000);
+ assert.equal(model.bookingTotal({...b,tables:b.tables.slice(0,3)}),4259000);
+ assert.equal(model.bookingTotal({...b,priceMode:'agreed'}),4258998);
+ assert.equal(model.balanceDue({...b,paidAt:'2026-11-07T00:00:00Z'}),0);
+});

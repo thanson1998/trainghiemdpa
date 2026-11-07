@@ -1,4 +1,5 @@
 import {redesignRestaurant} from './restaurant-layout';
+import {menuSum} from './menu';
 export type Zone={id:string;title:string;sub:string;type:string;count:number;tables:string[];tableNames?:Record<string,string>;retired?:boolean};
 const originalZones:Zone[] = [
  {id:'OUT',title:'Khu Bàn Đá',sub:'Ngoài trời',type:'outdoor',count:11,tables:Array.from({length:11},(_,i)=>String(i+7))},
@@ -34,12 +35,11 @@ export const statusNames={reserved:'Đã đặt',arrived:'Đang phục vụ',com
 
 export const isTakeaway=(b:Pick<Booking,'serviceType'>)=>b.serviceType==='takeaway';
 export const orderUnits=(b:Pick<Booking,'serviceType'|'tables'>)=>isTakeaway(b)?1:b.tables.length;
-export const bookingTotal=(b:Pick<Booking,'price'|'tables'|'serviceType'>)=>b.price*orderUnits(b);
+export const bookingTotal=(b:Pick<Booking,'price'|'tables'|'serviceType'>&Partial<Pick<Booking,'menu'|'priceMode'>>)=>b.priceMode==='auto'&&typeof b.menu==='string'?menuSum(b.menu,orderUnits(b)):b.price*orderUnits(b);
 export const normalizeTableLabel=(value:string)=>value.trim()?value.trim().split(/[\s,;]+/).filter(Boolean).map(n=>/^\d{1,4}$/.test(n)?String(Number(n)):n).join(', '):'';
 export function validTableLabel(value:string){const label=normalizeTableLabel(value);if(!label)return true;const parts=label.split(', ');return parts.length<=100&&parts.every(n=>/^[1-9]\d{0,3}$/.test(n))&&new Set(parts).size===parts.length&&label.length<=500;}
 export const portableTableText=(b:Pick<Booking,'tableLabel'>)=>b.tableLabel?.trim()?'Thẻ '+normalizeTableLabel(b.tableLabel):'Chưa gán số thẻ';
 export const orderLocation=(b:Pick<Booking,'serviceType'|'tables'|'tableLabel'>)=>isTakeaway(b)?'MANG VỀ':portableTableText(b)+(b.tables.length?' · '+[...new Set(b.tables.map(id=>zoneOf(id)?.title||'Khu khác'))].join(', '):'');
 export const guestCount=(booking:Pick<Booking,'people'|'tables'|'totalPeople'|'serviceType'>)=>booking.totalPeople??booking.people*orderUnits(booking);
 
-export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'|'serviceType'>&Partial<Pick<Booking,'status'>>)=>b.paidAt||b.status==='cancelled'?0:Math.max(0,bookingTotal(b)-(b.deposit??0));
-
+export const balanceDue=(b:Pick<Booking,'price'|'tables'|'deposit'|'paidAt'|'serviceType'>&Partial<Pick<Booking,'status'|'menu'|'priceMode'>>)=>b.paidAt||b.status==='cancelled'?0:Math.max(0,bookingTotal(b)-(b.deposit??0));
