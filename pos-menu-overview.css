@@ -351,6 +351,24 @@
  background:#f7fbf7;border:1px dashed #719980;box-shadow:-8px 0 8px #f4f8f4;
 }
 .pos-panel>.pos-ticket-tabs>.pos-new-ticket svg{flex-shrink:0}
+.pos-panel>.pos-ticket-tabs>.pos-new-ticket-source{display:none!important}
+.pos-panel .pos-top-tools{display:flex;gap:6px;flex-shrink:0}
+.pos-panel .pos-top-tools>.secondary-btn{
+ display:inline-flex;align-items:center;justify-content:center;gap:6px;
+ width:132px;min-width:132px;height:40px;min-height:40px;padding:6px 10px;
+ box-sizing:border-box;font-size:12px;line-height:20px;white-space:nowrap;
+}
+.pos-panel .pos-top-tools>.pos-new-ticket-toolbar{background:#f7fbf7;border:1px dashed #719980;color:#245337}
+.pos-panel .pos-top-tools>.secondary-btn svg{flex-shrink:0}
+@media screen and (min-width:801px){
+ .app-shell.pos-active .pos-panel{grid-template-columns:155px minmax(0,1fr) 546px}
+}
+@media screen and (max-width:800px){
+ .pos-panel .pos-topline{flex-wrap:wrap}
+ .pos-panel .pos-top-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
+ .pos-panel .pos-top-tools>.secondary-btn{width:100%;min-width:0;font-size:11px;padding:6px}
+}
+@media screen and (max-width:480px){.pos-panel .pos-top-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Selected dish rows use about two thirds of their previous desktop height. */
 @media screen and (min-width:801px){
  .pos-workbench .pos-cart .pos-cart-items{row-gap:3px!important}

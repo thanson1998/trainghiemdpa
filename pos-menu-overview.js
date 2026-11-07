@@ -27,3 +27,22 @@
  for(const event of ['input','change','toggle'])document.addEventListener(event,changed,true);
  window.addEventListener('resize',schedule);void document.fonts.ready.then(schedule);schedule();
 })();
+
+// Keep the React-owned new-ticket action intact; expose it beside recovery.
+(()=>{
+ let scheduled=false;
+ function sync(){
+  scheduled=false;
+  document.querySelectorAll('.pos-panel').forEach(panel=>{
+   const tools=panel.querySelector('.pos-top-tools'),source=panel.querySelector('.pos-ticket-tabs>.pos-new-ticket');
+   if(!tools||!source)return;
+   let button=tools.querySelector('.pos-new-ticket-toolbar');
+   if(!button){button=document.createElement('button');button.type='button';button.className='secondary-btn pos-new-ticket pos-new-ticket-toolbar';button.innerHTML=source.innerHTML;button.addEventListener('click',()=>{const original=panel.querySelector('.pos-ticket-tabs>.pos-new-ticket');if(original&&!original.disabled)original.click();});tools.prepend(button);}
+   if(button.disabled!==source.disabled)button.disabled=source.disabled;
+   source.classList.add('pos-new-ticket-source');
+  });
+ }
+ const schedule=()=>{if(!scheduled){scheduled=true;requestAnimationFrame(sync);}};
+ new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled']});
+ sync();
+})();
