@@ -320,6 +320,36 @@
  .pos-workbench .pos-cart-head .pos-ticket-customer label{gap:3px!important;font-size:10px!important}
 }
 
+/* Keep the order strip readable when its horizontal scrollbar appears. */
+.pos-panel>.pos-ticket-tabs{
+ flex-shrink:0;min-width:0;min-height:60px;height:60px;max-height:none;
+ align-items:flex-start;overflow-x:auto;overflow-y:hidden;box-sizing:border-box;
+ padding:2px 0 0;margin-bottom:4px;gap:6px;isolation:isolate;
+ scroll-padding-inline:8px 124px;overscroll-behavior-x:contain;
+}
+.pos-panel>.pos-ticket-tabs>div{
+ flex:0 0 auto;min-width:156px;max-width:284px;height:40px;
+ box-sizing:border-box;overflow:hidden;
+}
+.pos-panel>.pos-ticket-tabs>div>button:first-child{
+ display:block;flex:1;min-width:0;max-width:250px;height:36px;
+ min-height:36px;padding:3px 8px;text-align:left;white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis;line-height:16px;font-size:12px;
+}
+.pos-panel>.pos-ticket-tabs>div>button:first-child small{
+ display:block;font-size:10px;font-weight:400;line-height:12px;white-space:nowrap;
+}
+.pos-panel>.pos-ticket-tabs>div>button:last-child{
+ flex:0 0 28px;min-width:28px;min-height:36px;height:36px;padding:4px;
+ display:grid;place-items:center;
+}
+.pos-panel>.pos-ticket-tabs>.pos-new-ticket{
+ position:sticky;right:0;z-index:2;flex:0 0 116px;min-width:116px;
+ height:40px;min-height:40px;box-sizing:border-box;justify-content:center;
+ padding:6px 10px;white-space:nowrap;font-size:12px;line-height:20px;
+ background:#f7fbf7;border:1px dashed #719980;box-shadow:-8px 0 8px #f4f8f4;
+}
+.pos-panel>.pos-ticket-tabs>.pos-new-ticket svg{flex-shrink:0}
 /* Selected dish rows use about two thirds of their previous desktop height. */
 @media screen and (min-width:801px){
  .pos-workbench .pos-cart .pos-cart-items{row-gap:3px!important}
