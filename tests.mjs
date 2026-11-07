@@ -1395,3 +1395,36 @@ test('automatic order total keeps every dong instead of multiplying a rounded pe
  assert.equal(model.bookingTotal({...b,priceMode:'agreed'}),4258998);
  assert.equal(model.balanceDue({...b,paidAt:'2026-11-07T00:00:00Z'}),0);
 });
+
+const productReports=await import(dataUrl(compile(fs.readFileSync('payment-products-report.ts','utf8'))));
+test('product dashboard counts set dishes without allocating or double-counting set revenue',()=>{
+ const value=menu.writeMenu([{name:'Gà',price:null,included:true,quantity:3,unit:'đĩa'},{name:'Gà',price:200000,quantity:2,unit:'đĩa'},{name:'Coca',price:15000,quantity:6,unit:'lon'}],{name:'Tiệc',pricePerTable:1000000,quantity:3});
+ const payment={booking:booking({id:'product-report',menu:value,status:'completed'}),total:3490000,deposit:500000,received:2990000,tendered:3000000,method:'cash',paidAt:'2026-11-07T03:00:00Z'};
+ const filter={from:'2026-11-01',to:'2026-11-30',dateBy:'paidAt'};
+ const r=productReports.paymentProductsReport([payment,payment],filter);
+ assert.equal(r.orders,1);assert.equal(r.revenue,3490000);assert.equal(r.revenueByProducts,3490000);assert.equal(r.adjustment,0);assert.equal(r.received,2990000);assert.equal(r.deposit,500000);
+ const chicken=r.rows.find(x=>x.name==='Gà');assert.equal(chicken.quantity,5);assert.equal(chicken.includedQuantity,3);assert.equal(chicken.revenue,400000);assert.equal(chicken.orders,1);assert.equal(r.sets[0].revenue,3000000);assert.equal(r.bestSellers[0].name,'Coca');assert.equal(r.topRevenue[0].name,'Gà');
+});
+test('product dashboard separates units, preserves paid totals and accounts for agreed-price differences',()=>{
+ const p={booking:booking({id:'report-agreed',menu:menu.writeMenu([{name:'Nước',price:10000,quantity:2,unit:'chai'},{name:'nước',price:20000,quantity:1,unit:'ca'},{name:'Món chốt',price:null,quantity:1}]),status:'completed'}),total:50000,deposit:0,received:50000,tendered:100000,method:'transfer',paidAt:'2026-11-07T01:00:00Z'};
+ const r=productReports.paymentProductsReport([p],{from:'2026-11-07',to:'2026-11-07',dateBy:'paidAt'});assert.equal(r.rows.length,3);assert.equal(r.adjustment,10000);assert.equal(r.unpricedLines,1);assert.equal(r.methods.transfer.revenue,50000);assert.equal(r.methods.transfer.received,50000);assert.equal(r.days[0].revenue,50000);assert.equal(r.average,50000);
+});
+test('product dashboard honors Vietnam payment dates, service dates, cancellations and latest payment snapshots',()=>{
+ const base={booking:booking({id:'report-date',date:'2026-11-06',status:'completed',menu:menu.writeMenu([{name:'Cơm',price:10000}])}),total:10000,deposit:0,received:10000,tendered:10000,method:'cash',paidAt:'2026-11-06T18:00:00Z'};
+ const paidFilter={from:'2026-11-07',to:'2026-11-07',dateBy:'paidAt'};assert.equal(productReports.paymentProductsReport([base],paidFilter).orders,1);assert.equal(productReports.paymentProductsReport([base],{...paidFilter,dateBy:'bookingDate'}).orders,0);
+ assert.equal(productReports.paymentProductsReport([{...base,booking:{...base.booking,status:'cancelled'}}],paidFilter).orders,0);
+ const newer={...base,paidAt:'2026-11-06T19:00:00Z',total:9000,received:9000};const r=productReports.paymentProductsReport([newer,base],paidFilter);assert.equal(r.orders,1);assert.equal(r.revenue,9000);assert.equal(r.adjustment,-1000);
+ const empty=productReports.paymentProductsReport([],paidFilter);assert.equal(empty.average,0);assert.deepEqual(empty.bestSellers,[]);
+});
+test('product dashboard limits rankings to ten and keeps all set-part revenue reconciled',()=>{
+ const m=menu.writeMenu(Array.from({length:15},(_,i)=>({name:'Món '+i,price:10000,quantity:i+1})),{name:'Hai set',pricePerTable:3000000,quantity:1,parts:[{name:'Lẩu',pricePerTable:1000000,quantity:2},{name:'Xôi',pricePerTable:1000000,quantity:1}]});const p={booking:booking({id:'report-top',menu:m,status:'completed'}),total:4200000,deposit:0,received:4200000,tendered:4200000,method:'cash',paidAt:'2026-11-07T01:00:00Z'};
+ const r=productReports.paymentProductsReport([p],{from:'2026-11-07',to:'2026-11-07',dateBy:'paidAt'});assert.equal(r.bestSellers.length,10);assert.equal(r.topRevenue.length,10);assert.equal(r.bestSellers[0].quantity,15);assert.equal(r.sets.length,2);assert.equal(r.revenueByProducts,4200000);assert.equal(r.adjustment,0);
+});
+
+test('product dashboard renders readable rankings, reconciliation and safe loading/empty states',async()=>{
+ const component=await import(dataUrl(compile(fs.readFileSync('payment-products-dashboard.tsx','utf8'))));const render=props=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(component.PaymentProductsDashboard,props));const props={payments:[],filter:{from:'2026-11-01',to:'2026-11-07',dateBy:'paidAt'},loading:false,error:''};
+ const empty=render(props);assert.match(empty,/Chưa có hóa đơn đã thanh toán/);assert.match(empty,/Thống kê món bán/);assert.match(empty,/disabled/);
+ assert.match(render({...props,loading:true}),/Đang tổng hợp/);assert.match(render({...props,error:'offline'}),/Chưa có dữ liệu đáng tin cậy/);
+ const p={booking:booking({id:'ui-report',menu:menu.writeMenu([{name:'Coca',price:15000,quantity:2,unit:'lon'}]),status:'completed'}),total:30000,deposit:0,received:30000,tendered:30000,method:'cash',paidAt:'2026-11-07T01:00:00Z'};
+ const html=render({...props,payments:[p]});for(const text of ['Top 10 món bán chạy','Top 10 doanh thu món','Chi tiết doanh thu sản phẩm','Doanh thu theo ngày','Phương thức &amp; đối chiếu doanh thu','Coca'])assert.ok(html.includes(text),text);assert.ok(!html.includes('NaN'));assert.ok(!html.includes('Infinity'));
+});
