@@ -7,7 +7,7 @@ html=html.replace(/<link rel="icon"[^>]*>/,'<link rel="icon" href="./favicon.svg
 // Load ticket layout safeguards last, identically on Pages and the Worker.
 html=html.replace('</head>','<link rel="preconnect" href="https://trainghiemdpa.thanson198.workers.dev" crossorigin/><link rel="dns-prefetch" href="https://trainghiemdpa.thanson198.workers.dev"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./pos-layout-fix.css?v=20261025-1"/></head>');
-html=html.replace('</head>','<link rel="stylesheet" href="./pos-menu-overview.css?v=20261107-order-tabs"/><script defer src="./pos-menu-overview.js?v=20261028-perf1"></script></head>');
+html=html.replace('</head>','<link rel="stylesheet" href="./pos-menu-overview.css?v=20261107-order-tabs-tight"/><script defer src="./pos-menu-overview.js?v=20261028-perf1"></script></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./admin-space.css?v=20261026-3"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./receipt-alignment.css?v=20261029-1"/></head>');
 html=html.replace('</head>','<link rel="stylesheet" href="./kitchen-print-layout.css?v=20261104-set-labels"/><script defer src="./kitchen-print-layout.js?v=20261104-set-labels"></script></head>');

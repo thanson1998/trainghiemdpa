@@ -322,11 +322,12 @@
 
 /* Keep the order strip readable when its horizontal scrollbar appears. */
 .pos-panel>.pos-ticket-tabs{
- flex-shrink:0;min-width:0;min-height:60px;height:60px;max-height:none;
+ flex-shrink:0;min-width:0;min-height:40px;height:auto;max-height:none;
  align-items:flex-start;overflow-x:auto;overflow-y:hidden;box-sizing:border-box;
- padding:2px 0 0;margin-bottom:4px;gap:6px;isolation:isolate;
+ padding:0;margin-bottom:0;gap:6px;isolation:isolate;scrollbar-width:thin;
  scroll-padding-inline:8px 124px;overscroll-behavior-x:contain;
 }
+.pos-panel>.pos-ticket-tabs::-webkit-scrollbar{height:6px}
 .pos-panel>.pos-ticket-tabs>div{
  flex:0 0 auto;min-width:156px;max-width:284px;height:40px;
  box-sizing:border-box;overflow:hidden;
